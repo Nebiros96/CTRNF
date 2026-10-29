@@ -24,6 +24,7 @@ CSV_FIELDS = (
     "time_raw",
     "time_seconds",
     "pb",
+    "delta_pb",
     "captured_at",
 )
 
@@ -178,9 +179,60 @@ def ensure_pb_column(path: Path) -> dict[str, float]:
     return best_by_track
 
 
+def ensure_delta_pb_column(path: Path) -> None:
+    """Backfill each attempt's delta from the PB that existed before it."""
+    if not path.exists() or path.stat().st_size == 0:
+        return
+    delimiter = csv_delimiter(path)
+    with path.open("r", newline="", encoding="utf-8-sig") as csv_file:
+        reader = csv.DictReader(csv_file, delimiter=delimiter)
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
+    if not fieldnames or "track" not in fieldnames or "time_seconds" not in fieldnames:
+        raise ValueError("El CSV de tiempos no tiene columnas track y time_seconds.")
+    if "delta_pb" in fieldnames:
+        return
+
+    previous_best: dict[str, float] = {}
+    deltas: dict[int, str] = {}
+    ordered = sorted(
+        enumerate(rows),
+        key=lambda pair: int(pair[1].get("id", "")) if pair[1].get("id", "").isdigit() else pair[0],
+    )
+    for index, row in ordered:
+        track = (row.get("track") or "").strip()
+        try:
+            seconds = float(row.get("time_seconds", ""))
+        except (TypeError, ValueError):
+            deltas[index] = ""
+            continue
+        if not track or track.casefold() in {"null", "none"}:
+            deltas[index] = ""
+            continue
+        prior_pb = previous_best.get(track)
+        deltas[index] = f"{(seconds - prior_pb) if prior_pb is not None else 0.0:.2f}"
+        if prior_pb is None or seconds < prior_pb:
+            previous_best[track] = seconds
+
+    if "captured_at" in fieldnames:
+        fieldnames.insert(fieldnames.index("captured_at"), "delta_pb")
+    else:
+        fieldnames.append("delta_pb")
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    with temp_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames, delimiter=delimiter)
+        writer.writeheader()
+        for index, row in enumerate(rows):
+            updated = {field: row.get(field, "") for field in fieldnames}
+            updated["delta_pb"] = deltas.get(index, "")
+            writer.writerow(updated)
+    os.replace(temp_path, path)
+
+
 def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[str, str]:
     seconds = parse_time(raw_time)
     best_by_track = ensure_pb_column(csv_path)
+    ensure_delta_pb_column(csv_path)
     track = (track or "").strip()
     skin = (skin or "").strip()
     if not track or track.casefold() in {"null", "none"}:
@@ -195,6 +247,7 @@ def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[st
         skin_id = str(skin_ids.get(skin, max(skin_ids.values(), default=0) + 1))
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     needs_header = not csv_path.exists() or csv_path.stat().st_size == 0
+    prior_pb = best_by_track.get(track) if track and track.casefold() not in {"null", "none"} else None
     record = {
         "id": str(next_id(csv_path)),
         "track_id": track_id,
@@ -204,6 +257,7 @@ def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[st
         "time_raw": raw_time.strip(),
         "time_seconds": f"{seconds:.2f}",
         "pb": "1" if track and track.casefold() not in {"null", "none"} and (track not in best_by_track or seconds < best_by_track[track]) else "0",
+        "delta_pb": f"{seconds - prior_pb:.2f}" if prior_pb is not None else ("0.00" if track and track.casefold() not in {"null", "none"} else ""),
         "captured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     }
     with csv_path.open("a", newline="", encoding="utf-8-sig") as csv_file:

@@ -91,12 +91,18 @@ Se aceptan `M:SS:CC` (minutos, segundos, centésimas; por ejemplo `1:20:99` =
 
 ## Campos CSV
 
-`id,track_id,track,skin_id,skin,time_raw,time_seconds,pb,captured_at`
+`id,track_id,track,skin_id,skin,time_raw,time_seconds,pb,delta_pb,captured_at`
 
 `pb` vale `1` si ese tiempo fue el mejor de su pista hasta ese registro, sin
 importar la skin; de lo contrario vale `0`. Los flags históricos se recalculan
 en orden de ID al migrar un CSV antiguo. En la interfaz, solo se muestra la
 etiqueta `PB` para las filas cuyo flag es `1`.
+
+`delta_pb` es `time_seconds` menos el mejor tiempo que existía en esa pista
+antes de la partida. Los negativos indican mejora, los positivos indican que
+el intento fue más lento y `0.00` representa la primera marca o un empate. Se
+calcula una vez y queda como dato histórico; no se actualiza al cambiar el récord
+absoluto.
 
 El CSV anterior tenía otro esquema. Si todavía existe cuando se guarde el
 próximo tiempo, el programa avisará que hay que eliminarlo o renombrarlo antes

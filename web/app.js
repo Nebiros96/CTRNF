@@ -1,4 +1,6 @@
 const $ = (id) => document.getElementById(id);
+const DEV_BEAT_ICON = "https://crashteamranking.com/wp-content/uploads/avatars/1337/5ebd47f41417b-bpfull.png";
+const VELO_BEAT_ICON = "https://static.wikia.nocookie.net/crashban/images/2/2a/Crash_Team_Racing_Nitro-Fueled_Emperor_Velo_XXVII_icon.png/revision/latest?cb=20200221032256";
 let appState = null;
 let lastTopSignature = "";
 let lastCatalogSignature = "";
@@ -52,6 +54,28 @@ function updateAsset(kind, raw) {
   }
 }
 
+function clockCentis(raw) {
+  const match = /^(\d+):(\d{2}):(\d{2})$/.exec(raw || "");
+  if (!match) return Number.POSITIVE_INFINITY;
+  return Number(match[1]) * 6000 + Number(match[2]) * 100 + Number(match[3]);
+}
+
+function trackTimes(track) {
+  const players = track.top5 || [];
+  const references = track.references || [];
+  return [...players, ...references].sort((a, b) => {
+    const delta = clockCentis(a.time_raw) - clockCentis(b.time_raw);
+    if (delta) return delta;
+    return (a.reference ? 1 : 0) - (b.reference ? 1 : 0);
+  });
+}
+
+function formatDelta(centis) {
+  const seconds = Math.floor(centis / 100);
+  const frac = centis % 100;
+  return `+ ${String(seconds).padStart(2, "0")}:${String(frac).padStart(2, "0")}`;
+}
+
 function fillCards(box, records) {
   box.replaceChildren();
   if (!records.length) {
@@ -62,13 +86,29 @@ function fillCards(box, records) {
     return;
   }
 
-  for (const [index, record] of records.entries()) {
+  const bestCentis = records.reduce((best, record) => {
+    if (record.reference) return best;
+    const centis = clockCentis(record.time_raw);
+    return centis < best ? centis : best;
+  }, Number.POSITIVE_INFINITY);
+
+  let playerRank = 0;
+  let markedBest = false;
+  for (const record of records) {
+    const reference = Boolean(record.reference);
+    if (!reference) playerRank += 1;
+    const isBest = !reference && !markedBest;
+    if (isBest) markedBest = true;
+
     const card = document.createElement("article");
-    card.className = index === 0 ? "card top1" : "card";
+    card.className = isBest ? "card top1" : "card";
+    if (reference) card.classList.add("reference");
 
     const rank = document.createElement("div");
-    rank.className = "rank";
-    rank.textContent = String(index + 1).padStart(2, "0");
+    rank.className = reference ? "rank is-ref" : "rank";
+    rank.textContent = reference
+      ? (record.kind === "velo" ? "VEL" : "DEV")
+      : String(playerRank).padStart(2, "0");
 
     const imageWrap = document.createElement("div");
     if (record.skin_url) {
@@ -103,18 +143,55 @@ function fillCards(box, records) {
     time.className = "pb";
     time.textContent = record.time_raw || "null";
     pbLine.append(time);
-    if (String(record.pb) === "1") {
-      const flag = document.createElement("div");
-      flag.className = "pb-flag";
-      flag.textContent = "PB";
-      pbLine.append(flag);
-    }
 
     const date = document.createElement("div");
     date.className = "date";
-    date.textContent = record.date || "null";
+    date.textContent = reference
+      ? (record.kind === "velo" ? "Velo" : "Desarrollador")
+      : (record.date || "null");
     details.append(character, pbLine, date);
     card.append(rank, imageWrap, details);
+
+    const badges = [];
+    if (!reference && record.beat_dev) badges.push([DEV_BEAT_ICON, "Supera al desarrollador"]);
+    if (!reference && record.beat_velo) badges.push([VELO_BEAT_ICON, "Supera a Velo"]);
+    const showPb = String(record.pb) === "1";
+    if (showPb) card.classList.add("has-pb");
+    if (badges.length) card.classList.add(badges.length > 1 ? "beats-two" : "beats-one");
+    if (showPb || badges.length) {
+      const corner = document.createElement("div");
+      corner.className = "card-corner";
+      if (badges.length) {
+        const icons = document.createElement("div");
+        icons.className = "beat-icons";
+        for (const [src, alt] of badges) {
+          const image = document.createElement("img");
+          image.src = src;
+          image.alt = alt;
+          image.title = alt;
+          icons.append(image);
+        }
+        corner.append(icons);
+      }
+      if (showPb) {
+        const flag = document.createElement("div");
+        flag.className = "pb-flag";
+        flag.textContent = "PB";
+        corner.append(flag);
+      }
+      card.append(corner);
+    }
+
+    if (!reference) {
+      const delta = clockCentis(record.time_raw) - bestCentis;
+      if (Number.isFinite(delta) && delta > 0) {
+        const gap = document.createElement("div");
+        gap.className = "delta";
+        gap.textContent = formatDelta(delta);
+        card.classList.add("has-delta");
+        card.append(gap);
+      }
+    }
     box.append(card);
   }
 }
@@ -208,7 +285,7 @@ function trackTile(track) {
   head.append(titles, close);
   const cards = document.createElement("div");
   cards.className = "cards";
-  fillCards(cards, track.top5 || []);
+  fillCards(cards, trackTimes(track));
   expand.append(head, cards);
   tile.append(preview, expand);
   return tile;
@@ -225,8 +302,7 @@ function applyOpen(scroll) {
     const preview = tile.querySelector(".track-preview");
     if (preview) preview.setAttribute("aria-expanded", open ? "true" : "false");
     if (open && scroll) {
-      const nav = document.querySelector(".nav");
-      const top = tile.getBoundingClientRect().top + window.scrollY - (nav?.offsetHeight || 0) - 12;
+      const top = tile.getBoundingClientRect().top + window.scrollY - 16;
       window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     }
   }
@@ -275,6 +351,15 @@ function showState(data) {
     ? `${last.track_clean || "null"} · ${last.character || "null"} · ${last.time_raw || "null"}`
     : "null";
   $("leader-track").textContent = data.current_track?.track_clean || "null";
+  const catalogRows = data.catalog || [];
+  const summary = data.summary || {};
+  const records = summary.records ?? catalogRows.reduce((total, track) => total + (Number(track.records) || 0), 0);
+  const tracks = summary.tracks ?? catalogRows.length;
+  const devsBeaten = catalogRows.some((track) => "dev_time_surpass" in track)
+    ? catalogRows.reduce((total, track) => total + (Number(track.dev_time_surpass) === 1 ? 1 : 0), 0)
+    : (summary.devs_beaten ?? 0);
+  $("kpi-records").textContent = String(records);
+  $("kpi-devs").textContent = `${devsBeaten} de ${tracks}`;
 
   const signature = JSON.stringify(data.top10 || []);
   if (signature !== lastTopSignature) {

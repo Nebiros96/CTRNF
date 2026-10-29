@@ -24,6 +24,7 @@ DATA_DIR = ROOT / "data"
 TRACKS_CSV = DATA_DIR / "game_tracks.csv"
 SKINS_CSV = DATA_DIR / "game_skins.csv"
 RESULTS_CSV = core.CSV_PATH
+VELO_SKIN = "SystemData_availableDrivers_55_skins_0_outfit"
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -43,24 +44,39 @@ def display_date(value: str) -> str:
         return "null"
 
 
-def dev_clock(value: str) -> str:
-    raw = (value or "").strip()
+def to_centis(value: str) -> int | None:
+    raw = (value or "").strip().replace(",", ".")
     if not raw:
-        return "null"
-    token = raw.replace(",", ".")
-    if token[:1] in "+-":
-        token = token[1:]
-    if "." in token:
-        whole, frac = token.split(".", 1)
+        return None
+    if raw[:1] in "+-":
+        raw = raw[1:]
+    if "." in raw:
+        whole, frac = raw.split(".", 1)
         frac = (frac + "00")[:2]
     else:
-        whole, frac = token, "00"
+        whole, frac = raw, "00"
     if not whole.isdigit() or not frac.isdigit():
-        return raw
-    total = int(whole) * 100 + int(frac)
+        return None
+    return int(whole) * 100 + int(frac)
+
+
+def dev_clock(value: str) -> str:
+    total = to_centis(value)
+    if total is None:
+        return (value or "").strip() or "null"
     minutes, rest = divmod(total, 6_000)
     seconds, centis = divmod(rest, 100)
     return f"{minutes}:{seconds:02d}:{centis:02d}"
+
+
+def beat_flags(time_seconds: str, dev_time: str, velo_time: str) -> dict[str, bool]:
+    player = to_centis(time_seconds)
+    dev = to_centis(dev_time)
+    velo = to_centis(velo_time)
+    return {
+        "beat_dev": player is not None and dev is not None and player < dev,
+        "beat_velo": player is not None and velo is not None and player < velo,
+    }
 
 
 def trial_card(row: dict[str, str], skin_by_raw: dict[str, dict[str, str]]) -> dict | None:
@@ -72,11 +88,26 @@ def trial_card(row: dict[str, str], skin_by_raw: dict[str, dict[str, str]]) -> d
     skin_data = skin_by_raw.get(skin, {})
     return {
         "seconds": seconds,
+        "time_seconds": (row.get("time_seconds") or "").strip(),
         "character": (skin_data.get("character") or "").strip() or "null",
         "skin_url": (skin_data.get("url") or "").strip(),
         "time_raw": (row.get("time_raw") or "").strip() or "null",
         "date": display_date(row.get("captured_at", "")),
         "pb": (row.get("pb") or "0").strip(),
+        "beat_dev": False,
+        "beat_velo": False,
+    }
+
+
+def reference_entry(kind: str, character: str, skin_url: str, raw_time: str) -> dict | None:
+    if to_centis(raw_time) is None:
+        return None
+    return {
+        "kind": kind,
+        "reference": True,
+        "character": character or "null",
+        "skin_url": skin_url,
+        "time_raw": dev_clock(raw_time),
     }
 
 
@@ -85,6 +116,9 @@ def track_catalog(
     results: list[dict[str, str]],
     skin_by_raw: dict[str, dict[str, str]],
 ) -> list[dict]:
+    velo_skin = skin_by_raw.get(VELO_SKIN, {})
+    velo_name = (velo_skin.get("character") or "").strip() or "Emperor Velo XXVII"
+    velo_url = (velo_skin.get("url") or "").strip()
     grouped: dict[str, list[dict]] = {}
     counts: dict[str, int] = {}
     for row in results:
@@ -100,6 +134,26 @@ def track_catalog(
     for track_row in tracks:
         key = (track_row.get("track") or "").strip()
         entries = sorted(grouped.get(key, []), key=lambda item: item["seconds"])
+        dev_time = track_row.get("dev_time") or ""
+        velo_time = track_row.get("velo_time") or ""
+        for item in entries:
+            flags = beat_flags(item.get("time_seconds", ""), dev_time, velo_time)
+            item["beat_dev"] = flags["beat_dev"]
+            item["beat_velo"] = flags["beat_velo"]
+        dev_time_surpass = 1 if any(item.get("beat_dev") for item in entries) else 0
+        references = [
+            entry
+            for entry in (
+                reference_entry(
+                    "dev",
+                    (track_row.get("dev_name") or "").strip() or "null",
+                    (track_row.get("dev_url") or "").strip(),
+                    dev_time,
+                ),
+                reference_entry("velo", velo_name, velo_url, velo_time),
+            )
+            if entry
+        ]
         catalog.append(
             {
                 "track": key,
@@ -108,9 +162,14 @@ def track_catalog(
                 "dev_time": dev_clock(track_row.get("dev_time") or ""),
                 "dev_name": (track_row.get("dev_name") or "").strip() or "null",
                 "dev_url": (track_row.get("dev_url") or "").strip(),
+                "dev_time_surpass": dev_time_surpass,
                 "pb": entries[0]["time_raw"] if entries else "null",
                 "records": counts.get(key, 0),
-                "top5": [{k: value for k, value in item.items() if k != "seconds"} for item in entries[:5]],
+                "references": references,
+                "top5": [
+                    {k: value for k, value in item.items() if k not in {"seconds", "time_seconds"}}
+                    for item in entries[:5]
+                ],
             }
         )
     return catalog
@@ -245,6 +304,11 @@ class DashboardState:
                     "time_raw": (row.get("time_raw") or "").strip() or "null",
                     "date": display_date(row.get("captured_at", "")),
                     "pb": (row.get("pb") or "0").strip(),
+                    **beat_flags(
+                        row.get("time_seconds", ""),
+                        current_track.get("dev_time", ""),
+                        current_track.get("velo_time", ""),
+                    ),
                 }
             )
         top10 = sorted(track_times, key=lambda item: item["seconds"])[:10]
@@ -268,6 +332,8 @@ class DashboardState:
         if not running and last:
             selected = {"track": last["track"], "skin": last["skin"]}
 
+        catalog = track_catalog(tracks, results, skin_by_raw)
+        devs_beaten = sum(track["dev_time_surpass"] for track in catalog)
         return {
             "tracks": tracks,
             "skins": skins,
@@ -279,7 +345,12 @@ class DashboardState:
             },
             "last_trial": last,
             "top10": top10,
-            "catalog": track_catalog(tracks, results, skin_by_raw),
+            "catalog": catalog,
+            "summary": {
+                "records": len(results),
+                "devs_beaten": devs_beaten,
+                "tracks": len(catalog),
+            },
         }
 
 

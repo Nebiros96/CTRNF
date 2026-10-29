@@ -10,19 +10,29 @@
 </head>
 <body>
   <main class="shell">
-    <nav class="nav" aria-label="Secciones">
-      <button type="button" class="nav-btn active" data-view="register" aria-current="page">Registrar tiempos</button>
-      <button type="button" class="nav-btn" data-view="tracks">Pistas</button>
-      <div id="connection" class="pill">Conectando con last_run…</div>
-    </nav>
-
     <header class="header">
       <div>
         <div class="eyebrow">Crash Team Racing Nitro-Fueled</div>
         <h1 class="title">Time Trials</h1>
         <p class="sub">Tus mejores marcas, pista por pista.</p>
       </div>
+      <div class="kpis" aria-label="Resumen">
+        <div class="kpi">
+          <div class="stat-label">Registros</div>
+          <div id="kpi-records" class="kpi-value">0</div>
+        </div>
+        <div class="kpi">
+          <div class="stat-label">Desarrolladores superados</div>
+          <div id="kpi-devs" class="kpi-value">0 de 0</div>
+        </div>
+      </div>
     </header>
+
+    <nav class="nav" aria-label="Secciones">
+      <button type="button" class="nav-btn active" data-view="register" aria-current="page">Registrar tiempos</button>
+      <button type="button" class="nav-btn" data-view="tracks">Pistas</button>
+      <div id="connection" class="pill">Conectando con last_run…</div>
+    </nav>
 
     <section id="view-register">
       <section class="last">
