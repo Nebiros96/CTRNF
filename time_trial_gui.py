@@ -43,6 +43,79 @@ def display_date(value: str) -> str:
         return "null"
 
 
+def dev_clock(value: str) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return "null"
+    token = raw.replace(",", ".")
+    if token[:1] in "+-":
+        token = token[1:]
+    if "." in token:
+        whole, frac = token.split(".", 1)
+        frac = (frac + "00")[:2]
+    else:
+        whole, frac = token, "00"
+    if not whole.isdigit() or not frac.isdigit():
+        return raw
+    total = int(whole) * 100 + int(frac)
+    minutes, rest = divmod(total, 6_000)
+    seconds, centis = divmod(rest, 100)
+    return f"{minutes}:{seconds:02d}:{centis:02d}"
+
+
+def trial_card(row: dict[str, str], skin_by_raw: dict[str, dict[str, str]]) -> dict | None:
+    try:
+        seconds = float(row.get("time_seconds", ""))
+    except (TypeError, ValueError):
+        return None
+    skin = (row.get("skin") or "null").strip()
+    skin_data = skin_by_raw.get(skin, {})
+    return {
+        "seconds": seconds,
+        "character": (skin_data.get("character") or "").strip() or "null",
+        "skin_url": (skin_data.get("url") or "").strip(),
+        "time_raw": (row.get("time_raw") or "").strip() or "null",
+        "date": display_date(row.get("captured_at", "")),
+        "pb": (row.get("pb") or "0").strip(),
+    }
+
+
+def track_catalog(
+    tracks: list[dict[str, str]],
+    results: list[dict[str, str]],
+    skin_by_raw: dict[str, dict[str, str]],
+) -> list[dict]:
+    grouped: dict[str, list[dict]] = {}
+    counts: dict[str, int] = {}
+    for row in results:
+        track = (row.get("track") or "").strip()
+        if not track:
+            continue
+        counts[track] = counts.get(track, 0) + 1
+        card = trial_card(row, skin_by_raw)
+        if card:
+            grouped.setdefault(track, []).append(card)
+
+    catalog = []
+    for track_row in tracks:
+        key = (track_row.get("track") or "").strip()
+        entries = sorted(grouped.get(key, []), key=lambda item: item["seconds"])
+        catalog.append(
+            {
+                "track": key,
+                "track_clean": (track_row.get("track_clean") or "").strip() or "null",
+                "url": (track_row.get("url") or "").strip(),
+                "dev_time": dev_clock(track_row.get("dev_time") or ""),
+                "dev_name": (track_row.get("dev_name") or "").strip() or "null",
+                "dev_url": (track_row.get("dev_url") or "").strip(),
+                "pb": entries[0]["time_raw"] if entries else "null",
+                "records": counts.get(key, 0),
+                "top5": [{k: value for k, value in item.items() if k != "seconds"} for item in entries[:5]],
+            }
+        )
+    return catalog
+
+
 def is_game_running() -> bool:
     if not hasattr(subprocess, "CREATE_NO_WINDOW"):
         return False
@@ -206,6 +279,7 @@ class DashboardState:
             },
             "last_trial": last,
             "top10": top10,
+            "catalog": track_catalog(tracks, results, skin_by_raw),
         }
 
 

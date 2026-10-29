@@ -10,63 +10,81 @@
 </head>
 <body>
   <main class="shell">
+    <nav class="nav" aria-label="Secciones">
+      <button type="button" class="nav-btn active" data-view="register" aria-current="page">Registrar tiempos</button>
+      <button type="button" class="nav-btn" data-view="tracks">Pistas</button>
+      <div id="connection" class="pill">Conectando con last_run…</div>
+    </nav>
+
     <header class="header">
       <div>
         <div class="eyebrow">Crash Team Racing Nitro-Fueled</div>
         <h1 class="title">Time Trials</h1>
         <p class="sub">Tus mejores marcas, pista por pista.</p>
       </div>
-      <div id="connection" class="pill">Conectando con last_run…</div>
     </header>
 
-    <section class="last">
-      <div>
-        <div class="label">Último Time Trial guardado</div>
-        <strong id="last">null</strong>
+    <section id="view-register">
+      <section class="last">
+        <div>
+          <div class="label">Último Time Trial guardado</div>
+          <strong id="last">null</strong>
+        </div>
+      </section>
+
+      <div class="layout">
+        <section class="panel">
+          <h2>Registrar tiempos</h2>
+
+          <div class="asset">
+            <div id="track-image" class="null-image">null</div>
+            <div>
+              <div class="meta">PISTA</div>
+              <div id="track-name" class="name">null</div>
+            </div>
+          </div>
+
+          <div class="asset">
+            <div id="skin-image" class="null-image">null</div>
+            <div>
+              <div class="meta">PERSONAJE</div>
+              <div id="skin-name" class="name">null</div>
+              <div id="skin-raw" class="meta">null</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="time">Tiempo · formato M:SS:CC</label>
+            <input id="time" type="text" placeholder="1:25:03" autocomplete="off">
+          </div>
+          <button id="save" class="button" type="button">Guardar tiempo</button>
+          <div id="status" class="status" role="status">Listo</div>
+        </section>
+
+        <section class="panel">
+          <div class="tophead">
+            <div>
+              <div class="eyebrow">Personal best · filtro de pista</div>
+              <h2>Top 10</h2>
+              <span id="leader-track">null</span>
+            </div>
+            <button id="refresh" class="refresh" type="button">Actualizar</button>
+          </div>
+          <div id="cards" class="cards"></div>
+        </section>
       </div>
     </section>
 
-    <div class="layout">
-      <section class="panel">
-        <h2>Registrar tiempo</h2>
-
-        <div class="asset">
-          <div id="track-image" class="null-image">null</div>
-          <div>
-            <div class="meta">PISTA</div>
-            <div id="track-name" class="name">null</div>
-          </div>
+    <section id="view-tracks" class="panel" hidden>
+      <div class="tophead">
+        <div>
+          <div class="eyebrow">Catálogo</div>
+          <h2>Pistas</h2>
         </div>
-
-        <div class="asset">
-          <div id="skin-image" class="null-image">null</div>
-          <div>
-            <div class="meta">PERSONAJE</div>
-            <div id="skin-name" class="name">null</div>
-            <div id="skin-raw" class="meta">null</div>
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="time">Tiempo · formato M:SS:CC</label>
-          <input id="time" type="text" placeholder="1:25:03" autocomplete="off">
-        </div>
-        <button id="save" class="button">Guardar tiempo</button>
-        <div id="status" class="status" role="status">Listo</div>
-      </section>
-
-      <section class="panel">
-        <div class="tophead">
-          <div>
-            <div class="eyebrow">Personal best · filtro de pista</div>
-            <h2>Top 10</h2>
-            <span id="leader-track">null</span>
-          </div>
-          <button id="refresh" class="refresh">Actualizar</button>
-        </div>
-        <div id="cards" class="cards"></div>
-      </section>
-    </div>
+        <span id="track-count">0 pistas</span>
+      </div>
+      <div id="track-grid" class="track-grid"></div>
+    </section>
   </main>
 </body>
 </html>

@@ -1,25 +1,29 @@
 const $ = (id) => document.getElementById(id);
 let appState = null;
 let lastTopSignature = "";
+let lastCatalogSignature = "";
 let assetVersion = "";
+let openTrack = "";
 
-function imageBox(container, url, alt) {
+function imageBox(container, url, alt, options = {}) {
+  const imageClass = options.imageClass || "thumb";
+  const fallbackClass = options.fallbackClass || "null-image";
   container.replaceChildren();
   if (!url || url === "null") {
     const placeholder = document.createElement("div");
-    placeholder.className = "null-image";
+    placeholder.className = fallbackClass;
     placeholder.textContent = "null";
     container.append(placeholder);
     return;
   }
   const image = document.createElement("img");
-  image.className = "thumb";
+  image.className = imageClass;
   image.src = url;
   image.alt = alt || "";
   image.loading = "lazy";
   image.onerror = () => {
     const placeholder = document.createElement("div");
-    placeholder.className = "null-image";
+    placeholder.className = fallbackClass;
     placeholder.textContent = "null";
     image.replaceWith(placeholder);
   };
@@ -48,8 +52,7 @@ function updateAsset(kind, raw) {
   }
 }
 
-function renderCards(records) {
-  const box = $("cards");
+function fillCards(box, records) {
   box.replaceChildren();
   if (!records.length) {
     const empty = document.createElement("div");
@@ -116,6 +119,146 @@ function renderCards(records) {
   }
 }
 
+function renderCards(records) {
+  fillCards($("cards"), records);
+}
+
+function statBlock(label, value, valueClass) {
+  const wrap = document.createElement("div");
+  const caption = document.createElement("div");
+  caption.className = "stat-label";
+  caption.textContent = label;
+    const number = document.createElement("div");
+    number.className = value === "null" ? `${valueClass} is-null` : valueClass;
+    number.textContent = value;
+  wrap.append(caption, number);
+  return wrap;
+}
+
+function trackTile(track) {
+  const tile = document.createElement("article");
+  tile.className = "track-tile";
+  tile.dataset.track = track.track || "";
+
+  const preview = document.createElement("button");
+  preview.type = "button";
+  preview.className = "track-preview";
+  preview.setAttribute("aria-expanded", "false");
+  preview.setAttribute("aria-label", `Top 5 de ${track.track_clean || "pista"}`);
+
+  const cover = document.createElement("div");
+  cover.className = "cover-slot";
+  imageBox(cover, track.url, track.track_clean || "", { imageClass: "cover", fallbackClass: "cover-fallback" });
+
+  const info = document.createElement("div");
+  info.className = "track-info";
+  const title = document.createElement("div");
+  title.className = "track-title";
+  title.textContent = track.track_clean || "null";
+
+  const stats = document.createElement("div");
+  stats.className = "stat-grid";
+  stats.append(
+    statBlock("PB", track.pb || "null", "pb-value"),
+    statBlock("Registros", String(track.records ?? 0), "count-value"),
+  );
+
+  const devLabel = document.createElement("div");
+  devLabel.className = "stat-label";
+  devLabel.textContent = "Desarrollador";
+
+  const dev = document.createElement("div");
+  dev.className = "dev-row";
+  const icon = document.createElement("div");
+  icon.className = "dev-slot";
+  imageBox(icon, track.dev_url, track.dev_name || "", { imageClass: "dev-icon", fallbackClass: "dev-fallback" });
+  const name = document.createElement("div");
+  name.className = "dev-name";
+  name.textContent = track.dev_name || "null";
+  const devTime = document.createElement("div");
+  devTime.className = "dev-time";
+  devTime.textContent = track.dev_time || "null";
+  dev.append(icon, name, devTime);
+
+  const hint = document.createElement("div");
+  hint.className = "open-hint";
+  hint.textContent = "Ver top 5";
+  info.append(title, stats, devLabel, dev, hint);
+  preview.append(cover, info);
+
+  const expand = document.createElement("div");
+  expand.className = "track-expand";
+  expand.hidden = true;
+  const head = document.createElement("div");
+  head.className = "tophead";
+  const titles = document.createElement("div");
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = "Personal best";
+  const heading = document.createElement("h2");
+  heading.textContent = "Top 5";
+  const trackName = document.createElement("span");
+  trackName.textContent = track.track_clean || "null";
+  titles.append(eyebrow, heading, trackName);
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "refresh";
+  close.dataset.close = "1";
+  close.textContent = "Cerrar";
+  head.append(titles, close);
+  const cards = document.createElement("div");
+  cards.className = "cards";
+  fillCards(cards, track.top5 || []);
+  expand.append(head, cards);
+  tile.append(preview, expand);
+  return tile;
+}
+
+function applyOpen(scroll) {
+  for (const tile of document.querySelectorAll(".track-tile")) {
+    const open = tile.dataset.track === openTrack && openTrack !== "";
+    tile.classList.toggle("open", open);
+    const expand = tile.querySelector(".track-expand");
+    if (expand) expand.hidden = !open;
+    const hint = tile.querySelector(".open-hint");
+    if (hint) hint.textContent = open ? "Ocultar top 5" : "Ver top 5";
+    const preview = tile.querySelector(".track-preview");
+    if (preview) preview.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open && scroll) {
+      const nav = document.querySelector(".nav");
+      const top = tile.getBoundingClientRect().top + window.scrollY - (nav?.offsetHeight || 0) - 12;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }
+  }
+}
+
+function renderTrackGrid(rows) {
+  const box = $("track-grid");
+  $("track-count").textContent = `${rows.length} pistas`;
+  box.replaceChildren();
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No hay pistas en el catálogo.";
+    box.append(empty);
+    return;
+  }
+  for (const track of rows) box.append(trackTile(track));
+  applyOpen(false);
+}
+
+function setView(name) {
+  $("view-register").hidden = name !== "register";
+  $("view-tracks").hidden = name !== "tracks";
+  for (const button of document.querySelectorAll(".nav-btn")) {
+    const active = button.dataset.view === name;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  }
+  window.scrollTo({ top: 0 });
+}
+
 function showState(data) {
   appState = data;
   updateAsset("track", data.selected?.track);
@@ -137,6 +280,13 @@ function showState(data) {
   if (signature !== lastTopSignature) {
     renderCards(data.top10 || []);
     lastTopSignature = signature;
+  }
+
+  const catalog = data.catalog || [];
+  const catalogSignature = JSON.stringify(catalog);
+  if (catalogSignature !== lastCatalogSignature) {
+    renderTrackGrid(catalog);
+    lastCatalogSignature = catalogSignature;
   }
 }
 
@@ -166,6 +316,25 @@ async function checkAssets() {
     // Keep the current UI usable while the backend is temporarily unavailable.
   }
 }
+
+for (const button of document.querySelectorAll(".nav-btn")) {
+  button.addEventListener("click", () => setView(button.dataset.view));
+}
+
+$("track-grid").addEventListener("click", (event) => {
+  if (event.target.closest("[data-close]")) {
+    openTrack = "";
+    applyOpen(false);
+    return;
+  }
+  const preview = event.target.closest(".track-preview");
+  if (!preview) return;
+  const tile = preview.closest(".track-tile");
+  if (!tile) return;
+  const key = tile.dataset.track || "";
+  openTrack = openTrack === key ? "" : key;
+  applyOpen(true);
+});
 
 $("refresh").addEventListener("click", refresh);
 $("save").addEventListener("click", async () => {

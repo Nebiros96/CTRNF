@@ -71,11 +71,83 @@ body {
 .pb-line .pb { margin-top: 0; }
 .pb-flag { display: inline-flex; flex-shrink: 0; padding: 2px 7px; border: 1px solid #d5a82f; border-radius: 6px; color: #f5cf62; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -30px 0 22px;
+  padding: 16px 0 12px;
+  background: #10131bf2;
+  backdrop-filter: blur(10px);
+}
+.nav .pill { margin-left: auto; }
+.nav-btn {
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #151b26;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+.nav-btn:hover { color: var(--text); }
+.nav-btn.active { border-color: #d5a82f; background: #241c10; color: #f5cf62; }
+
+.track-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.track-tile { padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel2); transition: transform .15s, border-color .15s; }
+.track-tile:hover:not(.open) { transform: translateY(-2px); border-color: #52647e; }
+.track-tile.open { border-color: #f1c34e; box-shadow: 0 0 0 1px #f1c34e66, 0 8px 24px #d5991c22; }
+.track-preview {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 14px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.track-preview:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; border-radius: 12px; }
+.track-info { min-width: 0; }
+.track-title { margin-bottom: 8px; overflow: hidden; font-size: 18px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.cover-slot { width: 168px; }
+.cover, .cover-fallback { display: block; width: 168px; height: 104px; border-radius: 11px; background: #202938; object-fit: cover; }
+.cover-fallback { display: grid; place-items: center; color: #7f8b9c; font-size: 12px; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.stat-label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pb-value, .count-value { color: #fff; font-size: 22px; font-variant-numeric: tabular-nums; font-weight: 900; line-height: 1.1; }
+.pb-value.is-null { color: var(--muted); font-size: 16px; font-weight: 700; }
+.dev-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.dev-slot { flex: none; width: 36px; height: 36px; }
+.dev-icon, .dev-fallback { width: 36px; height: 36px; border-radius: 10px; background: #202938; object-fit: cover; }
+.dev-fallback { display: grid; place-items: center; color: #7f8b9c; font-size: 10px; }
+.dev-name { flex: 1; min-width: 0; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.dev-time { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+.open-hint { margin-top: 10px; color: var(--blue); font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+.track-expand { margin-top: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(145deg, var(--panel), #151a24); }
+.track-info > .stat-label { margin-top: 10px; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .track-preview { grid-template-columns: 1fr; }
+  .cover-slot, .cover, .cover-fallback { width: 100%; }
+  .cover, .cover-fallback { height: auto; aspect-ratio: 16 / 10; }
+}
 @media (max-width: 560px) {
   .header { display: block; }
-  .pill { display: inline-block; margin-top: 12px; }
+  .nav { align-items: flex-start; flex-wrap: wrap; }
+  .nav .pill { margin: 4px 0 0; }
   .card { grid-template-columns: 34px 68px minmax(0, 1fr); }
   .card .thumb, .card .null-image { width: 68px; height: 68px; }
   .last { align-items: flex-start; flex-direction: column; }
+  .pb-value, .count-value { font-size: 16px; }
+  .track-title { font-size: 15px; }
+  .track-grid { gap: 8px; }
 }
