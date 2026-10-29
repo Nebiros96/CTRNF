@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131b">
+  <title>CTR Nitro-Fueled · Time Trials</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="header">
+      <div>
+        <div class="eyebrow">Crash Team Racing Nitro-Fueled</div>
+        <h1 class="title">Time Trials</h1>
+        <p class="sub">Tus mejores marcas, pista por pista.</p>
+      </div>
+      <div id="connection" class="pill">Conectando con last_run…</div>
+    </header>
+
+    <section class="last">
+      <div>
+        <div class="label">Último Time Trial guardado</div>
+        <strong id="last">null</strong>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>Registrar tiempo</h2>
+
+        <div class="asset">
+          <div id="track-image" class="null-image">null</div>
+          <div>
+            <div class="meta">PISTA</div>
+            <div id="track-name" class="name">null</div>
+          </div>
+        </div>
+
+        <div class="asset">
+          <div id="skin-image" class="null-image">null</div>
+          <div>
+            <div class="meta">PERSONAJE</div>
+            <div id="skin-name" class="name">null</div>
+            <div id="skin-raw" class="meta">null</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="time">Tiempo · formato M:SS:CC</label>
+          <input id="time" type="text" placeholder="1:25:03" autocomplete="off">
+        </div>
+        <button id="save" class="button">Guardar tiempo</button>
+        <div id="status" class="status" role="status">Listo</div>
+      </section>
+
+      <section class="panel">
+        <div class="tophead">
+          <div>
+            <div class="eyebrow">Personal best · filtro de pista</div>
+            <h2>Top 10</h2>
+            <span id="leader-track">null</span>
+          </div>
+          <button id="refresh" class="refresh">Actualizar</button>
+        </div>
+        <div id="cards" class="cards"></div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
