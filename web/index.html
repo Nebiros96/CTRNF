@@ -13,8 +13,8 @@
     <header class="header">
       <div>
         <div class="eyebrow">Crash Team Racing Nitro-Fueled</div>
-        <h1 class="title">Time Trials</h1>
-        <p class="sub">Tus mejores marcas, pista por pista.</p>
+        <h1 class="title">Time Trials & Rally Ring</h1>
+        <p class="sub">Registro personal de Contrarreloj y Rally Ring.</p>
       </div>
       <div class="kpis" aria-label="Resumen">
         <div class="kpi">
@@ -30,19 +30,12 @@
 
     <nav class="nav" aria-label="Secciones">
       <button type="button" class="nav-btn active" data-view="register" aria-current="page">Registrar tiempos</button>
-      <button type="button" class="nav-btn" data-view="tracks">Pistas</button>
       <div id="connection" class="pill">Conectando con last_run…</div>
     </nav>
 
     <section id="view-register">
-      <section class="last">
-        <div>
-          <div class="label">Último Time Trial guardado</div>
-          <strong id="last">null</strong>
-        </div>
-      </section>
-
       <div class="layout">
+        <div class="register-side">
         <section class="panel">
           <h2>Registrar tiempos</h2>
 
@@ -51,6 +44,7 @@
             <div>
               <div class="meta">PISTA</div>
               <div id="track-name" class="name">null</div>
+              <select id="track-picker" class="track-picker" hidden aria-label="Elegir pista"></select>
             </div>
           </div>
 
@@ -67,14 +61,29 @@
             <label for="time">Tiempo · formato M:SS:CC</label>
             <input id="time" type="text" placeholder="1:25:03" autocomplete="off">
           </div>
-          <button id="save" class="button" type="button">Guardar tiempo</button>
+          <button id="save" class="button" type="button">Guardar registro</button>
           <div id="status" class="status" role="status">Listo</div>
         </section>
+
+        <section class="panel" aria-label="Tiempos de fantasmas">
+          <h2>Tiempos de fantasmas</h2>
+          <div class="ghost-row">
+            <div id="ghost-velo-icon" class="ghost-slot"></div>
+            <div class="ghost-name">Velo</div>
+            <div id="ghost-velo-time" class="ghost-time">null</div>
+          </div>
+          <div class="ghost-row">
+            <div id="ghost-dev-icon" class="ghost-slot"></div>
+            <div id="ghost-dev-name" class="ghost-name">null</div>
+            <div id="ghost-dev-time" class="ghost-time">null</div>
+          </div>
+        </section>
+        </div>
 
         <section class="panel">
           <div class="tophead">
             <div>
-              <div class="eyebrow">Personal best · filtro de pista</div>
+              <div class="eyebrow">Mejores tiempos por pista</div>
               <h2>Top 10</h2>
               <span id="leader-track">null</span>
             </div>
@@ -83,17 +92,17 @@
           <div id="cards" class="cards"></div>
         </section>
       </div>
-    </section>
 
-    <section id="view-tracks" class="panel" hidden>
-      <div class="tophead">
-        <div>
-          <div class="eyebrow">Catálogo</div>
-          <h2>Pistas</h2>
+      <section class="last" aria-label="Último Time Trial guardado">
+        <div class="last-copy">
+          <div class="label">Último Time Trial guardado</div>
+          <div class="last-line">
+            <strong id="last">null</strong>
+            <span id="last-delta" class="last-delta"></span>
+          </div>
         </div>
-        <span id="track-count">0 pistas</span>
-      </div>
-      <div id="track-grid" class="track-grid"></div>
+        <div id="last-badges" class="last-badges"></div>
+      </section>
     </section>
   </main>
 </body>

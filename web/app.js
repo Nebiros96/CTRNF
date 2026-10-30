@@ -3,9 +3,11 @@ const DEV_BEAT_ICON = "https://crashteamranking.com/wp-content/uploads/avatars/1
 const VELO_BEAT_ICON = "https://static.wikia.nocookie.net/crashban/images/2/2a/Crash_Team_Racing_Nitro-Fueled_Emperor_Velo_XXVII_icon.png/revision/latest?cb=20200221032256";
 let appState = null;
 let lastTopSignature = "";
-let lastCatalogSignature = "";
 let assetVersion = "";
-let openTrack = "";
+let lastTrialSignature = "";
+let lastGhostSignature = "";
+let browsedTrack = "";
+let refreshSerial = 0;
 
 function imageBox(container, url, alt, options = {}) {
   const imageClass = options.imageClass || "thumb";
@@ -66,10 +68,6 @@ function byTime(a, b) {
   return (a.reference ? 1 : 0) - (b.reference ? 1 : 0);
 }
 
-function trackTimes(track) {
-  return [...(track.top5 || []), ...(track.references || [])].sort(byTime);
-}
-
 function leaderboardTimes(rows, catalog, trackKey) {
   const track = (catalog || []).find((item) => item.track === trackKey);
   const developer = (track?.references || []).find((item) => item.kind === "dev");
@@ -80,6 +78,110 @@ function formatDelta(centis) {
   const seconds = Math.floor(centis / 100);
   const frac = centis % 100;
   return `+ ${String(seconds).padStart(2, "0")}:${String(frac).padStart(2, "0")}`;
+}
+
+function formatPbGap(raw) {
+  const value = Number(String(raw ?? "").replace(",", "."));
+  if (!Number.isFinite(value)) return "";
+  const centis = Math.round(Math.abs(value) * 100);
+  const seconds = Math.floor(centis / 100);
+  const frac = centis % 100;
+  const body = `${String(seconds).padStart(2, "0")}:${String(frac).padStart(2, "0")}`;
+  if (value < 0) return `− ${body}`;
+  if (value > 0) return `+ ${body}`;
+  return body;
+}
+
+function clockFromSeconds(raw) {
+  const normalized = String(raw || "").trim().replace(",", ".");
+  if (!normalized) return "null";
+  const value = Number(normalized);
+  if (!Number.isFinite(value)) return "null";
+  const centis = Math.round(value * 100);
+  const minutes = Math.floor(centis / 6000);
+  const rest = centis % 6000;
+  const seconds = Math.floor(rest / 100);
+  const frac = rest % 100;
+  return `${minutes}:${String(seconds).padStart(2, "0")}:${String(frac).padStart(2, "0")}`;
+}
+
+function ghostIcon(slot, url, alt) {
+  if (slot.dataset.url === url) return;
+  slot.dataset.url = url;
+  imageBox(slot, url, alt, { imageClass: "ghost-icon", fallbackClass: "ghost-fallback" });
+}
+
+function renderGhosts(data) {
+  const key = (data.selected?.track || data.current_track?.track || "").trim();
+  const catalogTrack = (data.catalog || []).find((item) => item.track === key) || {};
+  const rawTrack = (data.tracks || []).find((item) => (item.track || "").trim() === key) || {};
+  const references = catalogTrack.references || [];
+  const velo = references.find((item) => item.kind === "velo");
+  const dev = references.find((item) => item.kind === "dev");
+  const devName = dev?.character || catalogTrack.dev_name || rawTrack.dev_name || "null";
+  const devUrl = (dev?.skin_url || catalogTrack.dev_url || rawTrack.dev_url || "").trim();
+  const veloTime = velo?.time_raw || clockFromSeconds(rawTrack.velo_time);
+  const devTime = dev?.time_raw || catalogTrack.dev_time || clockFromSeconds(rawTrack.dev_time);
+  const signature = JSON.stringify({ key, devName, devUrl, veloTime, devTime });
+  if (signature === lastGhostSignature) return;
+  lastGhostSignature = signature;
+  $("ghost-dev-name").textContent = devName;
+  $("ghost-velo-time").textContent = veloTime || "null";
+  $("ghost-dev-time").textContent = devTime || "null";
+  ghostIcon($("ghost-velo-icon"), VELO_BEAT_ICON, "Velo");
+  ghostIcon($("ghost-dev-icon"), devUrl, devName);
+}
+
+function renderLastTrial(last) {
+  const signature = JSON.stringify(last || null);
+  if (signature === lastTrialSignature) return;
+  lastTrialSignature = signature;
+
+  const title = $("last");
+  const badges = $("last-badges");
+  const delta = $("last-delta");
+  badges.replaceChildren();
+  delta.textContent = "";
+  delta.className = "last-delta";
+  delta.removeAttribute("title");
+
+  if (!last) {
+    title.textContent = "null";
+    return;
+  }
+
+  title.textContent = `${last.track_clean || "null"} · ${last.character || "null"} · ${last.time_raw || "null"}`;
+
+  const icons = [];
+  if (last.beat_dev) icons.push([DEV_BEAT_ICON, "Supera al desarrollador"]);
+  if (last.beat_velo) icons.push([VELO_BEAT_ICON, "Supera a Velo"]);
+  if (icons.length) {
+    const wrap = document.createElement("div");
+    wrap.className = "beat-icons";
+    for (const [src, alt] of icons) {
+      const image = document.createElement("img");
+      image.src = src;
+      image.alt = alt;
+      image.title = alt;
+      wrap.append(image);
+    }
+    badges.append(wrap);
+  }
+  if (String(last.pb) === "1") {
+    const flag = document.createElement("div");
+    flag.className = "pb-flag";
+    flag.textContent = "PB";
+    badges.append(flag);
+  }
+
+  const raw = String(last.delta_pb ?? "").trim();
+  const value = Number(raw.replace(",", "."));
+  const firstMark = String(last.pb) === "1" && value === 0;
+  if (raw && Number.isFinite(value) && !firstMark) {
+    delta.textContent = formatPbGap(raw);
+    delta.classList.add(value < 0 ? "better" : value > 0 ? "worse" : "even");
+    delta.title = "Diferencia respecto al PB anterior";
+  }
 }
 
 function fillCards(box, records, options = {}) {
@@ -205,136 +307,8 @@ function fillCards(box, records, options = {}) {
   }
 }
 
-function renderCards(records) {
-  fillCards($("cards"), records);
-}
-
-function statBlock(label, value, valueClass) {
-  const wrap = document.createElement("div");
-  const caption = document.createElement("div");
-  caption.className = "stat-label";
-  caption.textContent = label;
-    const number = document.createElement("div");
-    number.className = value === "null" ? `${valueClass} is-null` : valueClass;
-    number.textContent = value;
-  wrap.append(caption, number);
-  return wrap;
-}
-
-function trackTile(track) {
-  const tile = document.createElement("article");
-  tile.className = "track-tile";
-  tile.dataset.track = track.track || "";
-
-  const preview = document.createElement("button");
-  preview.type = "button";
-  preview.className = "track-preview";
-  preview.setAttribute("aria-expanded", "false");
-  preview.setAttribute("aria-label", `Top 5 de ${track.track_clean || "pista"}`);
-
-  const cover = document.createElement("div");
-  cover.className = "cover-slot";
-  imageBox(cover, track.url, track.track_clean || "", { imageClass: "cover", fallbackClass: "cover-fallback" });
-
-  const info = document.createElement("div");
-  info.className = "track-info";
-  const title = document.createElement("div");
-  title.className = "track-title";
-  title.textContent = track.track_clean || "null";
-
-  const stats = document.createElement("div");
-  stats.className = "stat-grid";
-  stats.append(
-    statBlock("PB", track.pb || "null", "pb-value"),
-    statBlock("Registros", String(track.records ?? 0), "count-value"),
-  );
-
-  const devLabel = document.createElement("div");
-  devLabel.className = "stat-label";
-  devLabel.textContent = "Desarrollador";
-
-  const dev = document.createElement("div");
-  dev.className = "dev-row";
-  const icon = document.createElement("div");
-  icon.className = "dev-slot";
-  imageBox(icon, track.dev_url, track.dev_name || "", { imageClass: "dev-icon", fallbackClass: "dev-fallback" });
-  const name = document.createElement("div");
-  name.className = "dev-name";
-  name.textContent = track.dev_name || "null";
-  const devTime = document.createElement("div");
-  devTime.className = "dev-time";
-  devTime.textContent = track.dev_time || "null";
-  dev.append(icon, name, devTime);
-
-  const hint = document.createElement("div");
-  hint.className = "open-hint";
-  hint.textContent = "Ver top 5";
-  info.append(title, stats, devLabel, dev, hint);
-  preview.append(cover, info);
-
-  const expand = document.createElement("div");
-  expand.className = "track-expand";
-  expand.hidden = true;
-  const head = document.createElement("div");
-  head.className = "tophead";
-  const titles = document.createElement("div");
-  const eyebrow = document.createElement("div");
-  eyebrow.className = "eyebrow";
-  eyebrow.textContent = "Personal best";
-  const heading = document.createElement("h2");
-  heading.textContent = "Top 5";
-  const trackName = document.createElement("span");
-  trackName.textContent = track.track_clean || "null";
-  titles.append(eyebrow, heading, trackName);
-  const close = document.createElement("button");
-  close.type = "button";
-  close.className = "refresh";
-  close.dataset.close = "1";
-  close.textContent = "Cerrar";
-  head.append(titles, close);
-  const cards = document.createElement("div");
-  cards.className = "cards";
-  fillCards(cards, trackTimes(track));
-  expand.append(head, cards);
-  tile.append(preview, expand);
-  return tile;
-}
-
-function applyOpen(scroll) {
-  for (const tile of document.querySelectorAll(".track-tile")) {
-    const open = tile.dataset.track === openTrack && openTrack !== "";
-    tile.classList.toggle("open", open);
-    const expand = tile.querySelector(".track-expand");
-    if (expand) expand.hidden = !open;
-    const hint = tile.querySelector(".open-hint");
-    if (hint) hint.textContent = open ? "Ocultar top 5" : "Ver top 5";
-    const preview = tile.querySelector(".track-preview");
-    if (preview) preview.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open && scroll) {
-      const top = tile.getBoundingClientRect().top + window.scrollY - 16;
-      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-    }
-  }
-}
-
-function renderTrackGrid(rows) {
-  const box = $("track-grid");
-  $("track-count").textContent = `${rows.length} pistas`;
-  box.replaceChildren();
-  if (!rows.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "No hay pistas en el catálogo.";
-    box.append(empty);
-    return;
-  }
-  for (const track of rows) box.append(trackTile(track));
-  applyOpen(false);
-}
-
 function setView(name) {
   $("view-register").hidden = name !== "register";
-  $("view-tracks").hidden = name !== "tracks";
   for (const button of document.querySelectorAll(".nav-btn")) {
     const active = button.dataset.view === name;
     button.classList.toggle("active", active);
@@ -344,21 +318,48 @@ function setView(name) {
   window.scrollTo({ top: 0 });
 }
 
+function renderTrackPicker(data) {
+  const picker = $("track-picker");
+  const name = $("track-name");
+  const running = Boolean(data.game_running);
+  const rows = (data.catalog || [])
+    .filter((item) => item.track)
+    .map((item) => ({ track: item.track, name: item.track_clean || item.track }));
+  const canPick = !running && rows.length > 0;
+  name.hidden = canPick;
+  picker.hidden = !canPick;
+  if (!canPick) return;
+
+  const signature = JSON.stringify(rows);
+  if (picker.dataset.signature !== signature) {
+    picker.dataset.signature = signature;
+    picker.replaceChildren();
+    for (const row of rows) {
+      const option = document.createElement("option");
+      option.value = row.track;
+      option.textContent = row.name;
+      picker.append(option);
+    }
+  }
+  const current = data.current_track?.track || data.selected?.track || "";
+  if (current && picker.value !== current) picker.value = current;
+}
+
 function showState(data) {
   appState = data;
+  if (data.game_running) browsedTrack = "";
   updateAsset("track", data.selected?.track);
   updateAsset("skin", data.selected?.skin);
+  renderTrackPicker(data);
 
   const connection = $("connection");
   connection.textContent = data.game_running
     ? "Juego detectado · last_run en vivo"
-    : "Juego cerrado · última pista guardada";
+    : "Juego cerrado · elige una pista";
   connection.className = `pill${data.game_running ? " live" : ""}`;
 
-  const last = data.last_trial;
-  $("last").textContent = last
-    ? `${last.track_clean || "null"} · ${last.character || "null"} · ${last.time_raw || "null"}`
-    : "null";
+  renderLastTrial(data.last_trial);
+  renderGhosts(data);
   $("leader-track").textContent = data.current_track?.track_clean || "null";
   const catalogRows = data.catalog || [];
   const summary = data.summary || {};
@@ -376,22 +377,20 @@ function showState(data) {
     fillCards($("cards"), board, { gapOnReferences: true, numberReferences: true });
     lastTopSignature = signature;
   }
-
-  const catalog = data.catalog || [];
-  const catalogSignature = JSON.stringify(catalog);
-  if (catalogSignature !== lastCatalogSignature) {
-    renderTrackGrid(catalog);
-    lastCatalogSignature = catalogSignature;
-  }
 }
 
 async function refresh() {
+  const requestId = ++refreshSerial;
+  const track = browsedTrack;
+  const url = track ? `/api/state?track=${encodeURIComponent(track)}` : "/api/state";
   try {
-    const response = await fetch("/api/state", { cache: "no-store" });
+    const response = await fetch(url, { cache: "no-store" });
     const data = await response.json();
+    if (requestId !== refreshSerial) return;
     if (!response.ok) throw new Error(data.error || "Error al leer datos");
     showState(data);
   } catch (error) {
+    if (requestId !== refreshSerial) return;
     $("status").textContent = error.message;
     $("status").className = "status error";
   }
@@ -416,19 +415,9 @@ for (const button of document.querySelectorAll(".nav-btn")) {
   button.addEventListener("click", () => setView(button.dataset.view));
 }
 
-$("track-grid").addEventListener("click", (event) => {
-  if (event.target.closest("[data-close]")) {
-    openTrack = "";
-    applyOpen(false);
-    return;
-  }
-  const preview = event.target.closest(".track-preview");
-  if (!preview) return;
-  const tile = preview.closest(".track-tile");
-  if (!tile) return;
-  const key = tile.dataset.track || "";
-  openTrack = openTrack === key ? "" : key;
-  applyOpen(true);
+$("track-picker").addEventListener("change", () => {
+  browsedTrack = $("track-picker").value;
+  refresh();
 });
 
 $("refresh").addEventListener("click", refresh);

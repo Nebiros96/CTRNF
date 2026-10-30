@@ -14,7 +14,7 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import time_trial_logger as core
 
@@ -266,7 +266,7 @@ class DashboardState:
                 self.log = core.DEFAULT_LOG.open("r", encoding="utf-8", errors="replace")
                 self.log.seek(0, 2)
 
-    def get_payload(self) -> dict:
+    def get_payload(self, browse_track: str = "") -> dict:
         self.refresh_game_status()
         self.poll_log()
         tracks = read_csv(TRACKS_CSV)
@@ -275,11 +275,18 @@ class DashboardState:
         skin_by_raw = {row.get("skin", ""): row for row in skins}
         track_by_raw = {row.get("track", ""): row for row in tracks}
 
+        browse_track = (browse_track or "").strip()
         with self.lock:
             running = self.game_running
-            selected_track = self.metadata.get("track", "") if running else ""
-        if not running and not selected_track and results:
+            live_meta = dict(self.metadata)
+        if running:
+            selected_track = live_meta.get("track", "")
+        elif browse_track in track_by_raw:
+            selected_track = browse_track
+        elif results:
             selected_track = (results[-1].get("track") or "").strip()
+        else:
+            selected_track = ""
         current_track = track_by_raw.get(selected_track, {})
 
         track_times: list[dict] = []
@@ -326,11 +333,19 @@ class DashboardState:
                 "character": (skin_data.get("character") or "").strip() or "null",
                 "skin": skin,
                 "time_raw": (newest.get("time_raw") or "").strip() or "null",
+                "pb": (newest.get("pb") or "0").strip(),
+                "delta_pb": (newest.get("delta_pb") or "").strip(),
+                **beat_flags(
+                    newest.get("time_seconds", ""),
+                    track_data.get("dev_time", ""),
+                    track_data.get("velo_time", ""),
+                ),
             }
-        with self.lock:
-            selected = dict(self.metadata)
-        if not running and last:
-            selected = {"track": last["track"], "skin": last["skin"]}
+        if running:
+            selected = live_meta
+        else:
+            last_skin = (newest.get("skin") or "").strip() if newest else ""
+            selected = {"track": selected_track, "skin": last_skin or live_meta.get("skin", "")}
 
         catalog = track_catalog(tracks, results, skin_by_raw)
         devs_beaten = sum(track["dev_time_surpass"] for track in catalog)
@@ -375,7 +390,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/api/state":
-            payload = json.dumps(STATE.get_payload(), ensure_ascii=False).encode("utf-8")
+            browse = parse_qs(urlparse(self.path).query).get("track", [""])[0]
+            payload = json.dumps(STATE.get_payload(browse), ensure_ascii=False).encode("utf-8")
             self._send(200, payload, "application/json; charset=utf-8")
             return
         if path == "/api/assets-version":
