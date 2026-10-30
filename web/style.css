@@ -71,6 +71,8 @@ body {
 .refresh:hover { color: var(--text); }
 .card.top1 { border-color: #f1c34e; box-shadow: 0 0 0 1px #f1c34e66, 0 8px 24px #d5991c22; }
 .card.top1:hover { border-color: #ffdb73; }
+.card.reference-dev { border-color: #00aeef; box-shadow: 0 0 0 1px #00aeef66, 0 8px 24px #00aeef22; }
+.card.reference-dev:hover { border-color: #4cc9ff; }
 .date { margin-top: 4px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .pb-line { display: flex; min-height: 32px; align-items: center; gap: 12px; margin-top: 3px; }
 .pb-line .pb { margin-top: 0; }

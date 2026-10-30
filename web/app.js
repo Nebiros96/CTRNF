@@ -60,14 +60,20 @@ function clockCentis(raw) {
   return Number(match[1]) * 6000 + Number(match[2]) * 100 + Number(match[3]);
 }
 
+function byTime(a, b) {
+  const delta = clockCentis(a.time_raw) - clockCentis(b.time_raw);
+  if (delta) return delta;
+  return (a.reference ? 1 : 0) - (b.reference ? 1 : 0);
+}
+
 function trackTimes(track) {
-  const players = track.top5 || [];
-  const references = track.references || [];
-  return [...players, ...references].sort((a, b) => {
-    const delta = clockCentis(a.time_raw) - clockCentis(b.time_raw);
-    if (delta) return delta;
-    return (a.reference ? 1 : 0) - (b.reference ? 1 : 0);
-  });
+  return [...(track.top5 || []), ...(track.references || [])].sort(byTime);
+}
+
+function leaderboardTimes(rows, catalog, trackKey) {
+  const track = (catalog || []).find((item) => item.track === trackKey);
+  const developer = (track?.references || []).find((item) => item.kind === "dev");
+  return [...(rows || []), ...(developer ? [developer] : [])].sort(byTime);
 }
 
 function formatDelta(centis) {
@@ -76,7 +82,7 @@ function formatDelta(centis) {
   return `+ ${String(seconds).padStart(2, "0")}:${String(frac).padStart(2, "0")}`;
 }
 
-function fillCards(box, records) {
+function fillCards(box, records, options = {}) {
   box.replaceChildren();
   if (!records.length) {
     const empty = document.createElement("div");
@@ -87,28 +93,31 @@ function fillCards(box, records) {
   }
 
   const bestCentis = records.reduce((best, record) => {
-    if (record.reference) return best;
     const centis = clockCentis(record.time_raw);
     return centis < best ? centis : best;
   }, Number.POSITIVE_INFINITY);
 
   let playerRank = 0;
+  let listRank = 0;
   let markedBest = false;
   for (const record of records) {
     const reference = Boolean(record.reference);
+    const numbered = !reference || options.numberReferences;
     if (!reference) playerRank += 1;
+    if (numbered) listRank += 1;
     const isBest = !reference && !markedBest;
     if (isBest) markedBest = true;
 
     const card = document.createElement("article");
     card.className = isBest ? "card top1" : "card";
     if (reference) card.classList.add("reference");
+    if (reference && record.kind === "dev") card.classList.add("reference-dev");
 
     const rank = document.createElement("div");
-    rank.className = reference ? "rank is-ref" : "rank";
-    rank.textContent = reference
-      ? (record.kind === "velo" ? "VEL" : "DEV")
-      : String(playerRank).padStart(2, "0");
+    rank.className = numbered ? "rank" : "rank is-ref";
+    rank.textContent = numbered
+      ? String(options.numberReferences ? listRank : playerRank).padStart(2, "0")
+      : (record.kind === "velo" ? "VEL" : "DEV");
 
     const imageWrap = document.createElement("div");
     if (record.skin_url) {
@@ -182,7 +191,7 @@ function fillCards(box, records) {
       card.append(corner);
     }
 
-    if (!reference) {
+    if (!reference || options.gapOnReferences) {
       const delta = clockCentis(record.time_raw) - bestCentis;
       if (Number.isFinite(delta) && delta > 0) {
         const gap = document.createElement("div");
@@ -361,9 +370,10 @@ function showState(data) {
   $("kpi-records").textContent = String(records);
   $("kpi-devs").textContent = `${devsBeaten} de ${tracks}`;
 
-  const signature = JSON.stringify(data.top10 || []);
+  const board = leaderboardTimes(data.top10 || [], catalogRows, data.current_track?.track || "");
+  const signature = JSON.stringify(board);
   if (signature !== lastTopSignature) {
-    renderCards(data.top10 || []);
+    fillCards($("cards"), board, { gapOnReferences: true, numberReferences: true });
     lastTopSignature = signature;
   }
 
