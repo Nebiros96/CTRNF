@@ -13,8 +13,8 @@
     <header class="header">
       <div>
         <div class="eyebrow">Crash Team Racing Nitro-Fueled</div>
-        <h1 class="title">Time Trials & Rally Ring</h1>
-        <p class="sub">Registro personal de Contrarreloj y Rally Ring.</p>
+        <h1 class="title">Time Trials & Ring Rally</h1>
+        <p class="sub">Registro personal de Contrarreloj y Ring Rally.</p>
       </div>
       <div class="kpis" aria-label="Resumen">
         <div class="kpi">
@@ -29,7 +29,8 @@
     </header>
 
     <nav class="nav" aria-label="Secciones">
-      <button type="button" class="nav-btn active" data-view="register" aria-current="page">Registrar tiempos</button>
+      <button type="button" class="nav-btn active" data-view="register" aria-current="page">Time Trial</button>
+      <button type="button" class="nav-btn" data-view="rally">Ring Rally</button>
       <div id="connection" class="pill">Conectando con last_run…</div>
     </nav>
 
@@ -78,6 +79,14 @@
             <div id="ghost-dev-time" class="ghost-time">null</div>
           </div>
         </section>
+
+        <section class="panel" aria-label="Indicadores de la pista">
+          <h2>Indicadores de la pista</h2>
+          <div class="indicator-row"><div class="indicator-label"># Registros</div><div id="ind-records" class="indicator-value">null</div></div>
+          <div class="indicator-row"><div class="indicator-label">Mejora abs</div><div id="ind-absolute" class="indicator-value">null</div></div>
+          <div class="indicator-row"><div class="indicator-label">Mejora relativa</div><div id="ind-relative" class="indicator-value">null</div></div>
+          <div class="indicator-row"><div class="indicator-label">Desviación estándar</div><div id="ind-stdev" class="indicator-value">null</div></div>
+        </section>
         </div>
 
         <section class="panel">
@@ -103,6 +112,27 @@
         </div>
         <div id="last-badges" class="last-badges"></div>
       </section>
+    </section>
+
+    <section id="view-rally" hidden>
+      <div class="layout">
+        <div class="register-side">
+          <section class="panel">
+            <h2>Registrar puntajes</h2>
+            <div class="asset"><div id="rally-track-image" class="null-image">null</div><div><div class="meta">PISTA</div><div id="rally-track-name" class="name">null</div><select id="rally-track-picker" class="track-picker" hidden aria-label="Elegir pista"></select></div></div>
+            <div class="asset"><div id="rally-skin-image" class="null-image">null</div><div><div class="meta">PERSONAJE</div><div id="rally-skin-name" class="name">null</div><div id="rally-skin-raw" class="meta">null</div></div></div>
+            <div class="field"><label for="score">Puntaje · entero</label><input id="score" type="text" inputmode="numeric" placeholder="100452" autocomplete="off"></div>
+            <div class="field"><label for="laps">Número de vueltas</label><input id="laps" type="text" inputmode="numeric" placeholder="3" autocomplete="off"></div>
+            <button id="rally-save" class="button" type="button">Guardar registro</button>
+            <div id="rally-status" class="status" role="status">Listo</div>
+          </section>
+        </div>
+        <section class="panel">
+          <div class="tophead"><div><div class="eyebrow">Mejores puntajes por pista</div><h2>Top 10</h2><span id="rally-leader-track">null</span></div><button id="rally-refresh" class="refresh" type="button">Actualizar</button></div>
+          <div id="rally-cards" class="cards"></div>
+        </section>
+      </div>
+      <section class="last" aria-label="Último Rally Ring guardado"><div class="last-copy"><div class="label">Último Rally Ring guardado</div><div class="last-line"><strong id="rally-last">null</strong><span id="rally-last-delta" class="last-delta"></span></div></div><div id="rally-last-badges" class="last-badges"></div></section>
     </section>
   </main>
 </body>

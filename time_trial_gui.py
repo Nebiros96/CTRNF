@@ -24,6 +24,7 @@ DATA_DIR = ROOT / "data"
 TRACKS_CSV = DATA_DIR / "game_tracks.csv"
 SKINS_CSV = DATA_DIR / "game_skins.csv"
 RESULTS_CSV = core.CSV_PATH
+RALLY_RESULTS_CSV = core.RALLY_RING_CSV_PATH
 VELO_SKIN = "SystemData_availableDrivers_55_skins_0_outfit"
 
 
@@ -111,6 +112,46 @@ def reference_entry(kind: str, character: str, skin_url: str, raw_time: str) -> 
     }
 
 
+def track_indicators(rows: list[dict[str, str]]) -> dict:
+    ordered: list[tuple[int, float]] = []
+    for row in rows:
+        try:
+            seconds = float(row.get("time_seconds", ""))
+        except (TypeError, ValueError):
+            continue
+        try:
+            row_id = int(row.get("id", ""))
+        except (TypeError, ValueError):
+            row_id = 10**12
+        ordered.append((row_id, seconds))
+    if not ordered:
+        return {"records": len(rows), "absolute": None, "relative": None, "stdev": None}
+    ordered.sort(key=lambda item: item[0])
+    values = [seconds for _, seconds in ordered]
+    first = values[0]
+    delta = min(values) - first
+    mean = sum(values) / len(values)
+    variance = sum((value - mean) ** 2 for value in values) / len(values)
+    return {
+        "records": len(rows),
+        "absolute": round(delta, 2),
+        "relative": round(delta / first * 100, 1) if first else None,
+        "stdev": round(variance ** 0.5, 2),
+    }
+
+
+def developer_rank(entries: list[dict], raw_time: str) -> int | None:
+    target = to_centis(raw_time)
+    if target is None:
+        return None
+    ahead = sum(
+        1
+        for item in entries
+        if (player := to_centis(item.get("time_seconds", ""))) is not None and player <= target
+    )
+    return ahead + 1
+
+
 def track_catalog(
     tracks: list[dict[str, str]],
     results: list[dict[str, str]],
@@ -141,15 +182,18 @@ def track_catalog(
             item["beat_dev"] = flags["beat_dev"]
             item["beat_velo"] = flags["beat_velo"]
         dev_time_surpass = 1 if any(item.get("beat_dev") for item in entries) else 0
+        dev_entry = reference_entry(
+            "dev",
+            (track_row.get("dev_name") or "").strip() or "null",
+            (track_row.get("dev_url") or "").strip(),
+            dev_time,
+        )
+        if dev_entry is not None:
+            dev_entry["rank"] = developer_rank(entries, dev_time)
         references = [
             entry
             for entry in (
-                reference_entry(
-                    "dev",
-                    (track_row.get("dev_name") or "").strip() or "null",
-                    (track_row.get("dev_url") or "").strip(),
-                    dev_time,
-                ),
+                dev_entry,
                 reference_entry("velo", velo_name, velo_url, velo_time),
             )
             if entry
@@ -266,12 +310,14 @@ class DashboardState:
                 self.log = core.DEFAULT_LOG.open("r", encoding="utf-8", errors="replace")
                 self.log.seek(0, 2)
 
-    def get_payload(self, browse_track: str = "") -> dict:
+    def get_payload(self, browse_track: str = "", mode: str = "time_trial") -> dict:
         self.refresh_game_status()
         self.poll_log()
         tracks = read_csv(TRACKS_CSV)
         skins = read_csv(SKINS_CSV)
-        results = read_csv(RESULTS_CSV)
+        rally_mode = mode == "rally_ring"
+        results_path = RALLY_RESULTS_CSV if rally_mode else RESULTS_CSV
+        results = read_csv(results_path)
         skin_by_raw = {row.get("skin", ""): row for row in skins}
         track_by_raw = {row.get("track", ""): row for row in tracks}
 
@@ -296,7 +342,7 @@ class DashboardState:
                 continue
             skin = (row.get("skin") or "null").strip()
             try:
-                seconds = float(row.get("time_seconds", ""))
+                value = int(row.get("score", "")) if rally_mode else float(row.get("time_seconds", ""))
             except (TypeError, ValueError):
                 continue
             skin_data = skin_by_raw.get(skin, {})
@@ -307,18 +353,20 @@ class DashboardState:
                     "skin": skin,
                     "character": (skin_data.get("character") or "").strip() or "null",
                     "skin_url": (skin_data.get("url") or "").strip(),
-                    "seconds": seconds,
-                    "time_raw": (row.get("time_raw") or "").strip() or "null",
+                    "seconds": value,
+                    "time_raw": (row.get("score") if rally_mode else row.get("time_raw") or "").strip() or "null",
+                    "score": (row.get("score") or "").strip(),
+                    "laps": (row.get("laps") or "").strip(),
                     "date": display_date(row.get("captured_at", "")),
                     "pb": (row.get("pb") or "0").strip(),
-                    **beat_flags(
+                    **({"beat_dev": False, "beat_velo": False} if rally_mode else beat_flags(
                         row.get("time_seconds", ""),
                         current_track.get("dev_time", ""),
                         current_track.get("velo_time", ""),
-                    ),
+                    )),
                 }
             )
-        top10 = sorted(track_times, key=lambda item: item["seconds"])[:10]
+        top10 = sorted(track_times, key=lambda item: item["seconds"], reverse=rally_mode)[:10]
 
         newest = results[-1] if results else None
         last = None
@@ -332,14 +380,16 @@ class DashboardState:
                 "track_clean": (track_data.get("track_clean") or "").strip() or "null",
                 "character": (skin_data.get("character") or "").strip() or "null",
                 "skin": skin,
-                "time_raw": (newest.get("time_raw") or "").strip() or "null",
+                "time_raw": (newest.get("score") if rally_mode else newest.get("time_raw") or "").strip() or "null",
+                "score": (newest.get("score") or "").strip(),
+                "laps": (newest.get("laps") or "").strip(),
                 "pb": (newest.get("pb") or "0").strip(),
                 "delta_pb": (newest.get("delta_pb") or "").strip(),
-                **beat_flags(
+                **({"beat_dev": False, "beat_velo": False} if rally_mode else beat_flags(
                     newest.get("time_seconds", ""),
                     track_data.get("dev_time", ""),
                     track_data.get("velo_time", ""),
-                ),
+                )),
             }
         if running:
             selected = live_meta
@@ -347,8 +397,16 @@ class DashboardState:
             last_skin = (newest.get("skin") or "").strip() if newest else ""
             selected = {"track": selected_track, "skin": last_skin or live_meta.get("skin", "")}
 
-        catalog = track_catalog(tracks, results, skin_by_raw)
-        devs_beaten = sum(track["dev_time_surpass"] for track in catalog)
+        catalog = track_catalog(tracks, results, skin_by_raw) if not rally_mode else [
+            {
+                "track": row.get("track", ""),
+                "track_clean": row.get("track_clean", ""),
+                "records": sum(1 for result in results if result.get("track") == row.get("track")),
+                "url": row.get("url", ""),
+            }
+            for row in tracks
+        ]
+        devs_beaten = sum(track.get("dev_time_surpass", 0) for track in catalog)
         return {
             "tracks": tracks,
             "skins": skins,
@@ -363,9 +421,13 @@ class DashboardState:
             "catalog": catalog,
             "summary": {
                 "records": len(results),
-                "devs_beaten": devs_beaten,
+                "devs_beaten": 0 if rally_mode else devs_beaten,
                 "tracks": len(catalog),
             },
+            "mode": "rally_ring" if rally_mode else "time_trial",
+            "indicators": None if rally_mode else track_indicators(
+                [row for row in results if (row.get("track") or "").strip() == selected_track]
+            ),
         }
 
 
@@ -391,7 +453,8 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/state":
             browse = parse_qs(urlparse(self.path).query).get("track", [""])[0]
-            payload = json.dumps(STATE.get_payload(browse), ensure_ascii=False).encode("utf-8")
+            mode = parse_qs(urlparse(self.path).query).get("mode", ["time_trial"])[0]
+            payload = json.dumps(STATE.get_payload(browse, mode), ensure_ascii=False).encode("utf-8")
             self._send(200, payload, "application/json; charset=utf-8")
             return
         if path == "/api/assets-version":
@@ -428,12 +491,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             size = int(self.headers.get("Content-Length", "0"))
             data = json.loads(self.rfile.read(size).decode("utf-8"))
-            record = core.save_record(
-                str(data.get("track") or "null"),
-                str(data.get("skin") or "null"),
-                str(data.get("time") or ""),
-                RESULTS_CSV,
-            )
+            mode = str(data.get("mode") or "time_trial")
+            if mode == "rally_ring":
+                record = core.save_rally_record(str(data.get("track") or "null"), str(data.get("skin") or "null"), str(data.get("score") or ""), str(data.get("laps") or ""), RALLY_RESULTS_CSV)
+            else:
+                record = core.save_record(str(data.get("track") or "null"), str(data.get("skin") or "null"), str(data.get("time") or ""), RESULTS_CSV)
             body = json.dumps({"record": record}, ensure_ascii=False).encode("utf-8")
             self._send(200, body, "application/json; charset=utf-8")
         except (ValueError, OSError, csv.Error, json.JSONDecodeError) as exc:
@@ -462,7 +524,9 @@ def main() -> None:
         raise SystemExit(f"No hay puertos locales disponibles desde {parser_port} hasta {min(parser_port + 15, 65535)}.")
 
     url = f"http://127.0.0.1:{server.server_address[1]}/"
-    print(f"Time Trial dashboard: {url}")
+    print(f"CTR Nitro-Fueled dashboard: {url}")
+    print(f"Time Trial CSV: {RESULTS_CSV}")
+    print(f"Rally Ring CSV: {RALLY_RESULTS_CSV}")
     print("Deja este servidor abierto; web/ se recarga automáticamente al editar la interfaz. Ctrl+C para cerrar.")
     webbrowser.open(url)
     try:

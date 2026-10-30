@@ -52,6 +52,13 @@ body {
 .ghost-fallback { display: grid; place-items: center; color: #7f8b9c; font-size: 8px; }
 .ghost-name { flex: 1; min-width: 0; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .ghost-time { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+.indicator-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: #111722; }
+.indicator-row + .indicator-row { margin-top: 10px; }
+.indicator-label { color: var(--muted); font-size: 13px; font-weight: 700; }
+.indicator-value { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+.indicator-value.better { color: var(--good); }
+.indicator-value.worse { color: #ff8b8b; }
+.indicator-value.even { color: var(--muted); }
 .panel { padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(145deg, var(--panel), #151a24); box-shadow: 0 16px 36px #0003; }
 .panel h2 { margin: 0 0 15px; font-size: 19px; }
 

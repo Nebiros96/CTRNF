@@ -15,6 +15,7 @@ from pathlib import Path
 
 DEFAULT_LOG = Path(r"C:\CTRNF\CTR-NitroFueled-PC-portable\last_run_JulianGomez.log")
 CSV_PATH = Path(__file__).resolve().parent / "data" / "time_trials.csv"
+RALLY_RING_CSV_PATH = Path(__file__).resolve().parent / "data" / "rally_ring.csv"
 CSV_FIELDS = (
     "id",
     "track_id",
@@ -262,6 +263,86 @@ def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[st
     }
     with csv_path.open("a", newline="", encoding="utf-8-sig") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
+        if needs_header:
+            writer.writeheader()
+        writer.writerow(record)
+    return record
+
+
+RALLY_FIELDS = ("id", "track_id", "track", "skin_id", "skin", "score", "laps", "pb", "delta_pb", "captured_at")
+
+
+def parse_score(raw: str) -> int:
+    value = raw.strip()
+    if not re.fullmatch(r"\d+", value):
+        raise ValueError("ingresa un puntaje entero sin decimales (ej. 100452)")
+    return int(value)
+
+
+def parse_laps(raw: str) -> int:
+    value = raw.strip()
+    if not re.fullmatch(r"\d+", value):
+        raise ValueError("ingresa el número de vueltas como entero")
+    return int(value)
+
+
+def save_rally_record(track: str, skin: str, raw_score: str, raw_laps: str, csv_path: Path) -> dict[str, str]:
+    score = parse_score(raw_score)
+    laps = parse_laps(raw_laps)
+    track, skin = (track or "").strip(), (skin or "").strip()
+    if not track or track.casefold() in {"null", "none"}:
+        track, track_id = "null", ""
+    else:
+        ids = entity_ids(csv_path, "track")
+        track_id = str(ids.get(track, max(ids.values(), default=0) + 1))
+    if not skin or skin.casefold() in {"null", "none"}:
+        skin, skin_id = "null", ""
+    else:
+        ids = entity_ids(csv_path, "skin")
+        skin_id = str(ids.get(skin, max(ids.values(), default=0) + 1))
+    best: dict[str, int] = {}
+    existing_rows: list[dict[str, str]] = []
+    if csv_path.exists() and csv_path.stat().st_size:
+        with csv_path.open("r", newline="", encoding="utf-8-sig") as source:
+            reader = csv.DictReader(source, delimiter=csv_delimiter(csv_path))
+            if not reader.fieldnames or not {"track", "score"}.issubset(reader.fieldnames):
+                raise ValueError("El CSV Rally Ring existente tiene un esquema incompatible.")
+            existing_rows = list(reader)
+            for row in existing_rows:
+                try:
+                    old_score = int(row.get("score", ""))
+                except (TypeError, ValueError):
+                    continue
+                key = (row.get("track") or "").strip()
+                if key and key.casefold() not in {"null", "none"}:
+                    best[key] = max(best.get(key, old_score), old_score)
+    previous = best.get(track)
+    record = {
+        "id": str(next_id(csv_path)), "track_id": track_id, "track": track,
+        "skin_id": skin_id, "skin": skin, "score": str(score), "laps": str(laps),
+        "pb": "1" if previous is None or score > previous else "0",
+        "delta_pb": str(score - previous) if previous is not None else "0",
+        "captured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    needs_header = not csv_path.exists() or csv_path.stat().st_size == 0
+    existing_fields = set()
+    if not needs_header:
+        with csv_path.open("r", encoding="utf-8-sig", newline="") as source:
+            existing_fields = set(next(csv.reader(source, delimiter=csv_delimiter(csv_path)), []))
+    if existing_fields and existing_fields != set(RALLY_FIELDS):
+        # Keep old Rally Ring rows and add newly introduced fields before appending.
+        for row in existing_rows:
+            row.setdefault("laps", "")
+        temp_path = csv_path.with_suffix(csv_path.suffix + ".tmp")
+        with temp_path.open("w", newline="", encoding="utf-8-sig") as target:
+            writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS)
+            writer.writeheader()
+            writer.writerows({field: row.get(field, "") for field in RALLY_FIELDS} for row in existing_rows)
+        os.replace(temp_path, csv_path)
+        needs_header = False
+    with csv_path.open("a", newline="", encoding="utf-8-sig") as target:
+        writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS)
         if needs_header:
             writer.writeheader()
         writer.writerow(record)
