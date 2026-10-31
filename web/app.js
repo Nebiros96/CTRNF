@@ -8,7 +8,7 @@ let lastTrialSignature = "";
 let lastGhostSignature = "";
 const browsedTrackByMode = { time_trial: "", rally_ring: "" };
 let refreshSerial = 0;
-let currentMode = "time_trial";
+let currentMode = "rally_ring";
 let progressCharacterId = "";
 let progressQuery = "";
 let progressSignature = "";
@@ -393,20 +393,92 @@ function paintGlobalMultiplier(raw) {
   const box = $("progress-global");
   box.replaceChildren();
   const copy = document.createElement("div");
+  copy.className = "global-mult-copy";
   const eyebrow = document.createElement("div");
   eyebrow.className = "eyebrow";
   eyebrow.textContent = "Multiplicador global";
+  const titleRow = document.createElement("div");
+  titleRow.className = "global-mult-title";
+  const help = document.createElement("div");
+  help.className = "multiplier-help";
+  const helpButton = document.createElement("button");
+  helpButton.type = "button";
+  helpButton.className = "multiplier-info";
+  helpButton.textContent = "⚠";
+  helpButton.title = "Cómo se calcula el multiplicador";
+  helpButton.setAttribute("aria-label", "Ver cómo se calcula el multiplicador");
+  helpButton.setAttribute("aria-expanded", "false");
+  const details = document.createElement("div");
+  details.className = "multiplier-help-popover";
+  details.hidden = true;
+  details.textContent = "Cada skin desbloqueada suma: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005. Cada trofeo desbloqueado suma su bonus.";
+  helpButton.addEventListener("click", () => {
+    details.hidden = !details.hidden;
+    helpButton.setAttribute("aria-expanded", String(!details.hidden));
+  });
+  help.append(helpButton, details);
+  titleRow.append(eyebrow, help);
   const value = document.createElement("div");
   value.className = "global-mult-value";
   value.textContent = formatFactor(raw).slice(1);
   const note = document.createElement("p");
   note.className = "hero-rule";
   note.textContent = "La siguiente carrera usa este valor, con cualquier personaje.";
-  const rule = document.createElement("p");
-  rule.className = "hero-rule";
-  rule.textContent = "Cada skin desbloqueada suma: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005. Cada trofeo desbloqueado suma su bonus.";
-  copy.append(eyebrow, note, rule);
+  copy.append(titleRow, note);
   box.append(value, copy);
+}
+
+function paintSkinTotals(characters) {
+  const box = $("skin-totals");
+  const types = [
+    { key: "basic", label: "Basic" },
+    { key: "exotic", label: "Exotic" },
+    { key: "legendary", label: "Legendary" },
+    { key: "beenox", label: "Beenox" },
+  ];
+  const totals = Object.fromEntries(types.map(({ key }) => [key, { unlocked: 0, total: 0 }]));
+  for (const character of characters) {
+    for (const skin of character.skins || []) {
+      const key = (skin.skin_type || "").trim().toLowerCase();
+      if (!totals[key]) continue;
+      totals[key].total += 1;
+      if (skin.unlocked) totals[key].unlocked += 1;
+    }
+  }
+  const unlockedTotal = Object.values(totals).reduce((sum, item) => sum + item.unlocked, 0);
+  const allSkins = Object.values(totals).reduce((sum, item) => sum + item.total, 0);
+  box.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "skin-totals-heading";
+  const title = document.createElement("div");
+  title.className = "eyebrow";
+  title.textContent = "Skins desbloqueadas";
+  const overall = document.createElement("div");
+  overall.className = "skin-totals-overall";
+  overall.textContent = `${unlockedTotal} de ${allSkins}`;
+  heading.append(title, overall);
+  const grid = document.createElement("div");
+  grid.className = "skin-totals-grid";
+  for (const { key, label } of types) {
+    const item = totals[key];
+    const card = document.createElement("div");
+    card.className = `skin-total type-${key}`;
+    const name = document.createElement("div");
+    name.className = "skin-total-name";
+    name.textContent = label;
+    const count = document.createElement("div");
+    count.className = "skin-total-count";
+    count.textContent = `${item.unlocked} / ${item.total}`;
+    const track = document.createElement("div");
+    track.className = "skin-total-track";
+    const fill = document.createElement("div");
+    fill.className = `skin-total-fill type-${key}`;
+    fill.style.width = `${item.total ? (item.unlocked / item.total) * 100 : 0}%`;
+    track.append(fill);
+    card.append(name, count, track);
+    grid.append(card);
+  }
+  box.append(heading, grid);
 }
 
 function paintProgressHero(character) {
@@ -431,7 +503,7 @@ function paintProgressHero(character) {
   copy.className = "hero-copy";
   const eyebrow = document.createElement("div");
   eyebrow.className = "eyebrow";
-  eyebrow.textContent = character.game_base || "Ring Rally";
+  eyebrow.textContent = character.game_base || "Rally Ring";
   const title = document.createElement("h2");
   title.textContent = character.character || "null";
   const maskLine = document.createElement("div");
@@ -573,7 +645,7 @@ function paintProgressTotal(characters) {
   value.textContent = formatScore(total);
   const eyebrow = document.createElement("div");
   eyebrow.className = "eyebrow";
-  eyebrow.textContent = "Progresión global";
+  eyebrow.textContent = "Puntos totales";
   box.append(value, eyebrow);
 }
 
@@ -658,6 +730,7 @@ function paintProgress(characters, multiplier) {
   }
   const selected = characters.find((row) => row.character_id === progressCharacterId) || null;
   paintProgressTotal(characters);
+  paintSkinTotals(characters);
   paintGlobalMultiplier(multiplier);
   paintProgressHero(selected);
   paintAlbum(selected);
@@ -876,9 +949,9 @@ function showProgressState(data) {
   appState = data;
   syncSaveLocks(Boolean(data.game_running));
   const connection = $("connection");
-  connection.textContent = data.game_running
+  connection.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running
     ? "Juego detectado · last_run en vivo"
-    : "Juego cerrado · álbum de Ring Rally";
+    : "Juego cerrado · álbum de Rally Ring";
   connection.className = `pill${data.game_running ? " live" : ""}`;
   const characters = data.progression || [];
   const unlocked = data.summary?.unlocked ?? characters.reduce((sum, row) => sum + (Number(row.unlocked) || 0), 0);
@@ -950,7 +1023,7 @@ function paintTrophies(trophies) {
     head.append(title, tierLabel);
     const meta = document.createElement("p");
     meta.className = "trophy-meta";
-    meta.textContent = trophy.meta || "";
+    meta.textContent = trophy.description ?? trophy.meta ?? "";
     const progress = document.createElement("div");
     progress.className = "trophy-progress";
     const amount = document.createElement("div");
@@ -981,9 +1054,9 @@ function showTrophyState(data) {
   appState = data;
   syncSaveLocks(Boolean(data.game_running));
   const connection = $("connection");
-  connection.textContent = data.game_running
+  connection.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running
     ? "Juego detectado · last_run en vivo"
-    : "Juego cerrado · trofeos de Ring Rally";
+    : "Juego cerrado · trofeos de Rally Ring";
   connection.className = `pill${data.game_running ? " live" : ""}`;
   const trophies = data.trophies || [];
   const unlocked = data.summary?.unlocked ?? trophies.filter((row) => row.unlocked).length;
@@ -1050,7 +1123,7 @@ function showState(data) {
   renderTrackPicker(data);
 
   const connection = $("connection");
-  connection.textContent = data.game_running
+  connection.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running
     ? "Juego detectado · last_run en vivo"
     : "Juego cerrado · elige una pista";
   connection.className = `pill${data.game_running ? " live" : ""}`;
@@ -1085,7 +1158,7 @@ function showRallyState(data) {
   updateRallyAsset("track", data.selected?.track);
   updateRallyAsset("skin", data.selected?.skin);
   const conn = $("connection");
-  conn.textContent = data.game_running ? "Juego detectado · last_run en vivo" : "Juego cerrado · pista del último registro";
+  conn.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running ? "Juego detectado · last_run en vivo" : "Juego cerrado · pista del último registro";
   conn.className = `pill${data.game_running ? " live" : ""}`;
   const track = data.current_track?.track_clean || "null";
   $("rally-leader-track").textContent = track;
