@@ -903,7 +903,7 @@ def _write_rally(path: Path, rows: list[dict[str, str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_suffix(path.suffix + ".tmp")
     with temp_path.open("w", newline="", encoding="utf-8-sig") as target:
-        writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS, extrasaction="ignore")
+        writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS, extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow({field: row.get(field, "") for field in RALLY_FIELDS})
@@ -914,7 +914,7 @@ def _append_rally(path: Path, record: dict[str, str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     needs_header = not path.exists() or path.stat().st_size == 0
     with path.open("a", newline="", encoding="utf-8-sig") as target:
-        writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS, extrasaction="ignore")
+        writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS, extrasaction="ignore", lineterminator="\n")
         if needs_header:
             writer.writeheader()
         writer.writerow({field: record.get(field, "") for field in RALLY_FIELDS})
