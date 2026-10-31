@@ -255,6 +255,18 @@ def track_catalog(
     return catalog
 
 
+def catalog_track(value: str, track_by_raw: dict[str, dict]) -> str:
+    """Return the catalog key when value is a real course. Hub and menus are not."""
+    text = (value or "").strip()
+    if not text or text.casefold() in {"null", "none"}:
+        return ""
+    folded = text.casefold()
+    for key in track_by_raw:
+        if key.casefold() == folded:
+            return key
+    return ""
+
+
 def is_game_running() -> bool:
     if not hasattr(subprocess, "CREATE_NO_WINDOW"):
         return False
@@ -371,14 +383,17 @@ class DashboardState:
         with self.lock:
             running = self.game_running
             live_meta = dict(self.metadata)
-        if running:
-            selected_track = live_meta.get("track", "")
-        elif browse_track in track_by_raw:
+        newest = results[-1] if results else None
+        live_track = catalog_track(live_meta.get("track", ""), track_by_raw)
+        last_saved = catalog_track((newest.get("track") if newest else "") or "", track_by_raw)
+        # After a race the game loads the hub. That level is not a course, so the
+        # panel keeps the track of this mode's last saved record. The live skin stays.
+        if running and live_track:
+            selected_track = live_track
+        elif not running and browse_track in track_by_raw:
             selected_track = browse_track
-        elif results:
-            selected_track = (results[-1].get("track") or "").strip()
         else:
-            selected_track = ""
+            selected_track = last_saved
         current_track = track_by_raw.get(selected_track, {})
 
         track_times: list[dict] = []
@@ -414,7 +429,6 @@ class DashboardState:
             )
         top10 = sorted(track_times, key=lambda item: item["seconds"], reverse=rally_mode)[:10]
 
-        newest = results[-1] if results else None
         last = None
         if newest:
             track = (newest.get("track") or "null").strip()
@@ -446,11 +460,12 @@ class DashboardState:
                     track_data.get("velo_time", ""),
                 )),
             }
+        live_skin = (live_meta.get("skin") or "").strip()
         if running:
-            selected = live_meta
+            selected = {"track": selected_track, "skin": live_skin}
         else:
             last_skin = (newest.get("skin") or "").strip() if newest else ""
-            selected = {"track": selected_track, "skin": last_skin or live_meta.get("skin", "")}
+            selected = {"track": selected_track, "skin": last_skin or live_skin}
 
         catalog = track_catalog(tracks, results, skin_by_raw) if not rally_mode else [
             {
@@ -487,6 +502,12 @@ class DashboardState:
 
 
 STATE = DashboardState()
+
+
+class DashboardServer(ThreadingHTTPServer):
+    """One dashboard owns the port. A second launch must move to the next free port."""
+
+    allow_reuse_address = False
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -559,11 +580,12 @@ class Handler(BaseHTTPRequestHandler):
             if not game_running:
                 raise ValueError("El juego tiene que estar abierto para guardar un registro.")
             mode = str(data.get("mode") or "time_trial")
+            unlocks: list = []
             if mode == "rally_ring":
-                record = core.save_rally_record(str(data.get("track") or "null"), str(data.get("skin") or "null"), str(data.get("score") or ""), str(data.get("laps") or ""), RALLY_RESULTS_CSV)
+                record, unlocks = core.save_rally_record(str(data.get("track") or "null"), str(data.get("skin") or "null"), str(data.get("score") or ""), str(data.get("laps") or ""), RALLY_RESULTS_CSV)
             else:
                 record = core.save_record(str(data.get("track") or "null"), str(data.get("skin") or "null"), str(data.get("time") or ""), RESULTS_CSV)
-            body = json.dumps({"record": record}, ensure_ascii=False).encode("utf-8")
+            body = json.dumps({"record": record, "unlocks": unlocks}, ensure_ascii=False).encode("utf-8")
             self._send(200, body, "application/json; charset=utf-8")
         except (ValueError, OSError, csv.Error, json.JSONDecodeError) as exc:
             body = json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8")
@@ -583,7 +605,7 @@ def main() -> None:
     server = None
     for port in (parser_port, *range(parser_port + 1, min(parser_port + 16, 65536))):
         try:
-            server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+            server = DashboardServer(("127.0.0.1", port), Handler)
             break
         except OSError:
             continue

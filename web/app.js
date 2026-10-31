@@ -861,6 +861,7 @@ async function commitConfirm() {
       setStatus("status", `Guardado #${data.record.id} · ${data.record.time_seconds} s`, false);
     }
     closeConfirm();
+    if (draft.mode === "rally_ring" && Array.isArray(data.unlocks) && data.unlocks.length) openUnlocks(data.unlocks);
     await refresh();
   } catch (error) {
     $("confirm-ok").disabled = false;
@@ -1225,6 +1226,79 @@ $("time").addEventListener("keydown", (event) => {
   requestSave("time_trial");
 });
 
+function unlockMode(items) {
+  return items.some((item) => item.status !== "progress") ? "unlocked" : "progress";
+}
+
+function unlockHeadline(items) {
+  const skins = items.filter((item) => item.kind === "skin").length;
+  const trophies = items.filter((item) => item.kind === "trophy").length;
+  if (unlockMode(items) === "progress") return "Así va la siguiente skin";
+  if (skins && trophies) return "Felicidades, has desbloqueado lo siguiente";
+  if (skins === 1) return "Felicidades, has desbloqueado la siguiente skin";
+  if (skins > 1) return "Felicidades, has desbloqueado las siguientes skins";
+  if (trophies === 1) return "Felicidades, has desbloqueado el siguiente trofeo";
+  return "Felicidades, has desbloqueado los siguientes trofeos";
+}
+
+function paintUnlockItem(item) {
+  const card = document.createElement("article");
+  const tier = (item.type || "").toLowerCase();
+  const locked = item.status === "progress";
+  card.className = `unlock-item${locked ? " locked" : " unlocked"}${tier ? ` tier-${tier}` : ""}`;
+  const icon = document.createElement("div");
+  icon.className = "unlock-icon";
+  imageBox(icon, item.url, item.name, { imageClass: "unlock-art", fallbackClass: "null-image" });
+  const copy = document.createElement("div");
+  copy.className = "unlock-copy";
+  const label = document.createElement("div");
+  label.className = "meta";
+  label.textContent = item.kind === "trophy" && item.tier ? `${item.label} · ${item.tier}` : (item.label || "");
+  const name = document.createElement("strong");
+  name.textContent = item.name || "null";
+  const detail = document.createElement("p");
+  detail.className = "unlock-detail";
+  detail.textContent = item.detail || "";
+  const progress = document.createElement("div");
+  progress.className = "unlock-progress";
+  const amount = document.createElement("div");
+  amount.className = "unlock-amount";
+  amount.textContent = formatTrophyAmount(item);
+  const bar = document.createElement("div");
+  bar.className = "unlock-track";
+  bar.setAttribute("role", "progressbar");
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", "100");
+  const width = Math.max(0, Math.min(100, Number(item.progress) * 100));
+  bar.setAttribute("aria-valuenow", String(Math.round(width)));
+  const fill = document.createElement("div");
+  fill.className = "unlock-fill";
+  fill.style.width = `${width}%`;
+  bar.append(fill);
+  progress.append(amount, bar);
+  copy.append(label, name, detail, progress);
+  card.append(icon, copy);
+  return card;
+}
+
+function openUnlocks(items) {
+  const list = $("unlock-list");
+  list.replaceChildren();
+  for (const item of items) list.append(paintUnlockItem(item));
+  $("unlock-title").textContent = unlockMode(items) === "progress" ? "En progreso" : "Felicidades";
+  $("unlock-lead").textContent = unlockHeadline(items);
+  $("unlock-modal").hidden = false;
+  document.querySelector("main").inert = true;
+  window.setTimeout(() => $("unlock-ok").focus(), 0);
+}
+
+function closeUnlocks() {
+  $("unlock-modal").hidden = true;
+  document.querySelector("main").inert = false;
+  const score = $("score");
+  if (score) score.focus();
+}
+
 $("confirm-ok").addEventListener("click", () => { commitConfirm(); });
 $("confirm-correct").addEventListener("click", () => {
   if (!confirmIsBusy()) closeConfirm();
@@ -1232,8 +1306,15 @@ $("confirm-correct").addEventListener("click", () => {
 $("confirm-modal").addEventListener("click", (event) => {
   if (event.target.closest("[data-confirm-dismiss]") && !confirmIsBusy()) closeConfirm();
 });
+$("unlock-ok").addEventListener("click", closeUnlocks);
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !$("confirm-modal").hidden && !confirmIsBusy()) {
+  if (event.key !== "Escape") return;
+  if (!$("unlock-modal").hidden) {
+    event.preventDefault();
+    closeUnlocks();
+    return;
+  }
+  if (!$("confirm-modal").hidden && !confirmIsBusy()) {
     event.preventDefault();
     closeConfirm();
   }

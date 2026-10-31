@@ -772,6 +772,70 @@ def _trophy_unit(kind: str) -> str:
     return "count"
 
 
+def _ratio(current: int, target: int) -> float:
+    if target <= 0 or current >= target:
+        return 1.0
+    if current <= 0:
+        return 0.0
+    return current / target
+
+
+def _skin_card(step: dict, points_after: int, status: str) -> dict:
+    target = int(step["threshold"])
+    return {
+        "kind": "skin",
+        "status": status,
+        "label": "Skin",
+        "name": step["skin_name"],
+        "detail": f"{step['character']} · {step['skin_type']}",
+        "url": step["url"],
+        "current": points_after,
+        "target": target,
+        "unit": "points",
+        "progress": _ratio(points_after, target),
+    }
+
+
+def _trophy_card(ach: dict, state: dict[str, dict], status: str) -> dict:
+    info = state.get(ach["id"], {})
+    current = int(info.get("current") or 0)
+    target = int(info.get("target") or 0)
+    return {
+        "kind": "trophy",
+        "status": status,
+        "label": "Trofeo",
+        "name": ach["name"],
+        "detail": _trophy_meta(ach, target),
+        "tier": ach.get("tier") or "",
+        "type": ach.get("type") or "",
+        "url": ach.get("url") or "",
+        "current": current,
+        "target": target,
+        "unit": _trophy_unit(ach["kind"]),
+        "progress": _ratio(current, target),
+    }
+
+
+def _unlock_cards(
+    steps: list[dict],
+    trophies: list[dict],
+    points_after: int,
+    state: dict[str, dict],
+) -> list[dict]:
+    """Skins and trophies this one race opened, ready for the celebration box."""
+    cards = [_skin_card(step, points_after, "unlocked") for step in steps]
+    cards.extend(_trophy_card(ach, state, "unlocked") for ach in trophies)
+    return cards
+
+
+def _next_skin_card(ladder: list[dict], points_after: int) -> list[dict]:
+    """The single skin this character is working toward. Locked trophies stay out."""
+    nxt = next((step for step in ladder if int(step["threshold"]) > points_after), None)
+    if nxt is None or points_after <= 0:
+        return []
+    return [_skin_card(nxt, points_after, "progress")]
+
+
 def score_with_progression(
     prior_rows: list[dict[str, str]],
     skin: str,
@@ -819,6 +883,8 @@ def score_with_progression(
         "multiplier": f"{milli / 1000:.3f}",
         "notes": _progress_notes(fresh, fresh_trophies),
         "character_id": character_id,
+        "unlocks": _unlock_cards(fresh, fresh_trophies, points + score_mult, state)
+        or _next_skin_card(ladder, points + score_mult),
     }
 
 
@@ -916,7 +982,7 @@ def _new_rally_record(
     score: int,
     laps: int,
     catalog: dict,
-) -> dict[str, str]:
+) -> tuple[dict[str, str], list[dict]]:
     track, track_id = _entity_id_from_rows(rows, "track", track)
     skin, skin_id = _entity_id_from_rows(rows, "skin", skin)
     previous: int | None = None
@@ -945,7 +1011,7 @@ def _new_rally_record(
         "multiplier": progress["multiplier"],
         "notes": progress["notes"],
         "captured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-    }
+    }, list(progress.get("unlocks") or [])
 
 
 def ensure_rally_progression(csv_path: Path | None = None) -> None:
@@ -961,7 +1027,9 @@ def ensure_rally_progression(csv_path: Path | None = None) -> None:
             _write_rally(path, rows)
 
 
-def save_rally_record(track: str, skin: str, raw_score: str, raw_laps: str, csv_path: Path) -> dict[str, str]:
+def save_rally_record(
+    track: str, skin: str, raw_score: str, raw_laps: str, csv_path: Path
+) -> tuple[dict[str, str], list[dict]]:
     score = parse_score(raw_score)
     laps = parse_laps(raw_laps)
     with _rally_lock:
@@ -970,12 +1038,12 @@ def save_rally_record(track: str, skin: str, raw_score: str, raw_laps: str, csv_
         ready = _rally_schema_ready(csv_path, fieldnames, rows)
         if any(not _row_has_progression(row) for row in rows):
             _fill_missing_progression(rows, catalog)
-        record = _new_rally_record(rows, (track or "").strip(), (skin or "").strip(), score, laps, catalog)
+        record, unlocks = _new_rally_record(rows, (track or "").strip(), (skin or "").strip(), score, laps, catalog)
         if ready:
             _append_rally(csv_path, record)
         else:
             _write_rally(csv_path, [*rows, record])
-        return record
+        return record, unlocks
 
 
 def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = None) -> dict:
