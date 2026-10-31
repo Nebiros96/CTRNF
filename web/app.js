@@ -9,6 +9,10 @@ let lastGhostSignature = "";
 const browsedTrackByMode = { time_trial: "", rally_ring: "" };
 let refreshSerial = 0;
 let currentMode = "time_trial";
+let progressCharacterId = "";
+let progressQuery = "";
+let progressSignature = "";
+let progressScrolledId = "";
 
 function imageBox(container, url, alt, options = {}) {
   const imageClass = options.imageClass || "thumb";
@@ -367,10 +371,428 @@ function fillCards(box, records, options = {}) {
   }
 }
 
+function formatFactor(raw) {
+  const value = Number(raw);
+  return `×${(1 + (Number.isFinite(value) ? value : 0)).toFixed(3)}`;
+}
+
+function progressStat(label, value, extraClass) {
+  const box = document.createElement("div");
+  box.className = extraClass ? `progress-stat ${extraClass}` : "progress-stat";
+  const name = document.createElement("div");
+  name.className = "stat-label";
+  name.textContent = label;
+  const number = document.createElement("div");
+  number.className = "progress-stat-value";
+  number.textContent = value;
+  box.append(name, number);
+  return box;
+}
+
+function paintGlobalMultiplier(raw) {
+  const box = $("progress-global");
+  box.replaceChildren();
+  const copy = document.createElement("div");
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = "Multiplicador global";
+  const value = document.createElement("div");
+  value.className = "global-mult-value";
+  value.textContent = formatFactor(raw).slice(1);
+  const note = document.createElement("p");
+  note.className = "hero-rule";
+  note.textContent = "La siguiente carrera usa este valor, con cualquier personaje.";
+  const rule = document.createElement("p");
+  rule.className = "hero-rule";
+  rule.textContent = "Cada skin desbloqueada suma: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005. Cada trofeo desbloqueado suma su bonus.";
+  copy.append(eyebrow, note, rule);
+  box.append(value, copy);
+}
+
+function paintProgressHero(character) {
+  const hero = $("progress-hero");
+  hero.replaceChildren();
+  if (!character) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Elige un personaje.";
+    hero.append(empty);
+    return;
+  }
+
+  const portrait = document.createElement("div");
+  portrait.className = "hero-portrait";
+  imageBox(portrait, character.url_character, character.character, {
+    imageClass: "hero-photo",
+    fallbackClass: "hero-fallback",
+  });
+
+  const copy = document.createElement("div");
+  copy.className = "hero-copy";
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = character.game_base || "Ring Rally";
+  const title = document.createElement("h2");
+  title.textContent = character.character || "null";
+  const maskLine = document.createElement("div");
+  maskLine.className = "hero-mask";
+  if (character.url_mask) {
+    const mask = document.createElement("img");
+    mask.className = "mask-icon";
+    mask.src = character.url_mask;
+    mask.alt = character.mask || "";
+    maskLine.append(mask);
+  }
+  if (character.mask) {
+    const maskName = document.createElement("span");
+    maskName.textContent = character.mask;
+    maskLine.append(maskName);
+  }
+  const runs = document.createElement("div");
+  runs.className = "hero-runs";
+  const runCount = Number(character.runs) || 0;
+  runs.textContent = runCount ? `${runCount} ${runCount === 1 ? "registro" : "registros"}` : "Sin registros";
+
+  const stats = document.createElement("div");
+  stats.className = "progress-stats";
+  stats.append(progressStat("Puntos de progresión", formatScore(character.points), "is-points"));
+
+  const bar = document.createElement("div");
+  bar.className = "unlock-track";
+  bar.setAttribute("role", "progressbar");
+  const fill = document.createElement("div");
+  fill.className = "unlock-fill";
+  const caption = document.createElement("div");
+  caption.className = "unlock-caption";
+  if (!character.total_skins) {
+    fill.style.width = "0%";
+    bar.setAttribute("aria-valuenow", "0");
+    caption.textContent = "Este personaje no tiene skins en el catálogo.";
+  } else if (!character.next) {
+    fill.style.width = "100%";
+    bar.setAttribute("aria-valuenow", "100");
+    caption.textContent = "Álbum completo.";
+  } else {
+    const next = character.next;
+    const goal = Number(next.threshold) || 0;
+    const width = goal ? Math.max(0, Math.min(100, (Number(character.points) / goal) * 100)) : 0;
+    fill.style.width = `${width}%`;
+    bar.setAttribute("aria-valuenow", String(Math.round(width)));
+    caption.textContent = `${formatScore(character.points)} / ${formatScore(goal)} · faltan ${formatScore(next.remaining)} para ${next.skin_name} (${next.skin_type})`;
+  }
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", "100");
+  bar.append(fill);
+
+  const costs = document.createElement("p");
+  costs.className = "hero-rule";
+  costs.textContent = "El álbum sigue el orden de las skins. Cada Basic suma 500,000 · Exotic 2,000,000 · Legendary 5,000,000 · Beenox 10,000,000 al total acumulado.";
+
+  copy.append(eyebrow, title, maskLine, runs, stats, bar, caption, costs);
+  if (Number(character.base_points) !== Number(character.points)) {
+    const base = document.createElement("p");
+    base.className = "hero-rule";
+    base.textContent = `Puntaje base acumulado ${formatScore(character.base_points)} pts. La barra usa la suma ya multiplicada.`;
+    copy.append(base);
+  }
+  const album = document.createElement("div");
+  album.className = "hero-album";
+  const albumLabel = document.createElement("div");
+  albumLabel.className = "stat-label";
+  albumLabel.textContent = "Álbum";
+  const albumValue = document.createElement("div");
+  albumValue.className = "hero-album-value";
+  albumValue.textContent = `${character.unlocked} de ${character.total_skins}`;
+  album.append(albumLabel, albumValue);
+  hero.append(portrait, copy, album);
+}
+
+function paintAlbum(character) {
+  const album = $("progress-album");
+  album.replaceChildren();
+  if (!character) return;
+  if (!character.skins || !character.skins.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Este personaje no tiene skins en el catálogo.";
+    album.append(empty);
+    return;
+  }
+  character.skins.forEach((skin, index) => {
+    const card = document.createElement("article");
+    card.className = `skin-card${skin.unlocked ? " unlocked" : " locked"}${skin.is_next ? " next" : ""}`;
+    const order = document.createElement("div");
+    order.className = "skin-order";
+    order.textContent = String(index + 1).padStart(2, "0");
+    const frame = document.createElement("div");
+    frame.className = "skin-frame";
+    imageBox(frame, skin.url, skin.skin_name, { imageClass: "skin-art", fallbackClass: "null-image" });
+    const art = frame.querySelector("img");
+    if (art) {
+      art.title = skin.unlocked
+        ? `${skin.skin_name} desbloqueada`
+        : `${skin.skin_name} · ${formatScore(skin.threshold)} pts de progresión`;
+    }
+    const name = document.createElement("div");
+    name.className = "skin-title";
+    name.textContent = skin.skin_name || "null";
+    const type = document.createElement("div");
+    type.className = `skin-type type-${(skin.skin_type || "").toLowerCase()}`;
+    type.textContent = skin.skin_type || "null";
+    const state = document.createElement("div");
+    state.className = "skin-state";
+    state.textContent = skin.unlocked ? "Desbloqueada" : `${formatScore(skin.threshold)} pts`;
+    card.append(order, frame, name, type, state);
+    if (skin.unlocked) {
+      const mark = document.createElement("div");
+      mark.className = "skin-check";
+      mark.textContent = "✓";
+      card.append(mark);
+    }
+    if (skin.is_next && character.next) {
+      const mini = document.createElement("div");
+      mini.className = "unlock-track mini";
+      const fill = document.createElement("div");
+      fill.className = "unlock-fill";
+      const goal = Number(character.next.threshold) || 0;
+      const width = goal ? (Number(character.points) / goal) * 100 : 0;
+      fill.style.width = `${Math.max(0, Math.min(100, width))}%`;
+      mini.append(fill);
+      card.append(mini);
+    }
+    album.append(card);
+  });
+}
+
+function paintProgressTotal(characters) {
+  const box = $("progress-total");
+  const total = characters.reduce((sum, row) => sum + (Number(row.points) || 0), 0);
+  box.replaceChildren();
+  const value = document.createElement("div");
+  value.className = "progress-total-value";
+  value.textContent = formatScore(total);
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = "Progresión global";
+  box.append(value, eyebrow);
+}
+
+function paintProgress(characters, multiplier) {
+  const roster = $("progress-roster");
+  const scroll = roster.scrollTop;
+  const query = progressQuery.trim().toLocaleLowerCase("es");
+  roster.replaceChildren();
+  const groups = [];
+  for (const character of characters) {
+    if (query && !(character.character || "").toLocaleLowerCase("es").includes(query)) continue;
+    const label = character.game_base || "Otros";
+    let group = groups.find((item) => item.label === label);
+    if (!group) {
+      group = { label, characters: [] };
+      groups.push(group);
+    }
+    group.characters.push(character);
+  }
+  if (!groups.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = query ? "Ningún personaje coincide." : "No hay personajes en el catálogo.";
+    roster.append(empty);
+  }
+  for (const group of groups) {
+    const block = document.createElement("section");
+    block.className = "roster-group";
+    const label = document.createElement("div");
+    label.className = "roster-label";
+    label.textContent = group.label;
+    block.append(label);
+    for (const character of group.characters) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "roster-item";
+      if (character.character_id === progressCharacterId) {
+        button.classList.add("active");
+        button.setAttribute("aria-current", "true");
+      }
+      if (Number(character.points) > 0) button.classList.add("has-points");
+      const photo = document.createElement("div");
+      photo.className = "roster-photo";
+      imageBox(photo, character.url_character, character.character, {
+        imageClass: "roster-photo-img",
+        fallbackClass: "null-image",
+      });
+      const text = document.createElement("div");
+      text.className = "roster-copy";
+      const name = document.createElement("div");
+      name.className = "roster-name";
+      name.textContent = character.character || "null";
+      const meta = document.createElement("div");
+      meta.className = "roster-meta";
+      meta.textContent = `${character.unlocked}/${character.total_skins}`;
+      const track = document.createElement("div");
+      track.className = "roster-bar";
+      const barFill = document.createElement("div");
+      barFill.className = "roster-bar-fill";
+      const partial = character.next ? Number(character.next.progress) || 0 : 0;
+      const toward = character.total_skins
+        ? (Number(character.unlocked) + (character.next ? partial : 0)) / character.total_skins
+        : 0;
+      barFill.style.width = `${Math.max(0, Math.min(100, toward * 100))}%`;
+      track.append(barFill);
+      text.append(name, meta, track);
+      button.append(photo, text);
+      button.addEventListener("click", () => {
+        progressCharacterId = character.character_id;
+        progressSignature = "";
+        if (appState && appState.mode === "rally_progress") showProgressState(appState);
+      });
+      block.append(button);
+    }
+    roster.append(block);
+  }
+  roster.scrollTop = scroll;
+  const activeButton = roster.querySelector(".roster-item.active");
+  if (activeButton && progressCharacterId !== progressScrolledId) {
+    activeButton.scrollIntoView({ block: "nearest" });
+    progressScrolledId = progressCharacterId;
+  }
+  const selected = characters.find((row) => row.character_id === progressCharacterId) || null;
+  paintProgressTotal(characters);
+  paintGlobalMultiplier(multiplier);
+  paintProgressHero(selected);
+  paintAlbum(selected);
+}
+
+function showProgressState(data) {
+  appState = data;
+  const connection = $("connection");
+  connection.textContent = data.game_running
+    ? "Juego detectado · last_run en vivo"
+    : "Juego cerrado · álbum de Ring Rally";
+  connection.className = `pill${data.game_running ? " live" : ""}`;
+  const characters = data.progression || [];
+  const unlocked = data.summary?.unlocked ?? characters.reduce((sum, row) => sum + (Number(row.unlocked) || 0), 0);
+  const skins = data.summary?.skins ?? characters.reduce((sum, row) => sum + (Number(row.total_skins) || 0), 0);
+  $("kpi-records").textContent = String(data.summary?.records ?? 0);
+  $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Skins desbloqueadas";
+  $("kpi-devs").textContent = `${unlocked} de ${skins}`;
+  if (!progressCharacterId || !characters.some((row) => row.character_id === progressCharacterId)) {
+    progressCharacterId = data.active_character_id
+      || characters.find((row) => Number(row.points) > 0)?.character_id
+      || characters[0]?.character_id
+      || "";
+  }
+  const signature = JSON.stringify({
+    id: progressCharacterId,
+    query: progressQuery,
+    multiplier: data.multiplier,
+    characters,
+  });
+  if (signature === progressSignature) return;
+  progressSignature = signature;
+  paintProgress(characters, data.multiplier);
+}
+
+let trophySignature = "";
+
+function formatTrophyAmount(trophy) {
+  const current = Number(trophy.current) || 0;
+  const target = Number(trophy.target) || 0;
+  if (trophy.unit === "milli") {
+    return `${(current / 1000).toFixed(3)} / ${(target / 1000).toFixed(3)}`;
+  }
+  return `${formatScore(current)} / ${formatScore(target)}`;
+}
+
+function formatTrophyDate(value) {
+  if (!value) return "Sin desbloquear";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function paintTrophies(trophies) {
+  const list = $("trophy-list");
+  list.replaceChildren();
+  if (!trophies.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No hay trofeos en achievements.csv.";
+    list.append(empty);
+    return;
+  }
+  for (const trophy of trophies) {
+    const row = document.createElement("article");
+    const tier = (trophy.type || "").toLowerCase();
+    row.className = `trophy${trophy.unlocked ? " unlocked" : " locked"} tier-${tier}`;
+    const icon = document.createElement("div");
+    icon.className = "trophy-icon";
+    imageBox(icon, trophy.url, trophy.name, { imageClass: "trophy-art", fallbackClass: "trophy-fallback" });
+    const body = document.createElement("div");
+    body.className = "trophy-body";
+    const head = document.createElement("div");
+    head.className = "trophy-title-row";
+    const title = document.createElement("h3");
+    title.textContent = trophy.name;
+    const tierLabel = document.createElement("span");
+    tierLabel.className = "trophy-tier";
+    tierLabel.textContent = `${trophy.tier || trophy.type} +${trophy.mult}`;
+    head.append(title, tierLabel);
+    const meta = document.createElement("p");
+    meta.className = "trophy-meta";
+    meta.textContent = trophy.meta || "";
+    const progress = document.createElement("div");
+    progress.className = "trophy-progress";
+    const amount = document.createElement("div");
+    amount.className = "trophy-amount";
+    amount.textContent = formatTrophyAmount(trophy);
+    const bar = document.createElement("div");
+    bar.className = "unlock-track";
+    bar.setAttribute("role", "progressbar");
+    bar.setAttribute("aria-valuemin", "0");
+    bar.setAttribute("aria-valuemax", "100");
+    const width = Math.max(0, Math.min(100, Number(trophy.progress) * 100));
+    bar.setAttribute("aria-valuenow", String(Math.round(width)));
+    const fill = document.createElement("div");
+    fill.className = "unlock-fill";
+    fill.style.width = `${width}%`;
+    bar.append(fill);
+    progress.append(amount, bar);
+    body.append(head, meta, progress);
+    const date = document.createElement("div");
+    date.className = "trophy-date";
+    date.textContent = trophy.unlocked ? formatTrophyDate(trophy.unlocked_at) : "Sin desbloquear";
+    row.append(icon, body, date);
+    list.append(row);
+  }
+}
+
+function showTrophyState(data) {
+  appState = data;
+  const connection = $("connection");
+  connection.textContent = data.game_running
+    ? "Juego detectado · last_run en vivo"
+    : "Juego cerrado · trofeos de Ring Rally";
+  connection.className = `pill${data.game_running ? " live" : ""}`;
+  const trophies = data.trophies || [];
+  const unlocked = data.summary?.unlocked ?? trophies.filter((row) => row.unlocked).length;
+  const total = data.summary?.trophies ?? trophies.length;
+  $("kpi-records").textContent = String(data.summary?.records ?? 0);
+  $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Trofeos";
+  $("kpi-devs").textContent = `${unlocked} de ${total}`;
+  $("trophy-count").textContent = `${unlocked} de ${total}`;
+  const signature = JSON.stringify({ multiplier: data.multiplier, trophies });
+  if (signature === trophySignature) return;
+  trophySignature = signature;
+  paintTrophies(trophies);
+}
+
 function setView(name) {
   $("view-register").hidden = name !== "register";
   $("view-rally").hidden = name !== "rally";
-  currentMode = name === "rally" ? "rally_ring" : "time_trial";
+  $("view-progress").hidden = name !== "progress";
+  $("view-trophies").hidden = name !== "trophies";
+  currentMode = name === "rally" ? "rally_ring" : name === "progress" ? "rally_progress" : name === "trophies" ? "rally_trophies" : "time_trial";
   for (const button of document.querySelectorAll(".nav-btn")) {
     const active = button.dataset.view === name;
     button.classList.toggle("active", active);
@@ -462,7 +884,14 @@ function showRallyState(data) {
   const firstCard = $("rally-cards").querySelector(".card");
   if (firstCard) firstCard.classList.add("top1");
   const last = data.last_trial;
-  $("rally-last").textContent = last ? `${last.track_clean || "null"} · ${last.character || "null"} · ${formatScore(last.score)} pts` : "null";
+  const mult = Number(last?.multiplier);
+  const boosted = Number(last?.score_mult);
+  let headline = last ? `${last.track_clean || "null"} · ${last.character || "null"} · ${formatScore(last.score)} pts` : "null";
+  if (last && Number.isFinite(mult) && mult > 0 && Number.isFinite(boosted)) {
+    headline += ` · progresión ${formatScore(boosted)} (${formatFactor(mult)})`;
+  }
+  $("rally-last").textContent = headline;
+  $("rally-last-notes").textContent = last?.notes || "";
   const delta = $("rally-last-delta");
   const badges = $("rally-last-badges");
   badges.replaceChildren();
@@ -523,6 +952,8 @@ async function refresh() {
     if (requestId !== refreshSerial) return;
     if (!response.ok) throw new Error(data.error || "Error al leer datos");
     if (currentMode === "rally_ring") showRallyState(data);
+    else if (currentMode === "rally_progress") showProgressState(data);
+    else if (currentMode === "rally_trophies") showTrophyState(data);
     else showState(data);
   } catch (error) {
     if (requestId !== refreshSerial) return;
@@ -555,6 +986,11 @@ $("track-picker").addEventListener("change", () => {
   refresh();
 });
 $("rally-track-picker").addEventListener("change", () => { browsedTrackByMode.rally_ring = $("rally-track-picker").value; refresh(); });
+$("progress-search").addEventListener("input", () => {
+  progressQuery = $("progress-search").value;
+  progressSignature = "";
+  if (appState && appState.mode === "rally_progress") showProgressState(appState);
+});
 
 $("rally-save").addEventListener("click", async () => {
   const status = $("rally-status");
@@ -566,7 +1002,12 @@ $("rally-save").addEventListener("click", async () => {
     if (!response.ok) throw new Error(data.error || "No se pudo guardar");
     $("score").value = "";
     $("laps").value = "";
-    status.textContent = `Guardado #${data.record.id} · ${formatScore(data.record.score)} pts`;
+    const note = data.record.notes ? ` · ${data.record.notes}` : "";
+    const savedMult = Number(data.record.multiplier);
+    const detail = Number.isFinite(savedMult) && savedMult > 0
+      ? `${formatScore(data.record.score_mult)} pts de progresión (${formatFactor(savedMult)})`
+      : `${formatScore(data.record.score)} pts`;
+    status.textContent = `Guardado #${data.record.id} · ${detail}${note}`;
     await refresh();
   } catch (error) { status.textContent = error.message; status.className = "status error"; }
 });

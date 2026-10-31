@@ -14,7 +14,7 @@
       <div>
         <div class="eyebrow">Crash Team Racing Nitro-Fueled</div>
         <h1 class="title">Time Trials & Ring Rally</h1>
-        <p class="sub">Registro personal de Contrarreloj y Ring Rally.</p>
+        <p class="sub">Registro personal de Contrarreloj, Ring Rally, el álbum de skins y los trofeos.</p>
       </div>
       <div class="kpis" aria-label="Resumen">
         <div class="kpi">
@@ -31,6 +31,8 @@
     <nav class="nav" aria-label="Secciones">
       <button type="button" class="nav-btn active" data-view="register" aria-current="page">Time Trial</button>
       <button type="button" class="nav-btn" data-view="rally">Ring Rally</button>
+      <button type="button" class="nav-btn" data-view="progress">RR Progresión</button>
+      <button type="button" class="nav-btn" data-view="trophies">RR Trophies</button>
       <div id="connection" class="pill">Conectando con last_run…</div>
     </nav>
 
@@ -132,7 +134,41 @@
           <div id="rally-cards" class="cards"></div>
         </section>
       </div>
-      <section class="last" aria-label="Último Rally Ring guardado"><div class="last-copy"><div class="label">Último Rally Ring guardado</div><div class="last-line"><strong id="rally-last">null</strong><span id="rally-last-delta" class="last-delta"></span></div></div><div id="rally-last-badges" class="last-badges"></div></section>
+      <section class="last" aria-label="Último Rally Ring guardado"><div class="last-copy"><div class="label">Último Rally Ring guardado</div><div class="last-line"><strong id="rally-last">null</strong><span id="rally-last-delta" class="last-delta"></span></div><div id="rally-last-notes" class="last-notes"></div></div><div id="rally-last-badges" class="last-badges"></div></section>
+    </section>
+
+    <section id="view-progress" hidden>
+      <section id="progress-total" class="progress-total" aria-label="Progresión global"></section>
+      <div class="progress-layout">
+        <aside class="panel roster-panel">
+          <h2>Personajes</h2>
+          <div class="field roster-search">
+            <label for="progress-search">Buscar</label>
+            <input id="progress-search" type="text" placeholder="Nombre del personaje" autocomplete="off">
+          </div>
+          <div id="progress-roster" class="roster"></div>
+        </aside>
+        <div class="progress-main">
+          <section id="progress-global" class="progress-global" aria-label="Multiplicador global"></section>
+          <section class="panel album-panel" aria-live="polite">
+            <div id="progress-hero"></div>
+            <div id="progress-album" class="skin-album"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-trophies" hidden>
+      <section class="panel trophy-panel" aria-live="polite">
+        <div class="trophy-top">
+          <div>
+            <div class="eyebrow">Ring Rally</div>
+            <h2>RR Trophies</h2>
+          </div>
+          <div id="trophy-count" class="trophy-count">0 de 0</div>
+        </div>
+        <div id="trophy-list" class="trophy-list"></div>
+      </section>
     </section>
   </main>
 </body>

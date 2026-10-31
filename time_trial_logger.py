@@ -11,11 +11,23 @@ import sys
 import threading
 import time
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 DEFAULT_LOG = Path(r"C:\CTRNF\CTR-NitroFueled-PC-portable\last_run_JulianGomez.log")
 CSV_PATH = Path(__file__).resolve().parent / "data" / "time_trials.csv"
 RALLY_RING_CSV_PATH = Path(__file__).resolve().parent / "data" / "rally_ring.csv"
+SKINS_CSV_PATH = Path(__file__).resolve().parent / "data" / "game_skins.csv"
+CHARACTERS_CSV_PATH = Path(__file__).resolve().parent / "data" / "game_characters.csv"
+TRACKS_CSV_PATH = Path(__file__).resolve().parent / "data" / "game_tracks.csv"
+ACHIEVEMENTS_CSV_PATH = Path(__file__).resolve().parent / "data" / "achievements.csv"
+MASK_CLUBS = ("Aku Aku", "Uka Uka", "Velo", "Sparx")
+TIER_LABEL = {"bronze": "Bronce", "silver": "Plata", "gold": "Oro", "platinum": "Platino"}
+# Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000.
+UNLOCK_COST = {"basic": 500_000, "exotic": 2_000_000, "legendary": 5_000_000, "beenox": 10_000_000}
+# Added to the global multiplier. 1 milli = 0.001, so the next score is ×1.001.
+BONUS_MILLI = {"basic": 1, "exotic": 2, "legendary": 3, "beenox": 5}
+_rally_lock = threading.Lock()
 CSV_FIELDS = (
     "id",
     "track_id",
@@ -269,7 +281,21 @@ def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[st
     return record
 
 
-RALLY_FIELDS = ("id", "track_id", "track", "skin_id", "skin", "score", "laps", "pb", "delta_pb", "captured_at")
+RALLY_FIELDS = (
+    "id",
+    "track_id",
+    "track",
+    "skin_id",
+    "skin",
+    "score",
+    "laps",
+    "pb",
+    "delta_pb",
+    "score_mult",
+    "multiplier",
+    "notes",
+    "captured_at",
+)
 
 
 def parse_score(raw: str) -> int:
@@ -286,67 +312,816 @@ def parse_laps(raw: str) -> int:
     return int(value)
 
 
+def scaled_score(score: int, bonus_milli: int) -> int:
+    """Return score × (1 + bonus_milli/1000), rounded half up."""
+    if bonus_milli <= 0:
+        return score
+    return (score * (1000 + bonus_milli) + 500) // 1000
+
+
+def _display_skin_name(value: str, fallback: str) -> str:
+    text = (value or "").strip() or fallback
+    if len(text) >= 2 and text[0] == text[-1] == '"':
+        text = text[1:-1]
+    return text or fallback
+
+
+def _read_table(path: Path) -> list[dict[str, str]]:
+    if not path.exists() or path.stat().st_size == 0:
+        return []
+    with path.open("r", newline="", encoding="utf-8-sig") as source:
+        header = source.readline()
+        delimiter = ";" if header.count(";") > header.count(",") else ","
+        source.seek(0)
+        return list(csv.DictReader(source, delimiter=delimiter))
+
+
+def load_rally_catalog(
+    skins_path: Path = SKINS_CSV_PATH,
+    characters_path: Path = CHARACTERS_CSV_PATH,
+    tracks_path: Path = TRACKS_CSV_PATH,
+    achievements_path: Path = ACHIEVEMENTS_CSV_PATH,
+) -> dict:
+    """Skins grouped by character_id, ordered by skin_id, with cumulative unlock costs."""
+    skin_by_name: dict[str, dict[str, str]] = {}
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for row in _read_table(skins_path):
+        name = (row.get("skin") or "").strip()
+        if name:
+            skin_by_name[name] = row
+        character_id = (row.get("character_id") or "").strip()
+        if character_id:
+            grouped.setdefault(character_id, []).append(row)
+
+    ladders: dict[str, list[dict]] = {}
+    for character_id, group in grouped.items():
+        ordered = sorted(
+            group,
+            key=lambda row: int(row["skin_id"]) if str(row.get("skin_id", "")).strip().isdigit() else 10**9,
+        )
+        total = 0
+        steps: list[dict] = []
+        for row in ordered:
+            kind = (row.get("skin_type") or "").strip().casefold()
+            cost = UNLOCK_COST.get(kind)
+            bonus = BONUS_MILLI.get(kind)
+            if cost is None or bonus is None:
+                label = (row.get("skin_type") or "").strip() or "(vacío)"
+                raise ValueError(f"skin_type no reconocido en game_skins.csv: {label}")
+            total += cost
+            raw_name = (row.get("skin") or "").strip()
+            steps.append(
+                {
+                    "skin_id": (row.get("skin_id") or "").strip(),
+                    "skin": raw_name,
+                    "skin_name": _display_skin_name(row.get("skin_name") or "", raw_name),
+                    "skin_type": (row.get("skin_type") or "").strip(),
+                    "url": (row.get("url") or "").strip(),
+                    "character": (row.get("character") or "").strip(),
+                    "character_id": character_id,
+                    "cost": cost,
+                    "threshold": total,
+                    "bonus_milli": bonus,
+                }
+            )
+        ladders[character_id] = steps
+
+    characters: dict[str, dict[str, str]] = {}
+    characters_by_game: dict[str, list[str]] = {}
+    for row in _read_table(characters_path):
+        character_id = (row.get("character_id") or "").strip()
+        if not character_id:
+            continue
+        characters[character_id] = row
+        game = (row.get("game_base") or "").strip().casefold()
+        if game:
+            characters_by_game.setdefault(game, []).append(character_id)
+    tracks_by_game: dict[str, list[str]] = {}
+    for row in _read_table(tracks_path):
+        track = (row.get("track") or "").strip()
+        game = (row.get("track_game") or "").strip().casefold()
+        if track and game:
+            tracks_by_game.setdefault(game, []).append(track)
+    return {
+        "skin_by_name": skin_by_name,
+        "ladders": ladders,
+        "characters": characters,
+        "characters_by_game": characters_by_game,
+        "tracks_by_game": tracks_by_game,
+        "achievements": _load_achievements(achievements_path),
+    }
+
+
+def _character_id(skin: str, catalog: dict) -> str:
+    row = catalog["skin_by_name"].get((skin or "").strip())
+    if not row:
+        return ""
+    return (row.get("character_id") or "").strip()
+
+
+def _points_by_character(rows: list[dict[str, str]], catalog: dict) -> dict[str, int]:
+    totals: dict[str, int] = {}
+    for row in rows:
+        character_id = _character_id(row.get("skin", ""), catalog)
+        if not character_id:
+            continue
+        try:
+            amount = int((row.get("score_mult") or "0").strip() or "0")
+        except ValueError:
+            continue
+        totals[character_id] = totals.get(character_id, 0) + amount
+    return totals
+
+
+def _milli_for_points(catalog: dict, points_by: dict[str, int]) -> int:
+    """Bonus from every unlocked skin, across all characters."""
+    total = 0
+    for character_id, ladder in catalog["ladders"].items():
+        points = points_by.get(character_id, 0)
+        total += sum(step["bonus_milli"] for step in ladder if step["threshold"] <= points)
+    return total
+
+
+def _unlock_notes(steps: list[dict]) -> str:
+    if not steps:
+        return ""
+    parts = [f"{step['skin_name']} ({step['skin_type']})" for step in steps]
+    if len(parts) == 1:
+        return f"Desbloqueo: {parts[0]}"
+    return "Desbloqueo: " + ", ".join(parts)
+
+
+def _progress_notes(steps: list[dict], trophies: list[dict]) -> str:
+    parts = []
+    skin_note = _unlock_notes(steps)
+    if skin_note:
+        parts.append(skin_note)
+    if trophies:
+        names = [item["name"] for item in trophies]
+        label = "Trofeo" if len(names) == 1 else "Trofeos"
+        parts.append(f"{label}: " + ", ".join(names))
+    return " · ".join(parts)
+
+
+def _parse_milli(raw: str) -> int:
+    text = (raw or "").strip().replace(" ", "").replace(",", ".")
+    if not text:
+        return 0
+    try:
+        value = (Decimal(text) * 1000).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    except Exception as exc:
+        raise ValueError(f"bonus de achievement no numérico: {raw}") from exc
+    return int(value)
+
+
+def _parse_goal_int(raw: str) -> int:
+    text = (raw or "").strip().replace(" ", "")
+    if not text:
+        return 0
+    if not text.isdigit():
+        raise ValueError(f"meta de achievement no entera: {raw}")
+    return int(text)
+
+
+def _mask_clubs(mask: str) -> set[str]:
+    """Aku Aku/Uka Uka counts for both clubs. Any counts for every club."""
+    text = (mask or "").strip()
+    if not text:
+        return set()
+    if text.casefold() == "any":
+        return set(MASK_CLUBS)
+    clubs: set[str] = set()
+    for part in text.split("/"):
+        token = part.strip()
+        folded = token.casefold()
+        if not token:
+            continue
+        if folded == "any":
+            return set(MASK_CLUBS)
+        for club in MASK_CLUBS:
+            club_folded = club.casefold()
+            if club_folded in folded or folded in club_folded:
+                clubs.add(club)
+    return clubs
+
+
+def _club_from_note(notes: str) -> str:
+    match = re.search(r"with\s+(.+?)\s+mask", notes, re.IGNORECASE)
+    phrase = match.group(1).strip() if match else ""
+    for club in MASK_CLUBS:
+        folded = phrase.casefold()
+        if club.casefold() in folded or folded in club.casefold():
+            return club
+    raise ValueError(f"máscara de achievement no reconocida: {notes}")
+
+
+def _classify_achievement(name: str, notes: str, goal_raw: str) -> dict:
+    notes_cf = notes.casefold().strip()
+    name_cf = name.casefold()
+    if "unlock all" in notes_cf and "achievement" in notes_cf:
+        return {"kind": "platinum"}
+    if notes_cf.startswith("multiplier"):
+        return {"kind": "multiplier", "goal_milli": _parse_milli(goal_raw)}
+    if "single character" in notes_cf:
+        return {"kind": "character_points", "goal": _parse_goal_int(goal_raw)}
+    if "base points" in notes_cf and "mask" in notes_cf:
+        return {"kind": "mask_points", "goal": _parse_goal_int(goal_raw), "club": _club_from_note(notes)}
+    if notes_cf == "laps":
+        return {"kind": "laps", "goal": _parse_goal_int(goal_raw)}
+    if notes_cf == "any combination":
+        return {"kind": "races", "goal": _parse_goal_int(goal_raw)}
+    if notes_cf == "any skins":
+        return {"kind": "skin_count", "goal": _parse_goal_int(goal_raw)}
+    if notes_cf == "all skins":
+        return {"kind": "all_skins"}
+    if notes_cf in {"basic", "exotic", "legendary", "beenox"}:
+        return {"kind": "skin_type", "skin_type": notes.strip()}
+    if "base points" in notes_cf and "race" in name_cf:
+        return {"kind": "single_race", "goal": _parse_goal_int(goal_raw)}
+    if "base points" in notes_cf:
+        return {"kind": "total_points", "goal": _parse_goal_int(goal_raw)}
+    if "track" in name_cf:
+        return {"kind": "all_tracks", "game": notes.strip()}
+    if "character" in name_cf:
+        return {"kind": "all_characters", "game": notes.strip()}
+    raise ValueError(f"notes de achievement no reconocidas: {notes or '(vacío)'}")
+
+
+def _load_achievements(path: Path) -> list[dict]:
+    if not path.exists() or path.stat().st_size == 0:
+        return []
+    achievements = []
+    for row in _read_table(path):
+        name = (row.get("name") or "").strip()
+        if not name:
+            continue
+        notes = (row.get("notes") or "").strip()
+        goal_raw = (row.get("goal") or "").strip()
+        kind = _classify_achievement(name, notes, goal_raw)
+        tier = (row.get("type") or "").strip()
+        achievements.append(
+            {
+                "id": (row.get("id") or "").strip(),
+                "name": name,
+                "notes": notes,
+                "type": tier,
+                "tier": TIER_LABEL.get(tier.casefold(), tier or "Bronce"),
+                "milli": _parse_milli(row.get("mult") or ""),
+                "url": (row.get("url") or "").strip(),
+                **kind,
+            }
+        )
+    return achievements
+
+
+def _cell_int(row: dict[str, str], field: str) -> int:
+    try:
+        return int((row.get(field) or "").strip() or "0")
+    except (TypeError, ValueError):
+        return 0
+
+
+def _blank_stats() -> dict:
+    return {
+        "base_points": 0,
+        "max_score": 0,
+        "laps": 0,
+        "races": 0,
+        "tracks": set(),
+        "characters": set(),
+        "points_by": {},
+        "base_by_character": {},
+        "base_by_club": {},
+    }
+
+
+def _clone_stats(stats: dict) -> dict:
+    return {
+        "base_points": stats["base_points"],
+        "max_score": stats["max_score"],
+        "laps": stats["laps"],
+        "races": stats["races"],
+        "tracks": set(stats["tracks"]),
+        "characters": set(stats["characters"]),
+        "points_by": dict(stats["points_by"]),
+        "base_by_character": dict(stats["base_by_character"]),
+        "base_by_club": dict(stats["base_by_club"]),
+    }
+
+
+def _add_rally_row(stats: dict, row: dict[str, str], catalog: dict, score_mult: int | None = None) -> None:
+    score = _cell_int(row, "score")
+    amount = score if score_mult is None else score_mult
+    if score_mult is None and (row.get("score_mult") or "").strip():
+        amount = _cell_int(row, "score_mult")
+    stats["base_points"] += score
+    stats["max_score"] = max(stats["max_score"], score)
+    stats["laps"] += _cell_int(row, "laps")
+    stats["races"] += 1
+    track = (row.get("track") or "").strip()
+    if track and track.casefold() not in {"null", "none"}:
+        stats["tracks"].add(track)
+    character_id = _character_id(row.get("skin", ""), catalog)
+    if not character_id:
+        return
+    stats["characters"].add(character_id)
+    stats["points_by"][character_id] = stats["points_by"].get(character_id, 0) + amount
+    stats["base_by_character"][character_id] = stats["base_by_character"].get(character_id, 0) + score
+    profile = catalog["characters"].get(character_id, {})
+    for club in _mask_clubs(profile.get("mask") or ""):
+        stats["base_by_club"][club] = stats["base_by_club"].get(club, 0) + score
+
+
+def _stats_from_rows(rows: list[dict[str, str]], catalog: dict) -> dict:
+    stats = _blank_stats()
+    ordered = sorted(
+        rows,
+        key=lambda row: int(row["id"]) if str(row.get("id", "")).isdigit() else 10**9,
+    )
+    for row in ordered:
+        _add_rally_row(stats, row, catalog)
+    return stats
+
+
+def _skin_counts(catalog: dict, points_by: dict[str, int], skin_type: str = "") -> tuple[int, int]:
+    wanted = skin_type.casefold()
+    unlocked = 0
+    total = 0
+    for ladder in catalog["ladders"].values():
+        for step in ladder:
+            if wanted and step["skin_type"].casefold() != wanted:
+                continue
+            total += 1
+            if step["threshold"] <= points_by.get(step["character_id"], 0):
+                unlocked += 1
+    return unlocked, total
+
+
+def _set_count(wanted: list[str], seen: set[str]) -> tuple[int, int]:
+    return sum(1 for item in wanted if item in seen), len(wanted)
+
+
+def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, int]:
+    kind = ach["kind"]
+    if kind == "total_points":
+        return stats["base_points"], ach["goal"]
+    if kind == "single_race":
+        return stats["max_score"], ach["goal"]
+    if kind == "laps":
+        return stats["laps"], ach["goal"]
+    if kind == "races":
+        return stats["races"], ach["goal"]
+    if kind == "skin_count":
+        unlocked, _total = _skin_counts(catalog, stats["points_by"])
+        return unlocked, ach["goal"]
+    if kind == "skin_type":
+        return _skin_counts(catalog, stats["points_by"], ach["skin_type"])
+    if kind == "all_skins":
+        return _skin_counts(catalog, stats["points_by"])
+    if kind == "all_tracks":
+        wanted = catalog["tracks_by_game"].get(ach["game"].casefold(), [])
+        return _set_count(wanted, stats["tracks"])
+    if kind == "all_characters":
+        wanted = catalog["characters_by_game"].get(ach["game"].casefold(), [])
+        return _set_count(wanted, stats["characters"])
+    if kind == "mask_points":
+        return stats["base_by_club"].get(ach["club"], 0), ach["goal"]
+    if kind == "character_points":
+        best = max(stats["base_by_character"].values(), default=0)
+        return best, ach["goal"]
+    return 0, 0
+
+
+def _achievement_state(stats: dict, catalog: dict) -> tuple[dict[str, dict], int]:
+    """Progress of every trophy and the global bonus, skins included.
+
+    The multiplier trophy looks at skins plus the other trophies, without its
+    own bonus. Ring Rally Legend unlocks only after every other trophy.
+    """
+    achievements = catalog.get("achievements") or []
+    regular = [ach for ach in achievements if ach["kind"] not in {"multiplier", "platinum"}]
+    multiplier = next((ach for ach in achievements if ach["kind"] == "multiplier"), None)
+    platinum = next((ach for ach in achievements if ach["kind"] == "platinum"), None)
+    state: dict[str, dict] = {}
+    bonus = _milli_for_points(catalog, stats["points_by"])
+    for ach in regular:
+        current, target = _measure_achievement(ach, stats, catalog)
+        unlocked = target > 0 and current >= target
+        state[ach["id"]] = {"current": current, "target": target, "unlocked": unlocked}
+        if unlocked:
+            bonus += ach["milli"]
+    if multiplier is not None:
+        target = multiplier["goal_milli"]
+        unlocked = target > 0 and bonus >= target
+        state[multiplier["id"]] = {"current": bonus, "target": target, "unlocked": unlocked}
+        if unlocked:
+            bonus += multiplier["milli"]
+    others = [ach for ach in achievements if ach is not platinum]
+    other_unlocked = sum(1 for ach in others if state.get(ach["id"], {}).get("unlocked"))
+    if platinum is not None:
+        target = len(others)
+        unlocked = target > 0 and other_unlocked >= target
+        state[platinum["id"]] = {"current": other_unlocked, "target": target, "unlocked": unlocked}
+        if unlocked:
+            bonus += platinum["milli"]
+    return state, bonus
+
+
+def _fmt_count(value: int) -> str:
+    return f"{value:,}"
+
+
+def _trophy_meta(ach: dict, target: int) -> str:
+    kind = ach["kind"]
+    if kind == "total_points":
+        return f"Suma {_fmt_count(ach['goal'])} pts base"
+    if kind == "single_race":
+        return f"Consigue {_fmt_count(ach['goal'])} pts base en una carrera"
+    if kind == "all_tracks":
+        return f"Corre las {target} pistas de {ach['game']}"
+    if kind == "all_characters":
+        return f"Corre con los {target} personajes de {ach['game']}"
+    if kind == "skin_type":
+        label = ach["skin_type"][:1].upper() + ach["skin_type"][1:]
+        return f"Desbloquea las {target} skins {label}"
+    if kind == "all_skins":
+        return f"Desbloquea las {target} skins"
+    if kind == "skin_count":
+        return f"Desbloquea {_fmt_count(ach['goal'])} skins"
+    if kind == "races":
+        return f"Completa {_fmt_count(ach['goal'])} carreras de Ring Rally"
+    if kind == "laps":
+        return f"Acumula {_fmt_count(ach['goal'])} vueltas"
+    if kind == "multiplier":
+        return f"Alcanza un bonus de {ach['goal_milli'] / 1000:.3f}"
+    if kind == "mask_points":
+        extra = "Aku Aku/Uka Uka y Any también suman." if ach["club"] in {"Aku Aku", "Uka Uka"} else "Any también suma."
+        return f"Suma {_fmt_count(ach['goal'])} pts base con máscara {ach['club']}. {extra}"
+    if kind == "character_points":
+        return f"Suma {_fmt_count(ach['goal'])} pts base con un mismo personaje"
+    if kind == "platinum":
+        return f"Desbloquea los otros {target} trofeos"
+    return ach.get("notes") or ""
+
+
+def _trophy_unit(kind: str) -> str:
+    if kind in {"total_points", "single_race", "mask_points", "character_points"}:
+        return "points"
+    if kind == "multiplier":
+        return "milli"
+    return "count"
+
+
+def score_with_progression(
+    prior_rows: list[dict[str, str]],
+    skin: str,
+    score: int,
+    catalog: dict,
+    laps: int = 0,
+    track: str = "",
+) -> dict:
+    """Snapshot the global multiplier for one new score without rewriting older rows.
+
+    Skins and trophies already unlocked raise the next score. If this race opens
+    more of either, the same record is recalculated with those bonuses included.
+    Trophy progress uses the raw score. score_mult stays the album currency.
+    """
+    character_id = _character_id(skin, catalog)
+    ladder = catalog["ladders"].get(character_id, []) if character_id else []
+    prior_stats = _stats_from_rows(prior_rows, catalog)
+    prior_state, milli = _achievement_state(prior_stats, catalog)
+    points = prior_stats["points_by"].get(character_id, 0) if character_id else 0
+    score_mult = scaled_score(score, milli)
+    fresh: list[dict] = []
+    fresh_trophies: list[dict] = []
+    for _ in range(64):
+        trial = _clone_stats(prior_stats)
+        _add_rally_row(
+            trial,
+            {"score": str(score), "laps": str(laps), "track": track, "skin": skin},
+            catalog,
+            score_mult=score_mult,
+        )
+        state, new_milli = _achievement_state(trial, catalog)
+        unlocked = [step for step in ladder if step["threshold"] <= points + score_mult]
+        fresh = [step for step in unlocked if step["threshold"] > points]
+        fresh_trophies = [
+            ach
+            for ach in catalog.get("achievements") or []
+            if state.get(ach["id"], {}).get("unlocked") and not prior_state.get(ach["id"], {}).get("unlocked")
+        ]
+        if new_milli == milli:
+            break
+        milli = new_milli
+        score_mult = scaled_score(score, milli)
+    return {
+        "score_mult": score_mult,
+        "multiplier": f"{milli / 1000:.3f}",
+        "notes": _progress_notes(fresh, fresh_trophies),
+        "character_id": character_id,
+    }
+
+
+def _read_rally(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    if not path.exists() or path.stat().st_size == 0:
+        return list(RALLY_FIELDS), []
+    with path.open("r", newline="", encoding="utf-8-sig") as source:
+        reader = csv.DictReader(source, delimiter=csv_delimiter(path))
+        fieldnames = list(reader.fieldnames or [])
+        if not {"track", "score"}.issubset(fieldnames):
+            raise ValueError("El CSV Rally Ring existente tiene un esquema incompatible.")
+        return fieldnames, list(reader)
+
+
+def _write_rally(path: Path, rows: list[dict[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    with temp_path.open("w", newline="", encoding="utf-8-sig") as target:
+        writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row.get(field, "") for field in RALLY_FIELDS})
+    os.replace(temp_path, path)
+
+
+def _append_rally(path: Path, record: dict[str, str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    needs_header = not path.exists() or path.stat().st_size == 0
+    with path.open("a", newline="", encoding="utf-8-sig") as target:
+        writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS, extrasaction="ignore")
+        if needs_header:
+            writer.writeheader()
+        writer.writerow({field: record.get(field, "") for field in RALLY_FIELDS})
+
+
+def _row_has_progression(row: dict[str, str]) -> bool:
+    return bool((row.get("score_mult") or "").strip()) and (row.get("multiplier") or "").strip() != ""
+
+
+def _fill_missing_progression(rows: list[dict[str, str]], catalog: dict) -> None:
+    """Fill empty progression cells in id order. Rows that already have them stay put."""
+    ordered = sorted(
+        range(len(rows)),
+        key=lambda index: int(rows[index]["id"]) if str(rows[index].get("id", "")).isdigit() else index,
+    )
+    prior: list[dict[str, str]] = []
+    for index in ordered:
+        row = rows[index]
+        if not _row_has_progression(row):
+            try:
+                score = int((row.get("score") or "").strip())
+            except (TypeError, ValueError):
+                score = 0
+            result = score_with_progression(
+                prior,
+                (row.get("skin") or "").strip(),
+                score,
+                catalog,
+                laps=_cell_int(row, "laps"),
+                track=(row.get("track") or "").strip(),
+            )
+            row["score_mult"] = str(result["score_mult"])
+            row["multiplier"] = result["multiplier"]
+            row["notes"] = result["notes"]
+        prior.append(row)
+
+
+def _rally_schema_ready(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> bool:
+    return (
+        path.exists()
+        and path.stat().st_size > 0
+        and fieldnames == list(RALLY_FIELDS)
+        and all(_row_has_progression(row) for row in rows)
+    )
+
+
+def _entity_id_from_rows(rows: list[dict[str, str]], field: str, value: str) -> tuple[str, str]:
+    value = (value or "").strip()
+    if not value or value.casefold() in {"null", "none"}:
+        return "null", ""
+    found: dict[str, int] = {}
+    id_field = f"{field}_id"
+    for row in rows:
+        raw = (row.get(field) or "").strip()
+        raw_id = (row.get(id_field) or "").strip()
+        if raw and raw_id.isdigit():
+            found[raw] = int(raw_id)
+    return value, str(found.get(value, max(found.values(), default=0) + 1))
+
+
+def _new_rally_record(
+    rows: list[dict[str, str]],
+    track: str,
+    skin: str,
+    score: int,
+    laps: int,
+    catalog: dict,
+) -> dict[str, str]:
+    track, track_id = _entity_id_from_rows(rows, "track", track)
+    skin, skin_id = _entity_id_from_rows(rows, "skin", skin)
+    previous: int | None = None
+    if track.casefold() not in {"null", "none"}:
+        for row in rows:
+            if (row.get("track") or "").strip() != track:
+                continue
+            try:
+                old_score = int((row.get("score") or "").strip())
+            except (TypeError, ValueError):
+                continue
+            previous = old_score if previous is None else max(previous, old_score)
+    progress = score_with_progression(rows, skin, score, catalog, laps=laps, track=track)
+    record_id = max((int(row["id"]) for row in rows if str(row.get("id", "")).isdigit()), default=0) + 1
+    return {
+        "id": str(record_id),
+        "track_id": track_id,
+        "track": track,
+        "skin_id": skin_id,
+        "skin": skin,
+        "score": str(score),
+        "laps": str(laps),
+        "pb": "1" if previous is None or score > previous else "0",
+        "delta_pb": str(score - previous) if previous is not None else "0",
+        "score_mult": str(progress["score_mult"]),
+        "multiplier": progress["multiplier"],
+        "notes": progress["notes"],
+        "captured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
+
+
+def ensure_rally_progression(csv_path: Path | None = None) -> None:
+    """Backfill score_mult, multiplier and notes once. Completed rows are not rewritten."""
+    path = csv_path or RALLY_RING_CSV_PATH
+    with _rally_lock:
+        fieldnames, rows = _read_rally(path)
+        if _rally_schema_ready(path, fieldnames, rows):
+            return
+        if rows:
+            _fill_missing_progression(rows, load_rally_catalog())
+        if rows or (path.exists() and path.stat().st_size > 0):
+            _write_rally(path, rows)
+
+
 def save_rally_record(track: str, skin: str, raw_score: str, raw_laps: str, csv_path: Path) -> dict[str, str]:
     score = parse_score(raw_score)
     laps = parse_laps(raw_laps)
-    track, skin = (track or "").strip(), (skin or "").strip()
-    if not track or track.casefold() in {"null", "none"}:
-        track, track_id = "null", ""
-    else:
-        ids = entity_ids(csv_path, "track")
-        track_id = str(ids.get(track, max(ids.values(), default=0) + 1))
-    if not skin or skin.casefold() in {"null", "none"}:
-        skin, skin_id = "null", ""
-    else:
-        ids = entity_ids(csv_path, "skin")
-        skin_id = str(ids.get(skin, max(ids.values(), default=0) + 1))
-    best: dict[str, int] = {}
-    existing_rows: list[dict[str, str]] = []
-    if csv_path.exists() and csv_path.stat().st_size:
-        with csv_path.open("r", newline="", encoding="utf-8-sig") as source:
-            reader = csv.DictReader(source, delimiter=csv_delimiter(csv_path))
-            if not reader.fieldnames or not {"track", "score"}.issubset(reader.fieldnames):
-                raise ValueError("El CSV Rally Ring existente tiene un esquema incompatible.")
-            existing_rows = list(reader)
-            for row in existing_rows:
-                try:
-                    old_score = int(row.get("score", ""))
-                except (TypeError, ValueError):
-                    continue
-                key = (row.get("track") or "").strip()
-                if key and key.casefold() not in {"null", "none"}:
-                    best[key] = max(best.get(key, old_score), old_score)
-    previous = best.get(track)
-    record = {
-        "id": str(next_id(csv_path)), "track_id": track_id, "track": track,
-        "skin_id": skin_id, "skin": skin, "score": str(score), "laps": str(laps),
-        "pb": "1" if previous is None or score > previous else "0",
-        "delta_pb": str(score - previous) if previous is not None else "0",
-        "captured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    with _rally_lock:
+        fieldnames, rows = _read_rally(csv_path)
+        catalog = load_rally_catalog()
+        ready = _rally_schema_ready(csv_path, fieldnames, rows)
+        if any(not _row_has_progression(row) for row in rows):
+            _fill_missing_progression(rows, catalog)
+        record = _new_rally_record(rows, (track or "").strip(), (skin or "").strip(), score, laps, catalog)
+        if ready:
+            _append_rally(csv_path, record)
+        else:
+            _write_rally(csv_path, [*rows, record])
+        return record
+
+
+def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = None) -> dict:
+    """Album state per character from the frozen score_mult column."""
+    catalog = catalog or load_rally_catalog()
+    points: dict[str, int] = {}
+    base: dict[str, int] = {}
+    runs: dict[str, int] = {}
+    for row in rows:
+        character_id = _character_id(row.get("skin", ""), catalog)
+        if not character_id:
+            continue
+        runs[character_id] = runs.get(character_id, 0) + 1
+        try:
+            base[character_id] = base.get(character_id, 0) + int((row.get("score") or "0").strip() or "0")
+        except ValueError:
+            pass
+        try:
+            points[character_id] = points.get(character_id, 0) + int((row.get("score_mult") or "0").strip() or "0")
+        except ValueError:
+            pass
+
+    ids = set(catalog["characters"]) | set(catalog["ladders"]) | set(points)
+    characters: list[dict] = []
+    unlocked_total = 0
+    skins_total = 0
+    for character_id in sorted(ids, key=lambda value: (0, int(value)) if str(value).isdigit() else (1, str(value))):
+        profile = catalog["characters"].get(character_id, {})
+        ladder = catalog["ladders"].get(character_id, [])
+        total_points = points.get(character_id, 0)
+        unlocked_steps = [step for step in ladder if step["threshold"] <= total_points]
+        next_step = next((step for step in ladder if step["threshold"] > total_points), None)
+        skins = []
+        for step in ladder:
+            unlocked = step["threshold"] <= total_points
+            skins.append(
+                {
+                    "skin_id": step["skin_id"],
+                    "skin_name": step["skin_name"],
+                    "skin_type": step["skin_type"],
+                    "url": step["url"],
+                    "unlocked": unlocked,
+                    "is_next": bool(next_step and step["skin_id"] == next_step["skin_id"]),
+                    "cost": step["cost"],
+                    "threshold": step["threshold"],
+                }
+            )
+        upcoming = None
+        if next_step:
+            into = total_points - (next_step["threshold"] - next_step["cost"])
+            remaining = next_step["threshold"] - total_points
+            upcoming = {
+                "skin_name": next_step["skin_name"],
+                "skin_type": next_step["skin_type"],
+                "cost": next_step["cost"],
+                "threshold": next_step["threshold"],
+                "into": max(into, 0),
+                "remaining": max(remaining, 0),
+                "progress": round(max(into, 0) / next_step["cost"], 6) if next_step["cost"] else 0,
+            }
+        unlocked_total += len(unlocked_steps)
+        skins_total += len(ladder)
+        fallback_name = ladder[0]["character"] if ladder else "null"
+        characters.append(
+            {
+                "character_id": character_id,
+                "character": (profile.get("character") or "").strip() or fallback_name,
+                "game_base": (profile.get("game_base") or "").strip(),
+                "mask": (profile.get("mask") or "").strip(),
+                "url_mask": (profile.get("url_mask") or "").strip(),
+                "url_character": (profile.get("url_character") or "").strip(),
+                "points": total_points,
+                "base_points": base.get(character_id, 0),
+                "runs": runs.get(character_id, 0),
+                "unlocked": len(unlocked_steps),
+                "total_skins": len(ladder),
+                "next": upcoming,
+                "skins": skins,
+            }
+        )
+    active = _character_id(rows[-1].get("skin", ""), catalog) if rows else ""
+    _state, global_milli = _achievement_state(_stats_from_rows(rows, catalog), catalog)
+    return {
+        "characters": characters,
+        "active_character_id": active,
+        "unlocked": unlocked_total,
+        "total_skins": skins_total,
+        "multiplier": f"{global_milli / 1000:.3f}",
     }
-    csv_path.parent.mkdir(parents=True, exist_ok=True)
-    needs_header = not csv_path.exists() or csv_path.stat().st_size == 0
-    existing_fields = set()
-    if not needs_header:
-        with csv_path.open("r", encoding="utf-8-sig", newline="") as source:
-            existing_fields = set(next(csv.reader(source, delimiter=csv_delimiter(csv_path)), []))
-    if existing_fields and existing_fields != set(RALLY_FIELDS):
-        # Keep old Rally Ring rows and add newly introduced fields before appending.
-        for row in existing_rows:
-            row.setdefault("laps", "")
-        temp_path = csv_path.with_suffix(csv_path.suffix + ".tmp")
-        with temp_path.open("w", newline="", encoding="utf-8-sig") as target:
-            writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS)
-            writer.writeheader()
-            writer.writerows({field: row.get(field, "") for field in RALLY_FIELDS} for row in existing_rows)
-        os.replace(temp_path, csv_path)
-        needs_header = False
-    with csv_path.open("a", newline="", encoding="utf-8-sig") as target:
-        writer = csv.DictWriter(target, fieldnames=RALLY_FIELDS)
-        if needs_header:
-            writer.writeheader()
-        writer.writerow(record)
-    return record
+
+
+def build_trophies(rows: list[dict[str, str]], catalog: dict | None = None) -> dict:
+    """PlayStation-style trophy list. Dates come from the race that crossed each goal."""
+    catalog = catalog or load_rally_catalog()
+    achievements = catalog.get("achievements") or []
+    stats = _blank_stats()
+    unlocked_at: dict[str, str] = {}
+    ordered = sorted(
+        rows,
+        key=lambda row: int(row["id"]) if str(row.get("id", "")).isdigit() else 10**9,
+    )
+    final_state: dict[str, dict] = {}
+    total_milli = 0
+    for row in ordered:
+        _add_rally_row(stats, row, catalog)
+        final_state, total_milli = _achievement_state(stats, catalog)
+        captured = (row.get("captured_at") or "").strip()
+        for ach in achievements:
+            info = final_state.get(ach["id"], {})
+            if info.get("unlocked") and ach["id"] not in unlocked_at:
+                unlocked_at[ach["id"]] = captured
+    if not ordered:
+        final_state, total_milli = _achievement_state(stats, catalog)
+    trophies = []
+    unlocked_count = 0
+    for ach in achievements:
+        info = final_state.get(ach["id"], {"current": 0, "target": 0, "unlocked": False})
+        current = int(info["current"])
+        target = int(info["target"])
+        unlocked = bool(info["unlocked"])
+        if unlocked:
+            unlocked_count += 1
+        progress = min(1.0, current / target) if target else 0.0
+        trophies.append(
+            {
+                "id": ach["id"],
+                "name": ach["name"],
+                "type": ach["type"],
+                "tier": ach["tier"],
+                "url": ach["url"],
+                "mult": f"{ach['milli'] / 1000:.3f}",
+                "meta": _trophy_meta(ach, target),
+                "current": current,
+                "target": target,
+                "unit": _trophy_unit(ach["kind"]),
+                "progress": round(progress, 6),
+                "unlocked": unlocked,
+                "unlocked_at": unlocked_at.get(ach["id"], ""),
+            }
+        )
+    return {
+        "trophies": trophies,
+        "unlocked": unlocked_count,
+        "total": len(trophies),
+        "multiplier": f"{total_milli / 1000:.3f}",
+    }
 
 
 def scan_existing_log(log_path: Path, state: dict[str, str]) -> None:

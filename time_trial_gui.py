@@ -38,6 +38,41 @@ def read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(source, delimiter=delimiter))
 
 
+def trophies_payload(running: bool) -> dict:
+    core.ensure_rally_progression(RALLY_RESULTS_CSV)
+    results = read_csv(RALLY_RESULTS_CSV)
+    built = core.build_trophies(results)
+    return {
+        "mode": "rally_trophies",
+        "game_running": running,
+        "trophies": built["trophies"],
+        "multiplier": built["multiplier"],
+        "summary": {
+            "records": len(results),
+            "unlocked": built["unlocked"],
+            "trophies": built["total"],
+        },
+    }
+
+
+def progress_payload(running: bool) -> dict:
+    core.ensure_rally_progression(RALLY_RESULTS_CSV)
+    results = read_csv(RALLY_RESULTS_CSV)
+    built = core.build_rally_progression(results)
+    return {
+        "mode": "rally_progress",
+        "game_running": running,
+        "progression": built["characters"],
+        "active_character_id": built["active_character_id"],
+        "multiplier": built["multiplier"],
+        "summary": {
+            "records": len(results),
+            "unlocked": built["unlocked"],
+            "skins": built["total_skins"],
+        },
+    }
+
+
 def display_date(value: str) -> str:
     try:
         return datetime.fromisoformat(value).strftime("%d/%m/%Y")
@@ -313,10 +348,20 @@ class DashboardState:
     def get_payload(self, browse_track: str = "", mode: str = "time_trial") -> dict:
         self.refresh_game_status()
         self.poll_log()
+        if mode == "rally_progress":
+            with self.lock:
+                running = self.game_running
+            return progress_payload(running)
+        if mode == "rally_trophies":
+            with self.lock:
+                running = self.game_running
+            return trophies_payload(running)
         tracks = read_csv(TRACKS_CSV)
         skins = read_csv(SKINS_CSV)
         rally_mode = mode == "rally_ring"
         results_path = RALLY_RESULTS_CSV if rally_mode else RESULTS_CSV
+        if rally_mode:
+            core.ensure_rally_progression(RALLY_RESULTS_CSV)
         results = read_csv(results_path)
         skin_by_raw = {row.get("skin", ""): row for row in skins}
         track_by_raw = {row.get("track", ""): row for row in tracks}
@@ -385,6 +430,15 @@ class DashboardState:
                 "laps": (newest.get("laps") or "").strip(),
                 "pb": (newest.get("pb") or "0").strip(),
                 "delta_pb": (newest.get("delta_pb") or "").strip(),
+                **(
+                    {
+                        "score_mult": (newest.get("score_mult") or "").strip(),
+                        "multiplier": (newest.get("multiplier") or "").strip(),
+                        "notes": (newest.get("notes") or "").strip(),
+                    }
+                    if rally_mode
+                    else {}
+                ),
                 **({"beat_dev": False, "beat_velo": False} if rally_mode else beat_flags(
                     newest.get("time_seconds", ""),
                     track_data.get("dev_time", ""),
