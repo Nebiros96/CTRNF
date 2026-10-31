@@ -749,7 +749,7 @@ def _trophy_meta(ach: dict, target: int) -> str:
     if kind == "skin_count":
         return f"Desbloquea {_fmt_count(ach['goal'])} skins"
     if kind == "races":
-        return f"Completa {_fmt_count(ach['goal'])} carreras de Ring Rally"
+        return f"Completa {_fmt_count(ach['goal'])} carreras de Rally Ring"
     if kind == "laps":
         return f"Acumula {_fmt_count(ach['goal'])} vueltas"
     if kind == "multiplier":

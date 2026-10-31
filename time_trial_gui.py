@@ -20,6 +20,7 @@ import time_trial_logger as core
 
 ROOT = Path(__file__).resolve().parent
 WEB_DIR = ROOT / "web"
+LOGO_PATH = ROOT / "utils" / "logo_by_LexiLoo826.png"
 DATA_DIR = ROOT / "data"
 TRACKS_CSV = DATA_DIR / "game_tracks.csv"
 SKINS_CSV = DATA_DIR / "game_skins.csv"
@@ -520,6 +521,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, json.dumps({"version": version}).encode("utf-8"), "application/json; charset=utf-8")
             except OSError as exc:
                 self._send(500, json.dumps({"error": str(exc)}).encode("utf-8"), "application/json; charset=utf-8")
+            return
+
+        if path in {"/logo.png", "/favicon.ico"}:
+            try:
+                self._send(200, LOGO_PATH.read_bytes(), "image/png")
+            except OSError:
+                self._send(404, b"Logo not found", "text/plain; charset=utf-8")
             return
 
         files = {
