@@ -1,6 +1,6 @@
 # CTRNF Time Trial Logger
 
-Prototipo local para registrar partidas de Time Trial leyendo los metadatos del
+Prototipo local para registrar partidas de Time Trial y Rally Ring leyendo los metadatos del
 log `last_run` y guardando cada resultado en un CSV.
 
 ## Requisitos
@@ -62,13 +62,6 @@ el `time_raw` legible, la fecha de captura (`dd/mm/yyyy`) y la imagen de la
 skin de ese registro. Solo el primer puesto tiene borde dorado. Usa
 `track_clean` para el nombre visible de la pista.
 
-El programa observa el log en tiempo real. Para registrar un tiempo reconocido
-por OCR, introduce la cadena cuando aparezca el aviso:
-
-```text
-Tiempo detectado por OCR (Enter para ignorar): 1:20:99
-```
-
 También se puede pasar un tiempo directamente (útil para comprobar el formato):
 
 ```powershell
@@ -108,12 +101,7 @@ El CSV anterior tenía otro esquema. Si todavía existe cuando se guarde el
 próximo tiempo, el programa avisará que hay que eliminarlo o renombrarlo antes
 de continuar.
 
-## Nota sobre OCR
+## Umbrales
 
-La lectura de pista y personaje sale directamente del log, no de OCR. El log
-revisado incluye `LOADING LEVEL` y `Loading hero`, pero no una línea con el
-resultado/tiempo de carrera. Por eso el prototipo deja conectada la captura del
-tiempo como entrada manual desde el aviso del monitor. Cuando se defina la
-ventana/región del resultado del juego, esa entrada se puede sustituir por OCR
-de pantalla sin cambiar el formato CSV ni la lógica de IDs.
-
+Se aplica un umbral del 5% sobre los records mundiales registrados en el modo _GLITCHLESS_ en https://crashteamranking.com/. Cualquier registro que supere ese umbral no es posible de registrar. Los récords ya están consolidados desde hace varios años, por lo que en este modo, no es posible -bajo métodos normales- de superar por encima del 5%.
+Fecha de actualización de umbrales: 31 de octubre de 2026.
