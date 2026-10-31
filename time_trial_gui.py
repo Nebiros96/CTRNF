@@ -553,6 +553,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             size = int(self.headers.get("Content-Length", "0"))
             data = json.loads(self.rfile.read(size).decode("utf-8"))
+            STATE.refresh_game_status()
+            with STATE.lock:
+                game_running = STATE.game_running
+            if not game_running:
+                raise ValueError("El juego tiene que estar abierto para guardar un registro.")
             mode = str(data.get("mode") or "time_trial")
             if mode == "rally_ring":
                 record = core.save_rally_record(str(data.get("track") or "null"), str(data.get("skin") or "null"), str(data.get("score") or ""), str(data.get("laps") or ""), RALLY_RESULTS_CSV)

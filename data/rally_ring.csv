@@ -1,12 +1,17 @@
-﻿id,track_id,track,skin_id,skin,score,laps,pb,delta_pb,score_mult,multiplier,notes,captured_at
-1,1,octane/t111_crash_cove/t111_crash_cove,1,GP5_Skin_POM_Alt2_outfit,318779,9,1,0,318779,0.000,,2026-10-30T10:22:18-05:00
-2,1,octane/t111_crash_cove/t111_crash_cove,2,GP9_Skin_HereIAm_Alt1_outfit,356019,10,1,37240,356019,0.000,,2026-10-30T10:32:03-05:00
-3,2,octane/t212_jungle_boogie/t212_jungle_boogie,2,GP9_Skin_HereIAm_Alt1_outfit,549822,14,1,0,550372,0.001,Desbloqueo: Default (Basic),2026-10-30T20:59:17-05:00
-4,3,octane/t151_ngin_labs/t151_ngin_labs,1,GP5_Skin_POM_Alt2_outfit,602558,10,1,0,603763,0.002,Desbloqueo: Default (Basic),2026-10-30T21:15:46-05:00
-5,4,octane/t221_meteor_gorge/t221_meteor_gorge,3,Skin_KomodoJoe_Yellow_outfit,499308,12,1,0,500806,0.003,Desbloqueo: Default (Basic),2026-10-31T00:25:47-05:00
-6,5,octane/t142_dragon_mines/t142_dragon_mines,4,Skin_FakeCrash_Chipmunk_outfit,413910,10,1,0,415152,0.003,,2026-10-31T00:31:12-05:00
-7,6,octane/t211_inferno_island/t211_inferno_island,5,GP3_Skin_Spyro_Alt1_outfit,521439,11,1,0,523525,0.004,Desbloqueo: Default (Basic),2026-10-31T00:38:23-05:00
-8,7,octane/t242_android_alley/t242_android_alley,6,GP9_Skin_CSH_P3_outfit,478470,8,1,0,480384,0.004,,2026-10-31T00:45:36-05:00
-9,8,octane/t131_coco_park/t131_coco_park,7,DriverCoco_outfits_Star,404302,10,1,0,405919,0.004,,2026-10-31T00:50:58-05:00
-10,3,octane/t151_ngin_labs/t151_ngin_labs,8,Skin_RipperRoo_Red_outfit,590412,389,0,-12146,593364,0.005,Desbloqueo: Default (Basic),2026-10-31T01:00:06-05:00
-11,9,octane/t143_polar_pass/t143_polar_pass,9,Skin_Ami_Motorsport_outfit,826227,12,1,0,831184,0.006,Desbloqueo: Default (Basic),2026-10-31T10:25:39-05:00
+id,track_id,track,skin_id,skin,score,laps,pb,delta_pb,score_mult,multiplier,notes,captured_at
+1,1,octane/t111_crash_cove/t111_crash_cove,1,GP5_Skin_POM_Alt2_outfit,318779,9,1,0,318779,0.0,,2026-10-30 10:22:18-05
+2,1,octane/t111_crash_cove/t111_crash_cove,2,GP9_Skin_HereIAm_Alt1_outfit,356019,10,1,37240,356019,0.0,,2026-10-30 10:32:03-05
+3,2,octane/t212_jungle_boogie/t212_jungle_boogie,2,GP9_Skin_HereIAm_Alt1_outfit,549822,14,1,0,550372,0.001,Desbloqueo: Default (Basic),2026-10-30 20:59:17-05
+4,3,octane/t151_ngin_labs/t151_ngin_labs,1,GP5_Skin_POM_Alt2_outfit,602558,10,1,0,603763,0.002,Desbloqueo: Default (Basic),2026-10-30 21:15:46-05
+5,4,octane/t221_meteor_gorge/t221_meteor_gorge,3,Skin_KomodoJoe_Yellow_outfit,499308,12,1,0,500806,0.003,Desbloqueo: Default (Basic),2026-10-31 00:25:47-05
+6,5,octane/t142_dragon_mines/t142_dragon_mines,4,Skin_FakeCrash_Chipmunk_outfit,413910,10,1,0,415152,0.003,,2026-10-31 00:31:12-05
+7,6,octane/t211_inferno_island/t211_inferno_island,5,GP3_Skin_Spyro_Alt1_outfit,521439,11,1,0,523525,0.004,Desbloqueo: Default (Basic),2026-10-31 00:38:23-05
+8,7,octane/t242_android_alley/t242_android_alley,6,GP9_Skin_CSH_P3_outfit,478470,8,1,0,480384,0.004,,2026-10-31 00:45:36-05
+9,8,octane/t131_coco_park/t131_coco_park,7,DriverCoco_outfits_Star,404302,10,1,0,405919,0.004,,2026-10-31 00:50:58-05
+10,3,octane/t151_ngin_labs/t151_ngin_labs,8,Skin_RipperRoo_Red_outfit,590412,10,0,-12146,593364,0.005,Desbloqueo: Default (Basic),2026-10-31 01:00:06-05
+11,9,octane/t143_polar_pass/t143_polar_pass,9,Skin_Ami_Motorsport_outfit,826227,12,1,0,831184,0.006,Desbloqueo: Default (Basic),2026-10-31 10:25:39-05
+12,10,octane/t112_roos_tubes/t112_roos_tubes,5,GP3_Skin_Spyro_Alt1_outfit,509717,13,1,0,512775,0.006,,2026-10-31 10:44:48-05
+13,11,octane/t213_tiny_temple/t213_tiny_temple,2,GP9_Skin_HereIAm_Alt1_outfit,914742,15,1,0,920230,0.006,,2026-10-31 10:53:43-05
+14,12,octane/t223_deep_sea_driving/t223_deep_sea_driving,10,DriverCrunch_outfits_Robot,710025,12,1,0,714995,0.007,Desbloqueo: Default (Basic),2026-10-31 11:01:32-05
+15,13,octane/t121_slide_coliseum/t121_slide_coliseum,11,Skin_Pura_BlackCat_outfit,838753,14,1,0,845463,0.008,Desbloqueo: Default (Basic),2026-10-31T11:13:00-05:00
+16,14,octane/t133_papus_pyramid/t133_papus_pyramid,12,SystemData_availableDrivers_9_skins_3_outfit,1349119,24,1,0,1374752,0.019,Desbloqueo: Default (Basic) · Trofeo: Get 1 Million Points in a RR Race,2026-10-31T11:33:12-05:00

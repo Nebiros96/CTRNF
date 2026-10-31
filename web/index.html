@@ -68,7 +68,7 @@
             <label for="time">Tiempo · formato M:SS:CC</label>
             <input id="time" type="text" placeholder="1:25:03" autocomplete="off">
           </div>
-          <button id="save" class="button" type="button">Guardar registro</button>
+          <button id="save" class="button" type="button" disabled>Guardar registro</button>
           <div id="status" class="status" role="status">Listo</div>
         </section>
 
@@ -129,7 +129,7 @@
             <div class="asset"><div id="rally-skin-image" class="null-image">null</div><div><div class="meta">PERSONAJE</div><div id="rally-skin-name" class="name">null</div><div id="rally-skin-raw" class="meta">null</div></div></div>
             <div class="field"><label for="score">Puntaje · entero</label><input id="score" type="text" inputmode="numeric" placeholder="100452" autocomplete="off"></div>
             <div class="field"><label for="laps">Número de vueltas</label><input id="laps" type="text" inputmode="numeric" placeholder="3" autocomplete="off"></div>
-            <button id="rally-save" class="button" type="button">Guardar registro</button>
+            <button id="rally-save" class="button" type="button" disabled>Guardar registro</button>
             <div id="rally-status" class="status" role="status">Listo</div>
           </section>
         </div>
@@ -181,5 +181,34 @@
       all images from the official <a href="https://crashbandicoot.fandom.com/wiki/Bandipedia:Main_Page" target="_blank" rel="noopener noreferrer">Bandipedia</a>
     </footer>
   </main>
+
+  <div id="confirm-modal" class="confirm-modal" hidden>
+    <div class="confirm-backdrop" data-confirm-dismiss></div>
+    <div id="confirm-card" class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div class="eyebrow">Revisar antes de guardar</div>
+      <h2 id="confirm-title">Confirmar registro</h2>
+      <div class="asset">
+        <div id="confirm-track-image" class="null-image">null</div>
+        <div>
+          <div class="meta">PISTA</div>
+          <div id="confirm-track-name" class="name">null</div>
+        </div>
+      </div>
+      <div class="asset">
+        <div id="confirm-skin-image" class="null-image">null</div>
+        <div>
+          <div class="meta">SKIN USADA</div>
+          <div id="confirm-skin-name" class="name">null</div>
+          <div id="confirm-skin-raw" class="confirm-raw">null</div>
+        </div>
+      </div>
+      <div id="confirm-metrics" class="confirm-metrics"></div>
+      <div id="confirm-status" class="status" role="status"></div>
+      <div class="confirm-actions">
+        <button id="confirm-correct" class="confirm-secondary" type="button">Corregir</button>
+        <button id="confirm-ok" class="button" type="button">Confirmar</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

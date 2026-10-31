@@ -663,8 +663,217 @@ function paintProgress(characters, multiplier) {
   paintAlbum(selected);
 }
 
+const SAVE_LOCK_MESSAGE = "Abre el juego para guardar un registro.";
+
+function syncSaveLocks(running) {
+  for (const statusId of ["status", "rally-status"]) {
+    const buttonId = statusId === "status" ? "save" : "rally-save";
+    const button = $(buttonId);
+    const status = $(statusId);
+    button.disabled = !running;
+    button.title = running ? "" : SAVE_LOCK_MESSAGE;
+    if (!running) {
+      status.dataset.lock = "1";
+      status.textContent = SAVE_LOCK_MESSAGE;
+      status.className = "status error";
+    } else if (status.dataset.lock === "1") {
+      status.dataset.lock = "";
+      status.textContent = "Listo";
+      status.className = "status";
+    }
+  }
+}
+
+function setStatus(id, message, isError) {
+  const status = $(id);
+  status.dataset.lock = "";
+  status.textContent = message;
+  status.className = isError ? "status error" : "status";
+}
+
+function timeInputError(raw) {
+  const value = raw.trim();
+  const triple = /^(\d+):(\d{2}):(\d{2})$/.exec(value);
+  if (triple) {
+    if (Number(triple[2]) > 59 || Number(triple[3]) > 99) {
+      return "segundos deben estar entre 00 y 59 y centésimas entre 00 y 99";
+    }
+    return "";
+  }
+  const dotted = /^(?:(\d{1,2}):)?(\d{1,2})[.,](\d{1,2})$/.exec(value);
+  if (!dotted) return "usa M:SS:CC, M:SS.CC o SS.CC";
+  const centiseconds = Number(dotted[3].padEnd(2, "0"));
+  if (Number(dotted[2]) > 59 || centiseconds > 99) {
+    return "segundos deben estar entre 00 y 59 y centésimas entre 00 y 99";
+  }
+  return "";
+}
+
+function assetSnapshot(kind, raw) {
+  const value = (raw || "").trim();
+  const isTrack = kind === "track";
+  const row = find(isTrack ? appState?.tracks : appState?.skins, isTrack ? "track" : "skin", value);
+  return {
+    raw: value || "null",
+    name: isTrack ? (row.track_clean || "null") : (row.character || "null"),
+    detail: isTrack ? "" : (value || "null"),
+    url: (row.url || "").trim(),
+  };
+}
+
+let pendingRecord = null;
+let confirmReturnFocus = "time";
+
+function paintConfirmAsset(kind, snapshot) {
+  const image = $(`confirm-${kind}-image`);
+  delete image.dataset.url;
+  imageBox(image, snapshot.url, snapshot.name);
+  $(`confirm-${kind}-name`).textContent = snapshot.name;
+  if (kind === "skin") $("confirm-skin-raw").textContent = snapshot.detail;
+}
+
+function paintConfirmMetrics(draft) {
+  const box = $("confirm-metrics");
+  const rows = draft.mode === "rally_ring"
+    ? [["Puntaje", formatScore(draft.score)], ["Vueltas", formatScore(draft.laps)]]
+    : [["Tiempo", draft.time]];
+  box.classList.toggle("single", rows.length === 1);
+  box.replaceChildren();
+  for (const [label, value] of rows) {
+    const metric = document.createElement("div");
+    metric.className = "confirm-metric";
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = label;
+    const strong = document.createElement("strong");
+    strong.textContent = value;
+    metric.append(meta, strong);
+    box.append(metric);
+  }
+}
+
+function openConfirm(draft) {
+  pendingRecord = draft;
+  confirmReturnFocus = draft.focusId;
+  paintConfirmAsset("track", draft.track);
+  paintConfirmAsset("skin", draft.skin);
+  paintConfirmMetrics(draft);
+  $("confirm-card").classList.toggle("confirm-rally", draft.mode === "rally_ring");
+  $("confirm-status").textContent = "";
+  $("confirm-status").className = "status";
+  $("confirm-ok").disabled = false;
+  $("confirm-ok").textContent = "Confirmar";
+  $("confirm-modal").hidden = false;
+  document.querySelector("main").inert = true;
+  window.setTimeout(() => $("confirm-ok").focus(), 0);
+}
+
+function closeConfirm() {
+  $("confirm-modal").hidden = true;
+  pendingRecord = null;
+  document.querySelector("main").inert = false;
+  const target = $(confirmReturnFocus);
+  if (target) target.focus();
+}
+
+function confirmIsBusy() {
+  return Boolean(pendingRecord) && $("confirm-ok").disabled;
+}
+
+function requestSave(mode) {
+  if (!$("confirm-modal").hidden) return;
+  if (!appState?.game_running) {
+    syncSaveLocks(false);
+    return;
+  }
+  if (mode === "rally_ring") {
+    const score = $("score").value.trim();
+    const laps = $("laps").value.trim();
+    if (!/^\d+$/.test(score)) {
+      setStatus("rally-status", "ingresa un puntaje entero sin decimales (ej. 100452)", true);
+      return;
+    }
+    if (!/^\d+$/.test(laps)) {
+      setStatus("rally-status", "ingresa el número de vueltas como entero", true);
+      return;
+    }
+    openConfirm({
+      mode,
+      focusId: "score",
+      statusId: "rally-status",
+      track: assetSnapshot("track", appState.selected?.track),
+      skin: assetSnapshot("skin", appState.selected?.skin),
+      score,
+      laps,
+    });
+    return;
+  }
+  const time = $("time").value.trim();
+  const error = timeInputError(time);
+  if (error) {
+    setStatus("status", error, true);
+    return;
+  }
+  openConfirm({
+    mode: "time_trial",
+    focusId: "time",
+    statusId: "status",
+    track: assetSnapshot("track", appState.selected?.track),
+    skin: assetSnapshot("skin", appState.selected?.skin),
+    time,
+  });
+}
+
+async function commitConfirm() {
+  const draft = pendingRecord;
+  if (!draft || confirmIsBusy()) return;
+  if (!appState?.game_running) {
+    $("confirm-status").textContent = "El juego tiene que estar abierto para guardar un registro.";
+    $("confirm-status").className = "status error";
+    syncSaveLocks(false);
+    return;
+  }
+  $("confirm-ok").disabled = true;
+  $("confirm-ok").textContent = "Guardando…";
+  $("confirm-status").textContent = "";
+  try {
+    const payload = draft.mode === "rally_ring"
+      ? { mode: "rally_ring", track: draft.track.raw, skin: draft.skin.raw, score: draft.score, laps: draft.laps }
+      : { track: draft.track.raw, skin: draft.skin.raw, time: draft.time };
+    const response = await fetch("/api/record", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudo guardar");
+    if (draft.mode === "rally_ring") {
+      $("score").value = "";
+      $("laps").value = "";
+      const note = data.record.notes ? ` · ${data.record.notes}` : "";
+      const savedMult = Number(data.record.multiplier);
+      const detail = Number.isFinite(savedMult) && savedMult > 0
+        ? `${formatScore(data.record.score_mult)} pts de progresión (${formatFactor(savedMult)})`
+        : `${formatScore(data.record.score)} pts`;
+      setStatus("rally-status", `Guardado #${data.record.id} · ${detail}${note}`, false);
+    } else {
+      $("time").value = "";
+      setStatus("status", `Guardado #${data.record.id} · ${data.record.time_seconds} s`, false);
+    }
+    closeConfirm();
+    await refresh();
+  } catch (error) {
+    $("confirm-ok").disabled = false;
+    $("confirm-ok").textContent = "Confirmar";
+    $("confirm-status").textContent = error.message;
+    $("confirm-status").className = "status error";
+    setStatus(draft.statusId, error.message, true);
+  }
+}
+
 function showProgressState(data) {
   appState = data;
+  syncSaveLocks(Boolean(data.game_running));
   const connection = $("connection");
   connection.textContent = data.game_running
     ? "Juego detectado · last_run en vivo"
@@ -769,6 +978,7 @@ function paintTrophies(trophies) {
 
 function showTrophyState(data) {
   appState = data;
+  syncSaveLocks(Boolean(data.game_running));
   const connection = $("connection");
   connection.textContent = data.game_running
     ? "Juego detectado · last_run en vivo"
@@ -832,6 +1042,7 @@ function renderTrackPicker(data) {
 
 function showState(data) {
   appState = data;
+  syncSaveLocks(Boolean(data.game_running));
   if (data.game_running) browsedTrackByMode.time_trial = "";
   updateAsset("track", data.selected?.track);
   updateAsset("skin", data.selected?.skin);
@@ -868,6 +1079,7 @@ function showState(data) {
 
 function showRallyState(data) {
   appState = data;
+  syncSaveLocks(Boolean(data.game_running));
   if (data.game_running) browsedTrackByMode.rally_ring = "";
   updateRallyAsset("track", data.selected?.track);
   updateRallyAsset("skin", data.selected?.skin);
@@ -992,57 +1204,39 @@ $("progress-search").addEventListener("input", () => {
   if (appState && appState.mode === "rally_progress") showProgressState(appState);
 });
 
-$("rally-save").addEventListener("click", async () => {
-  const status = $("rally-status");
-  status.className = "status"; status.textContent = "Guardando…";
-  try {
-    const response = await fetch("/api/record", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "rally_ring", track: appState?.selected?.track || "null", skin: appState?.selected?.skin || "null", score: $("score").value.trim(), laps: $("laps").value.trim() }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "No se pudo guardar");
-    $("score").value = "";
-    $("laps").value = "";
-    const note = data.record.notes ? ` · ${data.record.notes}` : "";
-    const savedMult = Number(data.record.multiplier);
-    const detail = Number.isFinite(savedMult) && savedMult > 0
-      ? `${formatScore(data.record.score_mult)} pts de progresión (${formatFactor(savedMult)})`
-      : `${formatScore(data.record.score)} pts`;
-    status.textContent = `Guardado #${data.record.id} · ${detail}${note}`;
-    await refresh();
-  } catch (error) { status.textContent = error.message; status.className = "status error"; }
+$("rally-save").addEventListener("click", () => requestSave("rally_ring"));
+$("score").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  requestSave("rally_ring");
 });
-$("score").addEventListener("keydown", (event) => { if (event.key === "Enter") $("rally-save").click(); });
-$("laps").addEventListener("keydown", (event) => { if (event.key === "Enter") $("rally-save").click(); });
+$("laps").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  requestSave("rally_ring");
+});
 $("rally-refresh").addEventListener("click", refresh);
 
 $("refresh").addEventListener("click", refresh);
-$("save").addEventListener("click", async () => {
-  const status = $("status");
-  status.className = "status";
-  status.textContent = "Guardando…";
-  try {
-    const response = await fetch("/api/record", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        track: appState?.selected?.track || "null",
-        skin: appState?.selected?.skin || "null",
-        time: $("time").value.trim(),
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "No se pudo guardar");
-    $("time").value = "";
-    status.textContent = `Guardado #${data.record.id} · ${data.record.time_seconds} s`;
-    await refresh();
-  } catch (error) {
-    status.textContent = error.message;
-    status.className = "status error";
-  }
+$("save").addEventListener("click", () => requestSave("time_trial"));
+$("time").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  requestSave("time_trial");
 });
 
-$("time").addEventListener("keydown", (event) => {
-  if (event.key === "Enter") $("save").click();
+$("confirm-ok").addEventListener("click", () => { commitConfirm(); });
+$("confirm-correct").addEventListener("click", () => {
+  if (!confirmIsBusy()) closeConfirm();
+});
+$("confirm-modal").addEventListener("click", (event) => {
+  if (event.target.closest("[data-confirm-dismiss]") && !confirmIsBusy()) closeConfirm();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("confirm-modal").hidden && !confirmIsBusy()) {
+    event.preventDefault();
+    closeConfirm();
+  }
 });
 
 refresh();
