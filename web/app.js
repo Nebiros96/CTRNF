@@ -503,7 +503,7 @@ function paintProgressHero(character) {
   copy.className = "hero-copy";
   const eyebrow = document.createElement("div");
   eyebrow.className = "eyebrow";
-  eyebrow.textContent = character.game_base || "Rally Ring";
+  eyebrow.textContent = character.game_base || "Ring Rally";
   const title = document.createElement("h2");
   title.textContent = character.character || "null";
   const maskLine = document.createElement("div");
@@ -951,7 +951,7 @@ function showProgressState(data) {
   const connection = $("connection");
   connection.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running
     ? "Juego detectado · last_run en vivo"
-    : "Juego cerrado · álbum de Rally Ring";
+    : "Juego cerrado · álbum de Ring Rally";
   connection.className = `pill${data.game_running ? " live" : ""}`;
   const characters = data.progression || [];
   const unlocked = data.summary?.unlocked ?? characters.reduce((sum, row) => sum + (Number(row.unlocked) || 0), 0);
@@ -1056,7 +1056,7 @@ function showTrophyState(data) {
   const connection = $("connection");
   connection.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running
     ? "Juego detectado · last_run en vivo"
-    : "Juego cerrado · trofeos de Rally Ring";
+    : "Juego cerrado · trofeos de Ring Rally";
   connection.className = `pill${data.game_running ? " live" : ""}`;
   const trophies = data.trophies || [];
   const unlocked = data.summary?.unlocked ?? trophies.filter((row) => row.unlocked).length;
