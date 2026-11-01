@@ -1,6 +1,6 @@
 # CTRNF Time Trial Logger
 
-Prototipo local para registrar partidas de Time Trial y Rally Ring leyendo los metadatos del
+Prototipo local para registrar partidas de Time Trial y Ring Rally leyendo los metadatos del
 log `last_run` y guardando cada resultado en un CSV.
 
 ## Requisitos
@@ -69,7 +69,7 @@ archivos con el servidor abierto: el navegador detecta los cambios y recarga la
 interfaz automáticamente. Los cambios al código Python del backend sí requieren
 reiniciar el servidor.
 
-El dashboard tiene vistas separadas para Time Trial y Rally Ring. Rally Ring guarda puntajes enteros en `data/rally_ring.csv`, ordena los mejores puntajes de mayor a menor y muestra la diferencia en puntos. El dashboard muestra las imágenes directamente desde las URLs de
+El dashboard tiene vistas separadas para Time Trial y Ring Rally. Ring Rally guarda puntajes enteros en `data/rally_ring.csv`, ordena los mejores puntajes de mayor a menor y muestra la diferencia en puntos. El dashboard muestra las imágenes directamente desde las URLs de
 `data/game_tracks.csv` y `data/game_skins.csv`, y muestra `null` cuando falta una
 imagen. La sección de registro enseña como guía `track_clean` y el nombre del
 personaje asociado a la skin, actualizados desde `last_run`; los valores crudos
@@ -114,7 +114,7 @@ Se aceptan `M:SS:CC` (minutos, segundos, centésimas; por ejemplo `1:20:99` =
 
 ## Campos CSV
 
-`id,track_id,track,skin_id,skin,time_raw,time_seconds,pb,delta_pb,captured_at` para Time Trial. Rally Ring usa `data/rally_ring.csv` con `id,track_id,track,skin_id,skin,score,laps,pb,delta_pb,captured_at`. `score` y `laps` son enteros; `pb` marca si es el mayor puntaje registrado hasta ese momento para la pista y `delta_pb` es puntaje actual menos PB anterior.
+`id,track_id,track,skin_id,skin,time_raw,time_seconds,pb,delta_pb,captured_at` para Time Trial. Ring Rally usa `data/rally_ring.csv` con `id,track_id,track,skin_id,skin,score,laps,pb,delta_pb,captured_at`. `score` y `laps` son enteros; `pb` marca si es el mayor puntaje registrado hasta ese momento para la pista y `delta_pb` es puntaje actual menos PB anterior.
 
 `pb` vale `1` si ese tiempo fue el mejor de su pista hasta ese registro, sin
 importar la skin; de lo contrario vale `0`. Los flags históricos se recalculan

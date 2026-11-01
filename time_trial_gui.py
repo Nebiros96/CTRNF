@@ -30,7 +30,7 @@ LOGO_PATH = ROOT / "utils" / "logo_by_LexiLoo826.png"
 COVER_PATH = ROOT / "utils" / "fondo_launcher.png"
 ICON_PATH = ROOT / "utils" / "ctrnf.ico"
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.2.0-alpha.1"
+APP_VERSION = "CTR - v0.2.1"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -735,7 +735,7 @@ def run_server_only(parser_port: int = 8899) -> None:
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"CTR Nitro-Fueled dashboard: {url}")
     print(f"Time Trial CSV: {RESULTS_CSV}")
-    print(f"Rally Ring CSV: {RALLY_RESULTS_CSV}")
+    print(f"Ring Rally CSV: {RALLY_RESULTS_CSV}")
     print("Deja este servidor abierto; web/ se recarga automáticamente al editar la interfaz. Ctrl+C para cerrar.")
     webbrowser.open(url)
     try:
@@ -1023,7 +1023,7 @@ class DashboardLauncher:
         self.log_path_var.set(f"{log_path.parent}\n{log_path.name}" if log_path.is_file() else "No se encontró un archivo .log. Selecciona la ruta manualmente.")
         tt_count = len(read_csv(RESULTS_CSV))
         rally_count = len(read_csv(RALLY_RESULTS_CSV))
-        self.data_count_var.set(f"Time Trial: {tt_count} registros     ·     Rally Ring: {rally_count} registros")
+        self.data_count_var.set(f"Time Trial: {tt_count} registros     ·     Ring Rally: {rally_count} registros")
 
     def choose_log(self) -> None:
         chosen = self.filedialog.askopenfilename(

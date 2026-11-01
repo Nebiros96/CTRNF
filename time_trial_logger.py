@@ -715,7 +715,7 @@ def _achievement_state(stats: dict, catalog: dict) -> tuple[dict[str, dict], int
     """Progress of every trophy and the global bonus, skins included.
 
     The multiplier trophy looks at skins plus the other trophies, without its
-    own bonus. Rally Ring Legend unlocks only after every other trophy.
+    own bonus. Ring Rally Legend unlocks only after every other trophy.
     """
     achievements = catalog.get("achievements") or []
     regular = [ach for ach in achievements if ach["kind"] not in {"multiplier", "platinum"}]
@@ -768,7 +768,7 @@ def _trophy_meta(ach: dict, target: int) -> str:
     if kind == "skin_count":
         return f"Desbloquea {_fmt_count(ach['goal'])} skins"
     if kind == "races":
-        return f"Completa {_fmt_count(ach['goal'])} carreras de Rally Ring"
+        return f"Completa {_fmt_count(ach['goal'])} carreras de Ring Rally"
     if kind == "laps":
         return f"Acumula {_fmt_count(ach['goal'])} vueltas"
     if kind == "multiplier":
@@ -914,7 +914,7 @@ def _read_rally(path: Path) -> tuple[list[str], list[dict[str, str]]]:
         reader = csv.DictReader(source, delimiter=csv_delimiter(path))
         fieldnames = list(reader.fieldnames or [])
         if not {"track", "score"}.issubset(fieldnames):
-            raise ValueError("El CSV Rally Ring existente tiene un esquema incompatible.")
+            raise ValueError("El CSV Ring Rally existente tiene un esquema incompatible.")
         return fieldnames, list(reader)
 
 
