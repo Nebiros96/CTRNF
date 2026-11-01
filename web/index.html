@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10131b">
-  <title>CTR Nitro-Fueled · Time Trials</title>
+  <title>Crash™ Team Racing NF - Dashboard</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
@@ -15,9 +15,7 @@
       <div class="brand">
         <img class="brand-logo" src="/logo.png" alt="Crash Team Racing Nitro-Fueled">
         <div>
-          <div class="eyebrow">Crash Team Racing Nitro-Fueled</div>
-          <h1 class="title">Time Trials & Ring Rally</h1>
-          <p class="sub">Registro personal de Contrarreloj, Ring Rally, el álbum de skins y los trofeos.</p>
+          <h1 class="title">Crash™ Team Racing NF - Dashboard</h1>
         </div>
       </div>
       <div class="kpis" aria-label="Resumen">
@@ -33,14 +31,14 @@
     </header>
 
     <nav class="nav" aria-label="Secciones">
-      <button type="button" class="nav-btn active" data-view="register" aria-current="page">Time Trial</button>
-      <button type="button" class="nav-btn" data-view="rally">Ring Rally</button>
-      <button type="button" class="nav-btn" data-view="progress">RR Progresión</button>
-      <button type="button" class="nav-btn" data-view="trophies">RR Trophies</button>
+      <button type="button" class="nav-btn active" data-view="rally" aria-current="page">Rally Ring</button>
+      <button type="button" class="nav-btn" data-view="progress">Álbum de Skins</button>
+      <button type="button" class="nav-btn" data-view="trophies">Trofeos</button>
+      <button type="button" class="nav-btn" data-view="register">Time Trial</button>
       <div id="connection" class="pill">Conectando con last_run…</div>
     </nav>
 
-    <section id="view-register">
+    <section id="view-register" hidden>
       <div class="layout">
         <div class="register-side">
         <section class="panel">
@@ -120,7 +118,7 @@
       </section>
     </section>
 
-    <section id="view-rally" hidden>
+    <section id="view-rally">
       <div class="layout">
         <div class="register-side">
           <section class="panel">
@@ -142,7 +140,7 @@
     </section>
 
     <section id="view-progress" hidden>
-      <section id="progress-total" class="progress-total" aria-label="Progresión global"></section>
+      <section id="progress-total" class="progress-total" aria-label="Puntos totales"></section>
       <div class="progress-layout">
         <aside class="panel roster-panel">
           <h2>Personajes</h2>
@@ -153,6 +151,7 @@
           <div id="progress-roster" class="roster"></div>
         </aside>
         <div class="progress-main">
+          <section id="skin-totals" class="skin-totals" aria-label="Skins desbloqueadas por tipo"></section>
           <section id="progress-global" class="progress-global" aria-label="Multiplicador global"></section>
           <section class="panel album-panel" aria-live="polite">
             <div id="progress-hero"></div>
@@ -166,8 +165,8 @@
       <section class="panel trophy-panel" aria-live="polite">
         <div class="trophy-top">
           <div>
-            <div class="eyebrow">Ring Rally</div>
-            <h2>RR Trophies</h2>
+            <div class="eyebrow">Rally Ring</div>
+            <h2>Trofeos</h2>
           </div>
           <div id="trophy-count" class="trophy-count">0 de 0</div>
         </div>
@@ -214,7 +213,7 @@
   <div id="unlock-modal" class="confirm-modal" hidden>
     <div class="confirm-backdrop"></div>
     <div id="unlock-card" class="confirm-card unlock-card" role="dialog" aria-modal="true" aria-labelledby="unlock-title">
-      <div class="eyebrow">Ring Rally</div>
+      <div class="eyebrow">Rally Ring</div>
       <h2 id="unlock-title">Felicidades</h2>
       <p id="unlock-lead" class="unlock-lead"></p>
       <div id="unlock-list" class="unlock-list"></div>

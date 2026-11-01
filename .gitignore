@@ -1,5 +1,8 @@
 # Caché de Python y entornos locales
 __pycache__/
+build/
+dist/
+*.spec
 *.py[cod]
 .venv/
 venv/
@@ -13,6 +16,7 @@ venv/
 # Registros personales. Editarlos a mano cambia tiempos y puntajes.
 data/time_trials.csv
 data/rally_ring.csv
+data/settings.json
 
 # Catálogos que definen la esencia: fantasmas, skins, personajes y trofeos.
 data/game_tracks.csv

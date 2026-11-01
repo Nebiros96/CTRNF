@@ -17,22 +17,45 @@ Desde esta carpeta:
 py .\time_trial_logger.py --watch
 ```
 
-Para construir un catálogo de todas las pistas y skins encontradas al navegar
-en el juego, usa el escáner aparte:
+Para usar la aplicación, ejecuta `dist/CTRNF.exe` (CTR Nitro Fueled - Personal Dashboard). Es un ejecutable único para
+Windows; abre el lanzador de escritorio con el logo y permite arrancar/detener el
+servidor local. Al arrancarlo, el dashboard se abre en el navegador. No requiere
+Python instalado en el equipo de quien lo ejecuta.
 
-```powershell
-py .\catalog_scanner.py --watch
-```
+Los resultados y la ruta configurada del log se guardan en
+`%LOCALAPPDATA%\CTRNF\data`, fuera del ejecutable, para que persistan entre
+inicios y actualizaciones. Los catálogos se empaquetan como recursos de la app.
+El launcher comprueba las GitHub Releases del repositorio al iniciar. Si encuentra
+una versión más reciente, muestra botones para abrir la descarga, consultar las
+novedades o descartar el aviso; la actualización se descarga e instala manualmente.
 
-El escáner lee el historial actual del log y luego sigue sus cambios en vivo.
-Guarda valores únicos en `game_catalog.csv`, con IDs consecutivos separados
-para pistas y skins. Las entradas repetidas se omiten. Puedes detenerlo con
-Ctrl+C.
-
-Para ingresar tiempos desde una ventana gráfica y consultar tus mejores marcas:
+Para abrir el lanzador desde el código fuente con Python:
 
 ```powershell
 py .\time_trial_gui.py
+```
+
+Para iniciar el servidor sin la ventana lanzadora:
+
+```powershell
+py .\time_trial_gui.py --server-only
+```
+
+Para reconstruir el ejecutable (requiere PyInstaller y Pillow):
+
+```powershell
+py -3 -m PyInstaller --noconfirm --clean --onefile --windowed --name CTRNF --icon utils\ctrnf.ico --exclude-module catalog_scanner --add-data "web;web" --add-data "utils\logo_by_LexiLoo826.png;utils" --add-data "utils\fondo_launcher.png;utils" --add-data "utils\ctrnf.ico;utils" --add-data "data\game_tracks.csv;data" --add-data "data\game_skins.csv;data" --add-data "data\game_characters.csv;data" --add-data "data\achievements.csv;data" time_trial_gui.py
+```
+
+## Herramientas de desarrollo
+
+`catalog_scanner.py` es una utilidad opcional para explorar el log del juego y
+generar `game_catalog.csv`. Se conserva en el repositorio para trabajo de
+desarrollo; no es parte del flujo del dashboard ni se empaqueta en el ejecutable
+o en sus releases.
+
+```powershell
+py .\catalog_scanner.py --watch
 ```
 
 El dashboard usa el puerto local `8899`; si ya está ocupado, intenta los
@@ -61,6 +84,13 @@ de esa pista, sin agrupar por personaje ni skin. Cada puesto enseña únicamente
 el `time_raw` legible, la fecha de captura (`dd/mm/yyyy`) y la imagen de la
 skin de ese registro. Solo el primer puesto tiene borde dorado. Usa
 `track_clean` para el nombre visible de la pista.
+
+Las configuraciones están en la sección **Configuración** del ejecutable. La app
+busca inicialmente `last_run*.log` en ubicaciones comunes y permite seleccionar
+otro archivo manualmente; la ruta se guarda localmente junto a los datos del
+usuario. Desde allí se puede exportar un respaldo ZIP de `time_trials.csv` y
+`rally_ring.csv`. La importación solo restaura un CSV si ese dataset no existe o
+está vacío; nunca sobrescribe registros existentes.
 
 También se puede pasar un tiempo directamente (útil para comprobar el formato):
 
@@ -103,5 +133,5 @@ de continuar.
 
 ## Umbrales
 
-Se aplica un umbral del 5% sobre los records mundiales registrados en el modo _GLITCHLESS_ en https://crashteamranking.com/. Cualquier registro que supere ese umbral no es posible de registrar. Los récords ya están consolidados desde hace varios años, por lo que en este modo, no es posible -bajo métodos normales- de superar por encima del 5%.
+`time_threshold` y `score_threshold` de cada pista en `data/game_tracks.csv` son la fuente de validación. Se calcularon aplicando el 5% a los récords mundiales del modo _GLITCHLESS_ publicados en https://crashteamranking.com/. No se permite guardar un tiempo inferior a `time_threshold` ni un puntaje superior a `score_threshold` para esa pista.
 Fecha de actualización de umbrales: 31 de octubre de 2026.

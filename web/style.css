@@ -292,6 +292,28 @@ body {
   line-height: 1;
 }
 .progress-total .hero-rule { margin: 4px 0 0; }
+.skin-totals {
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #162033, #151a24);
+}
+.skin-totals-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.skin-totals-overall { color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 800; }
+.skin-totals-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.skin-total { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-left: 3px solid currentColor; border-radius: 9px; background: #111722; }
+.skin-total-name { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.skin-total-count { margin-top: 3px; color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 900; }
+.skin-total-track { height: 4px; margin-top: 7px; overflow: hidden; border-radius: 99px; background: #0b1018; }
+.skin-total-fill { height: 100%; border-radius: inherit; }
+.skin-total.type-basic { color: #d5deea; }
+.skin-total-fill.type-basic { background: #d5deea; }
+.skin-total.type-exotic { color: #c9a6ff; }
+.skin-total-fill.type-exotic { background: #c9a6ff; }
+.skin-total.type-legendary { color: #f3a712; }
+.skin-total-fill.type-legendary { background: #f3a712; }
+.skin-total.type-beenox { color: #7cc4ff; }
+.skin-total-fill.type-beenox { background: #7cc4ff; }
 .progress-global {
   display: flex;
   align-items: center;
@@ -310,6 +332,12 @@ body {
   letter-spacing: -0.03em;
   line-height: 1;
 }
+.global-mult-copy { position: relative; min-width: 0; }
+.global-mult-title { display: flex; align-items: center; gap: 9px; }
+.multiplier-help { position: relative; }
+.multiplier-info { display: inline-grid; width: 23px; height: 23px; place-items: center; border: 1px solid #876d2c; border-radius: 50%; background: #2a2416; color: #f5cf62; cursor: pointer; font-size: 13px; }
+.multiplier-info:hover, .multiplier-info:focus-visible { border-color: #f5cf62; background: #3b301a; outline: none; }
+.multiplier-help-popover { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: min(320px, 75vw); padding: 12px 14px; border: 1px solid #68552b; border-radius: 10px; background: #1c1a14; color: var(--text); box-shadow: 0 12px 30px #0009; font-size: 12px; line-height: 1.5; }
 .progress-stats { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 28px; margin-top: 12px; }
 .progress-stat-value { font-size: 18px; font-variant-numeric: tabular-nums; font-weight: 900; }
 .progress-stat.is-points .progress-stat-value { font-size: 42px; letter-spacing: -0.03em; line-height: 0.95; }
@@ -354,6 +382,7 @@ body {
 @media (max-width: 720px) {
   .progress-global, .progress-total { align-items: flex-start; flex-direction: column; gap: 8px; }
   .global-mult-value, .progress-total-value, .progress-stat.is-points .progress-stat-value { font-size: 34px; }
+  .skin-totals-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero-copy { padding-right: 84px; }
   .skin-album {
     grid-template-columns: 1fr;
@@ -373,6 +402,10 @@ body {
   .skin-type { grid-column: 3; grid-row: 2; }
   .skin-state { grid-column: 4; grid-row: 1 / span 2; text-align: right; }
   .unlock-track.mini { grid-column: 1 / -1; }
+}
+
+@media (max-width: 420px) {
+  .skin-totals-grid { grid-template-columns: 1fr; }
 }
 .trophy-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
 .trophy-top h2 { margin: 0; }

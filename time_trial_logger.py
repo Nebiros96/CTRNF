@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import re
 import sys
@@ -14,13 +15,30 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
-DEFAULT_LOG = Path(r"C:\CTRNF\CTR-NitroFueled-PC-portable\last_run_JulianGomez.log")
-CSV_PATH = Path(__file__).resolve().parent / "data" / "time_trials.csv"
-RALLY_RING_CSV_PATH = Path(__file__).resolve().parent / "data" / "rally_ring.csv"
-SKINS_CSV_PATH = Path(__file__).resolve().parent / "data" / "game_skins.csv"
-CHARACTERS_CSV_PATH = Path(__file__).resolve().parent / "data" / "game_characters.csv"
-TRACKS_CSV_PATH = Path(__file__).resolve().parent / "data" / "game_tracks.csv"
-ACHIEVEMENTS_CSV_PATH = Path(__file__).resolve().parent / "data" / "achievements.csv"
+PROJECT_ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+USER_DATA_DIR = (
+    Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "CTRNF" / "data"
+    if getattr(sys, "frozen", False)
+    else PROJECT_ROOT / "data"
+)
+
+
+def _configured_log_path() -> Path | None:
+    config_path = USER_DATA_DIR / "settings.json"
+    try:
+        configured = json.loads(config_path.read_text(encoding="utf-8")).get("log_path", "")
+        return Path(configured).expanduser() if configured else None
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+DEFAULT_LOG = _configured_log_path() or Path("last_run.log")
+CSV_PATH = USER_DATA_DIR / "time_trials.csv"
+RALLY_RING_CSV_PATH = USER_DATA_DIR / "rally_ring.csv"
+SKINS_CSV_PATH = PROJECT_ROOT / "data" / "game_skins.csv"
+CHARACTERS_CSV_PATH = PROJECT_ROOT / "data" / "game_characters.csv"
+TRACKS_CSV_PATH = PROJECT_ROOT / "data" / "game_tracks.csv"
+ACHIEVEMENTS_CSV_PATH = PROJECT_ROOT / "data" / "achievements.csv"
 MASK_CLUBS = ("Aku Aku", "Uka Uka", "Velo", "Sparx")
 TIER_LABEL = {"bronze": "Bronce", "silver": "Plata", "gold": "Oro", "platinum": "Platino"}
 # Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000.
@@ -564,6 +582,7 @@ def _load_achievements(path: Path) -> list[dict]:
                 "id": (row.get("id") or "").strip(),
                 "name": name,
                 "notes": notes,
+                "description": (row.get("description") or "").strip(),
                 "type": tier,
                 "tier": TIER_LABEL.get(tier.casefold(), tier or "Bronce"),
                 "milli": _parse_milli(row.get("mult") or ""),
@@ -696,7 +715,7 @@ def _achievement_state(stats: dict, catalog: dict) -> tuple[dict[str, dict], int
     """Progress of every trophy and the global bonus, skins included.
 
     The multiplier trophy looks at skins plus the other trophies, without its
-    own bonus. Ring Rally Legend unlocks only after every other trophy.
+    own bonus. Rally Ring Legend unlocks only after every other trophy.
     """
     achievements = catalog.get("achievements") or []
     regular = [ach for ach in achievements if ach["kind"] not in {"multiplier", "platinum"}]
@@ -805,7 +824,7 @@ def _trophy_card(ach: dict, state: dict[str, dict], status: str) -> dict:
         "status": status,
         "label": "Trofeo",
         "name": ach["name"],
-        "detail": _trophy_meta(ach, target),
+        "detail": ach.get("description", ""),
         "tier": ach.get("tier") or "",
         "type": ach.get("type") or "",
         "url": ach.get("url") or "",
@@ -1174,8 +1193,9 @@ def build_trophies(rows: list[dict[str, str]], catalog: dict | None = None) -> d
                 "type": ach["type"],
                 "tier": ach["tier"],
                 "url": ach["url"],
+                "description": ach.get("description", ""),
                 "mult": f"{ach['milli'] / 1000:.3f}",
-                "meta": _trophy_meta(ach, target),
+                "meta": ach.get("description", ""),
                 "current": current,
                 "target": target,
                 "unit": _trophy_unit(ach["kind"]),
