@@ -13,6 +13,7 @@ let progressCharacterId = "";
 let progressQuery = "";
 let progressSignature = "";
 let progressScrolledId = "";
+let pendingAlbumCharacterId = "";
 
 function imageBox(container, url, alt, options = {}) {
   const imageClass = options.imageClass || "thumb";
@@ -43,6 +44,22 @@ function find(rows, key, value) {
   return (rows || []).find((row) => (row[key] || "").trim() === value) || {};
 }
 
+function skinPrettyName(raw) {
+  const row = find(appState?.skins, "skin", (raw || "").trim());
+  return (row.skin_name || "").trim();
+}
+
+function paintConnection(data) {
+  const connection = $("connection");
+  if (!data.log_found) {
+    connection.textContent = "No se encontró el archivo .log · configura la ruta ⚙";
+    connection.className = "pill offline";
+    return;
+  }
+  connection.textContent = data.game_running ? "Online" : "Juego cerrado";
+  connection.className = data.game_running ? "pill live" : "pill offline";
+}
+
 function updateAsset(kind, raw) {
   if (!appState) return;
   raw = (raw || "").trim();
@@ -51,7 +68,7 @@ function updateAsset(kind, raw) {
   const row = find(rows, isTrack ? "track" : "skin", raw);
   const name = isTrack ? (row.track_clean || "null") : (row.character || "null");
   $(`${kind}-name`).textContent = name;
-  if (!isTrack) $("skin-raw").textContent = raw || "null";
+  if (!isTrack) $("skin-raw").textContent = skinPrettyName(raw) || "null";
 
   const url = (row.url || "").trim();
   const image = $(`${kind}-image`);
@@ -310,7 +327,16 @@ function fillCards(box, records, options = {}) {
     details.className = "details";
     const character = document.createElement("div");
     character.className = "trackname";
-    character.textContent = record.character || "null";
+    const who = document.createElement("span");
+    who.textContent = record.character || "null";
+    character.append(who);
+    const prettySkin = record.reference ? "" : skinPrettyName(record.skin);
+    if (prettySkin) {
+      const skin = document.createElement("span");
+      skin.className = "racer-skin";
+      skin.textContent = ` - ${prettySkin}`;
+      character.append(skin);
+    }
 
     const pbLine = document.createElement("div");
     pbLine.className = "pb-line";
@@ -556,17 +582,7 @@ function paintProgressHero(character) {
   bar.setAttribute("aria-valuemax", "100");
   bar.append(fill);
 
-  const costs = document.createElement("p");
-  costs.className = "hero-rule";
-  costs.textContent = "El álbum sigue el orden de las skins. Cada Basic suma 500,000 · Exotic 2,000,000 · Legendary 5,000,000 · Beenox 10,000,000 al total acumulado.";
-
-  copy.append(eyebrow, title, maskLine, runs, stats, bar, caption, costs);
-  if (Number(character.base_points) !== Number(character.points)) {
-    const base = document.createElement("p");
-    base.className = "hero-rule";
-    base.textContent = `Puntaje base acumulado ${formatScore(character.base_points)} pts. La barra usa la suma ya multiplicada.`;
-    copy.append(base);
-  }
+  copy.append(eyebrow, title, maskLine, runs, stats, bar, caption);
   const album = document.createElement("div");
   album.className = "hero-album";
   const albumLabel = document.createElement("div");
@@ -674,14 +690,24 @@ function paintProgress(characters, multiplier) {
   for (const group of groups) {
     const block = document.createElement("section");
     block.className = "roster-group";
+    let sectionUnlocked = 0;
+    let sectionTotal = 0;
+    for (const row of characters) {
+      if ((row.game_base || "Otros") !== group.label) continue;
+      sectionUnlocked += Number(row.unlocked) || 0;
+      sectionTotal += Number(row.total_skins) || 0;
+    }
     const label = document.createElement("div");
     label.className = "roster-label";
-    label.textContent = group.label;
+    label.textContent = `${group.label} (${sectionUnlocked}/${sectionTotal})`;
     block.append(label);
     for (const character of group.characters) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "roster-item";
+      const skinsTotal = Number(character.total_skins) || 0;
+      const skinsUnlocked = Number(character.unlocked) || 0;
+      if (skinsUnlocked < skinsTotal) button.classList.add("is-locked");
       if (character.character_id === progressCharacterId) {
         button.classList.add("active");
         button.setAttribute("aria-current", "true");
@@ -764,6 +790,38 @@ function setStatus(id, message, isError) {
   status.className = isError ? "status error" : "status";
 }
 
+function selectedTrackRow() {
+  return find(appState?.tracks, "track", (appState?.selected?.track || "").trim());
+}
+
+function inputCentis(raw) {
+  const value = String(raw || "").trim();
+  const triple = /^(\d+):(\d{2}):(\d{2})$/.exec(value);
+  if (triple) return Number(triple[1]) * 6000 + Number(triple[2]) * 100 + Number(triple[3]);
+  const dotted = /^(?:(\d{1,2}):)?(\d{1,2})[.,](\d{1,2})$/.exec(value);
+  if (!dotted) return null;
+  return Number(dotted[1] || 0) * 6000 + Number(dotted[2]) * 100 + Number(dotted[3].padEnd(2, "0"));
+}
+
+function impossibleTimeError(raw) {
+  const track = selectedTrackRow();
+  const seconds = Number(String(track.time_threshold || "").trim().replace(",", "."));
+  if (!Number.isFinite(seconds)) return "";
+  const entered = inputCentis(raw);
+  if (entered == null || entered > Math.round(seconds * 100)) return "";
+  const name = track.track_clean || "esta pista";
+  return `No es posible guardar ese tiempo. El límite de ${name} es ${clockFromSeconds(track.time_threshold)}.`;
+}
+
+function impossibleScoreError(raw) {
+  const track = selectedTrackRow();
+  const limit = Number(String(track.score_threshold || "").trim());
+  const score = Number(raw);
+  if (!Number.isInteger(limit) || !Number.isFinite(score) || score < limit) return "";
+  const name = track.track_clean || "esta pista";
+  return `No es posible guardar ese puntaje. El límite de ${name} es ${formatScore(limit)}.`;
+}
+
 function timeInputError(raw) {
   const value = raw.trim();
   const triple = /^(\d+):(\d{2}):(\d{2})$/.exec(value);
@@ -789,7 +847,7 @@ function assetSnapshot(kind, raw) {
   return {
     raw: value || "null",
     name: isTrack ? (row.track_clean || "null") : (row.character || "null"),
-    detail: isTrack ? "" : (value || "null"),
+    detail: isTrack ? "" : (skinPrettyName(value) || "null"),
     url: (row.url || "").trim(),
   };
 }
@@ -870,6 +928,11 @@ function requestSave(mode) {
       setStatus("rally-status", "ingresa el número de vueltas como entero", true);
       return;
     }
+    const scoreLimit = impossibleScoreError(score);
+    if (scoreLimit) {
+      setStatus("rally-status", scoreLimit, true);
+      return;
+    }
     openConfirm({
       mode,
       focusId: "score",
@@ -882,7 +945,7 @@ function requestSave(mode) {
     return;
   }
   const time = $("time").value.trim();
-  const error = timeInputError(time);
+  const error = timeInputError(time) || impossibleTimeError(time);
   if (error) {
     setStatus("status", error, true);
     return;
@@ -929,6 +992,8 @@ async function commitConfirm() {
         ? `${formatScore(data.record.score_mult)} pts de progresión (${formatFactor(savedMult)})`
         : `${formatScore(data.record.score)} pts`;
       setStatus("rally-status", `Guardado #${data.record.id} · ${detail}${note}`, false);
+      const played = find(appState?.skins, "skin", (draft.skin?.raw || "").trim());
+      pendingAlbumCharacterId = String(played.character_id || "").trim() || "*";
     } else {
       $("time").value = "";
       setStatus("status", `Guardado #${data.record.id} · ${data.record.time_seconds} s`, false);
@@ -948,17 +1013,22 @@ async function commitConfirm() {
 function showProgressState(data) {
   appState = data;
   syncSaveLocks(Boolean(data.game_running));
-  const connection = $("connection");
-  connection.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running
-    ? "Juego detectado · last_run en vivo"
-    : "Juego cerrado · álbum de Ring Rally";
-  connection.className = `pill${data.game_running ? " live" : ""}`;
+  paintConnection(data);
   const characters = data.progression || [];
   const unlocked = data.summary?.unlocked ?? characters.reduce((sum, row) => sum + (Number(row.unlocked) || 0), 0);
   const skins = data.summary?.skins ?? characters.reduce((sum, row) => sum + (Number(row.total_skins) || 0), 0);
   $("kpi-records").textContent = String(data.summary?.records ?? 0);
   $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Skins desbloqueadas";
   $("kpi-devs").textContent = `${unlocked} de ${skins}`;
+  if (pendingAlbumCharacterId) {
+    const wanted = pendingAlbumCharacterId === "*" ? String(data.active_character_id || "") : pendingAlbumCharacterId;
+    pendingAlbumCharacterId = "";
+    const match = characters.find((row) => String(row.character_id) === wanted);
+    if (match) {
+      if (String(progressCharacterId) !== String(match.character_id)) progressScrolledId = "";
+      progressCharacterId = match.character_id;
+    }
+  }
   if (!progressCharacterId || !characters.some((row) => row.character_id === progressCharacterId)) {
     progressCharacterId = data.active_character_id
       || characters.find((row) => Number(row.points) > 0)?.character_id
@@ -1053,11 +1123,7 @@ function paintTrophies(trophies) {
 function showTrophyState(data) {
   appState = data;
   syncSaveLocks(Boolean(data.game_running));
-  const connection = $("connection");
-  connection.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running
-    ? "Juego detectado · last_run en vivo"
-    : "Juego cerrado · trofeos de Ring Rally";
-  connection.className = `pill${data.game_running ? " live" : ""}`;
+  paintConnection(data);
   const trophies = data.trophies || [];
   const unlocked = data.summary?.unlocked ?? trophies.filter((row) => row.unlocked).length;
   const total = data.summary?.trophies ?? trophies.length;
@@ -1122,11 +1188,7 @@ function showState(data) {
   updateAsset("skin", data.selected?.skin);
   renderTrackPicker(data);
 
-  const connection = $("connection");
-  connection.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running
-    ? "Juego detectado · last_run en vivo"
-    : "Juego cerrado · elige una pista";
-  connection.className = `pill${data.game_running ? " live" : ""}`;
+  paintConnection(data);
 
   renderLastTrial(data.last_trial);
   renderGhosts(data);
@@ -1157,9 +1219,7 @@ function showRallyState(data) {
   if (data.game_running) browsedTrackByMode.rally_ring = "";
   updateRallyAsset("track", data.selected?.track);
   updateRallyAsset("skin", data.selected?.skin);
-  const conn = $("connection");
-  conn.textContent = !data.log_found ? "No se encontró el archivo .log · configura la ruta ⚙" : data.game_running ? "Juego detectado · last_run en vivo" : "Juego cerrado · pista del último registro";
-  conn.className = `pill${data.game_running ? " live" : ""}`;
+  paintConnection(data);
   const track = data.current_track?.track_clean || "null";
   $("rally-leader-track").textContent = track;
   renderRallyTrackPicker(data);
@@ -1170,14 +1230,8 @@ function showRallyState(data) {
   const firstCard = $("rally-cards").querySelector(".card");
   if (firstCard) firstCard.classList.add("top1");
   const last = data.last_trial;
-  const mult = Number(last?.multiplier);
-  const boosted = Number(last?.score_mult);
-  let headline = last ? `${last.track_clean || "null"} · ${last.character || "null"} · ${formatScore(last.score)} pts` : "null";
-  if (last && Number.isFinite(mult) && mult > 0 && Number.isFinite(boosted)) {
-    headline += ` · progresión ${formatScore(boosted)} (${formatFactor(mult)})`;
-  }
-  $("rally-last").textContent = headline;
-  $("rally-last-notes").textContent = last?.notes || "";
+  $("rally-last").textContent = last ? `${formatScore(last.score)} pts` : "null";
+  $("rally-last-notes").textContent = "";
   const delta = $("rally-last-delta");
   const badges = $("rally-last-badges");
   badges.replaceChildren();
@@ -1202,7 +1256,7 @@ function updateRallyAsset(kind, raw) {
   const row = find(isTrack ? appState.tracks : appState.skins, isTrack ? "track" : "skin", raw);
   const name = isTrack ? (row.track_clean || "null") : (row.character || "null");
   $(`rally-${kind}-name`).textContent = name;
-  if (!isTrack) $("rally-skin-raw").textContent = raw || "null";
+  if (!isTrack) $("rally-skin-raw").textContent = skinPrettyName(raw) || "null";
   const box = $(`rally-${kind}-image`);
   const url = (row.url || "").trim();
   if (box.dataset.url !== url) { box.dataset.url = url; imageBox(box, url, name); }
