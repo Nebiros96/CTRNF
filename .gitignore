@@ -31,3 +31,8 @@ game_catalog.csv
 Thumbs.db
 Desktop.ini
 .DS_Store
+node_modules/
+dist/
+.env
+.env.*
+!.env.example

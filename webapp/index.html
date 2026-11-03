@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131b">
+  <title>CTRNF · Dashboard personal</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/cloud-app.js"></script>
+</head>
+<body class="cloud-body">
+  <main id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <img class="auth-logo" src="/logo.png" alt="Crash Team Racing Nitro-Fueled">
+      <div class="eyebrow">DASHBOARD PERSONAL</div>
+      <h1>Vuelve a la pista</h1>
+      <p class="auth-intro">Guarda tus tiempos, puntajes y progreso en tu cuenta.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Acceso a la cuenta">
+        <button id="login-tab" class="auth-tab active" type="button" role="tab" aria-selected="true">Iniciar sesión</button>
+        <button id="signup-tab" class="auth-tab" type="button" role="tab" aria-selected="false">Crear cuenta</button>
+      </div>
+      <form id="auth-form">
+        <label class="cloud-field"><span>Correo electrónico</span><input id="auth-email" type="email" autocomplete="email" placeholder="piloto@ejemplo.com" required></label>
+        <label class="cloud-field"><span>Contraseña</span><input id="auth-password" type="password" autocomplete="current-password" minlength="8" placeholder="Mínimo 8 caracteres" required></label>
+        <label id="confirm-wrap" class="cloud-field" hidden><span>Confirmar contraseña</span><input id="auth-confirm" type="password" autocomplete="new-password" minlength="8" placeholder="Repite la contraseña"></label>
+        <button id="auth-submit" class="button" type="submit">Iniciar sesión</button>
+        <div id="auth-status" class="status" role="status">Usa el correo y contraseña de tu cuenta.</div>
+      </form>
+      <div class="auth-foot">Tu progreso queda asociado a tu usuario.</div>
+    </div>
+  </main>
+
+  <main id="dashboard" class="shell cloud-shell" hidden>
+    <header class="header cloud-header">
+      <div class="brand"><img class="brand-logo" src="/logo.png" alt=""><div><div class="eyebrow">PANEL DE PILOTO</div><h1 class="title">Crash™ Team Racing NF</h1><p class="sub">Tus carreras, tus récords, tu progreso.</p></div></div>
+      <div class="account-box"><div><span class="meta">SESIÓN ACTIVA</span><strong id="account-email">—</strong></div><button id="signout" class="refresh" type="button">Cerrar sesión</button></div>
+    </header>
+    <div class="cloud-banner"><span class="cloud-dot"></span><div><strong>Registro manual</strong><span>La conexión automática con el juego se añadirá en una siguiente etapa.</span></div><span class="prototype-tag">PRIMER MOCK-UP</span></div>
+    <nav class="nav cloud-nav" aria-label="Secciones">
+      <button type="button" class="nav-btn active" data-view="rally" aria-current="page">Ring Rally</button>
+      <button type="button" class="nav-btn" data-view="progress">Álbum de Skins</button>
+      <button type="button" class="nav-btn" data-view="trophies">Trofeos</button>
+      <button type="button" class="nav-btn" data-view="register">Time Trial</button>
+      <div id="cloud-connection" class="pill">Conectando…</div>
+    </nav>
+
+    <section id="view-register" hidden>
+      <div class="layout"><div class="register-side">
+        <section class="panel"><h2>Registrar tiempo</h2>
+          <label class="cloud-field"><span>Pista</span><select id="track-picker"></select></label>
+          <div class="asset"><div id="track-image" class="null-image">null</div><div><div class="meta">PISTA</div><div id="track-name" class="name">Selecciona una pista</div></div></div>
+          <label class="cloud-field"><span>Skin</span><select id="skin-picker"></select></label>
+          <div class="asset"><div id="skin-image" class="null-image">null</div><div><div class="meta">PERSONAJE</div><div id="skin-name" class="name">Selecciona una skin</div><div id="skin-raw" class="meta"></div></div></div>
+          <section class="panel ghost-panel" aria-label="Tiempos de fantasmas">
+            <h2>Tiempos de fantasmas</h2>
+            <div class="ghost-row"><div id="ghost-velo-icon" class="ghost-slot"></div><div class="ghost-name">Velo</div><div id="ghost-velo-time" class="ghost-time">null</div></div>
+            <div class="ghost-row"><div id="ghost-dev-icon" class="ghost-slot"></div><div id="ghost-dev-name" class="ghost-name">null</div><div id="ghost-dev-time" class="ghost-time">null</div></div>
+          </section>
+          <label class="cloud-field"><span>Tiempo · formato M:SS:CC</span><input id="time" type="text" placeholder="1:25:03" autocomplete="off"></label>
+          <button id="save" class="button" type="button">Guardar tiempo</button><div id="status" class="status" role="status">Listo para registrar</div>
+        </section>
+        <section class="panel compact-panel"><div class="eyebrow">TIME TRIAL</div><h2>Tu mejor tiempo en esta pista</h2><div id="trial-pb" class="cloud-pb">—</div><div id="trial-count" class="meta">0 registros</div></section>
+      </div><section class="panel"><div class="tophead"><div><div class="eyebrow">TUS MEJORES TIEMPOS</div><h2>Top 10</h2><span id="leader-track">Selecciona una pista</span></div><button id="refresh" class="refresh" type="button">Actualizar</button></div><div id="cards" class="cards"></div></section></div>
+    </section>
+
+    <section id="view-rally"><div class="layout"><div class="register-side">
+      <section class="panel"><h2>Registrar puntaje</h2>
+        <label class="cloud-field"><span>Pista</span><select id="rally-track-picker"></select></label>
+        <div class="asset"><div id="rally-track-image" class="null-image">null</div><div><div class="meta">PISTA</div><div id="rally-track-name" class="name">Selecciona una pista</div></div></div>
+        <label class="cloud-field"><span>Skin</span><select id="rally-skin-picker"></select></label>
+        <div class="asset"><div id="rally-skin-image" class="null-image">null</div><div><div class="meta">PERSONAJE</div><div id="rally-skin-name" class="name">Selecciona una skin</div><div id="rally-skin-raw" class="meta"></div></div></div>
+        <label class="cloud-field"><span>Puntaje · entero</span><input id="score" type="number" min="0" step="1" placeholder="100452"></label>
+        <label class="cloud-field"><span>Número de vueltas</span><input id="laps" type="number" min="1" step="1" placeholder="3"></label>
+        <button id="rally-save" class="button" type="button">Guardar puntaje</button><div id="rally-status" class="status" role="status">Listo para registrar</div>
+      </section>
+      <section class="panel compact-panel"><div class="eyebrow">RING RALLY</div><h2>Tu mejor puntaje en esta pista</h2><div id="rally-pb" class="cloud-pb">—</div><div id="rally-count" class="meta">0 registros</div></section>
+    </div><section class="panel"><div class="tophead"><div><div class="eyebrow">TUS MEJORES PUNTAJES</div><h2>Top 10</h2><span id="rally-leader-track">Selecciona una pista</span></div><button id="rally-refresh" class="refresh" type="button">Actualizar</button></div><div id="rally-cards" class="cards"></div></section></div></section>
+
+    <section id="view-progress" hidden><section id="progress-total" class="progress-total"></section><div class="progress-layout"><aside class="panel roster-panel"><h2>Personajes</h2><label class="cloud-field"><span>Buscar</span><input id="progress-search" placeholder="Nombre del personaje"></label><div id="progress-roster" class="roster"></div></aside><div class="progress-main"><section id="skin-totals" class="skin-totals"></section><section id="progress-global" class="progress-global"></section><section class="panel album-panel"><div id="progress-hero"></div><div id="progress-album" class="skin-album"></div></section></div></div></section>
+    <section id="view-trophies" hidden><section class="panel trophy-panel"><div class="trophy-top"><div><div class="eyebrow">RING RALLY</div><h2>Trofeos</h2></div><div id="trophy-count" class="trophy-count">0 de 0</div></div><div id="trophy-list" class="trophy-list"></div></section></section>
+    <footer class="site-footer">CTRNF · Dashboard personal <span id="catalog-version">Catálogos locales listos</span></footer>
+  </main>
+
+  <div id="confirm-modal" class="confirm-modal" hidden><div class="confirm-backdrop" data-confirm-dismiss></div><div id="confirm-card" class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><div class="eyebrow">REVISAR ANTES DE GUARDAR</div><h2 id="confirm-title">Confirmar registro</h2><div id="confirm-copy" class="meta"></div><div id="confirm-status" class="status"></div><div class="confirm-actions"><button id="confirm-correct" class="confirm-secondary" type="button">Corregir</button><button id="confirm-ok" class="button" type="button">Confirmar</button></div></div></div>
+</body>
+</html>

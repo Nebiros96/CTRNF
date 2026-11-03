@@ -30,7 +30,7 @@ LOGO_PATH = ROOT / "utils" / "logo_by_LexiLoo826.png"
 COVER_PATH = ROOT / "utils" / "fondo_launcher.png"
 ICON_PATH = ROOT / "utils" / "ctrnf.ico"
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.2.1"
+APP_VERSION = "CTR - v0.3.0"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"

@@ -1,5 +1,50 @@
 # CTRNF Time Trial Logger
 
+## Mock-up web con Supabase (rama `webapp`)
+
+La carpeta `web/` es solo la interfaz local que empaqueta el ejecutable
+(`index.html`, `style.css` y `app.js`). El prototipo con Supabase vive aparte,
+en `webapp/` (`index.html` y `cloud-app.js`), para que el login no entre en el
+ejecutable. Para iniciar el prototipo desde esta rama:
+
+1. Instala Node.js LTS.
+2. Ejecuta `npm install` y copia `.env.example` a `.env.local`.
+3. En `.env.local`, ingresa la URL del proyecto Supabase y su clave publicable
+   (`anon` legacy también sirve). Nunca uses `service_role` en el navegador.
+4. En el SQL Editor de Supabase ejecuta `supabase/schema.sql`.
+5. Importa los cuatro catálogos desde `webapp/public/` en sus tablas homónimas.
+   Los CSV originales de pistas, skins, personajes y logros usan `;` y coma
+   decimal; si el importador de Supabase no los reconoce directamente, usa una
+   copia convertida a CSV UTF-8 delimitado por comas, cuidando comillas y
+   separadores decimales (punto en columnas numéricas). La primera vista web
+   usa los archivos estáticos locales, por lo que la carga a tablas de catálogo
+   es necesaria para preparar la base de datos pero no bloquea el mock-up.
+6. Ejecuta `npm run dev` y abre la dirección local que muestre Vite.
+
+El acceso usa Supabase Auth con correo y contraseña. Para preparar la cuenta
+administradora, desactiva temporalmente el registro público en Authentication
+si no quieres que cualquiera cree cuentas, crea el usuario inicial desde
+Authentication > Users (o registra el usuario en el mock-up) y deja activada la
+confirmación de correo según tu preferencia. El primer alta con email/password
+no asigna privilegios especiales: cada usuario solo ve y modifica sus propias
+filas gracias a RLS. No se expone la clave `service_role`.
+
+El mock-up soporta captura manual de Time Trial y Ring Rally. El agente/ejecutable
+que lee `last_run` todavía no está conectado a Supabase; esa integración queda
+para una etapa posterior. Las cuatro tablas de catálogo mantienen las columnas
+de sus CSV. Las tablas de partidas mantienen las columnas de cada CSV y añaden
+`user_id`; las políticas RLS aíslan los resultados por cuenta. El cálculo de
+`pb` y `delta_pb` se calculan contra el mejor registro previo del usuario en el
+navegador como parte de este primer mock-up. Antes de abrir el registro público,
+ese cálculo debe moverse a una función transaccional en la base de datos para
+evitar carreras cuando hay escrituras simultáneas.
+
+`VITE_SUPABASE_TIME_TRIALS_TABLE` y `VITE_SUPABASE_RALLY_TABLE` permiten cambiar
+los nombres de tabla antes del build; los predeterminados son `time_trials` y
+`rally_ring`. Las tablas de catálogo no requieren claves de entorno: este
+primer mock-up carga los CSV locales bajo `webapp/public/` para poder revisar el
+flujo mientras se configura el proyecto.
+
 Prototipo local para registrar partidas de Time Trial y Ring Rally leyendo los metadatos del
 log `last_run` y guardando cada resultado en un CSV.
 
