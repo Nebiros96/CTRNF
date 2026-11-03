@@ -33,7 +33,7 @@ body {
 .kpi-value { color: #fff; font-size: clamp(22px, 2.4vw, 30px); font-variant-numeric: tabular-nums; font-weight: 900; line-height: 1.05; }
 .pill { padding: 8px 13px; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); white-space: nowrap; }
 .pill.live { border-color: #1b7a3e; background: #1b7a3e; color: #fff; }
-.pill.offline { border-color: #a32626; background: #a32626; color: #fff; }
+.pill.offline { border-color: rgba(196, 72, 72, 0.72); background: rgba(163, 38, 38, 0.38); color: #fff; }
 
 .last { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 22px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 16px; background: #151b26; }
 .last-copy { min-width: 0; }
@@ -75,6 +75,7 @@ body {
 .track-picker { width: 100%; margin-top: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #111722; color: var(--text); font: inherit; font-weight: 700; }
 .track-picker:focus { border-color: var(--blue); outline: none; }
 .asset .meta { margin-top: 4px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.asset .meta:empty { display: none; }
 .null-image { display: grid; width: 82px; height: 82px; place-items: center; border-radius: 11px; background: #202938; color: #7f8b9c; font-size: 12px; }
 .button { width: 100%; margin-top: 16px; padding: 12px 15px; border: 0; border-radius: 11px; background: linear-gradient(135deg, #ffba2e, #ef8e09); color: #211605; cursor: pointer; font-size: 15px; font-weight: 800; }
 .button:hover { filter: brightness(1.08); }

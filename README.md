@@ -44,7 +44,7 @@ py .\time_trial_gui.py --server-only
 Para reconstruir el ejecutable (requiere PyInstaller y Pillow):
 
 ```powershell
-py -3 -m PyInstaller --noconfirm --clean --onefile --windowed --name CTRNF --icon utils\ctrnf.ico --exclude-module catalog_scanner --add-data "web;web" --add-data "utils\logo_by_LexiLoo826.png;utils" --add-data "utils\fondo_launcher.png;utils" --add-data "utils\ctrnf.ico;utils" --add-data "data\game_tracks.csv;data" --add-data "data\game_skins.csv;data" --add-data "data\game_characters.csv;data" --add-data "data\achievements.csv;data" time_trial_gui.py
+py -3 -m PyInstaller --noconfirm --clean --onefile --windowed --name CTRNF --icon utils\ctrnf.ico --exclude-module catalog_scanner --add-data "web;web" --add-data "utils\logo_by_LexiLoo826.png;utils" --add-data "utils\fondo_launcher.png;utils" --add-data "utils\ctrnf.ico;utils" --add-data "utils\achievements;utils\achievements" --add-data "data\game_tracks.csv;data" --add-data "data\game_skins.csv;data" --add-data "data\game_characters.csv;data" --add-data "data\achievements.csv;data" time_trial_gui.py
 ```
 
 ## Herramientas de desarrollo

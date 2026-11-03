@@ -29,8 +29,17 @@ LOGO_PATH = ROOT / "utils" / "logo_by_LexiLoo826.png"
 ## Art cover used in the launcher window.
 COVER_PATH = ROOT / "utils" / "fondo_launcher.png"
 ICON_PATH = ROOT / "utils" / "ctrnf.ico"
+ACHIEVEMENT_ICON_DIR = ROOT / "utils" / "achievements"
+ACHIEVEMENT_ICON_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".jfif": "image/jpeg",
+}
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.3.1"
+APP_VERSION = "CTR - v0.4.1"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -661,6 +670,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, json.dumps({"version": version}).encode("utf-8"), "application/json; charset=utf-8")
             except OSError as exc:
                 self._send(500, json.dumps({"error": str(exc)}).encode("utf-8"), "application/json; charset=utf-8")
+            return
+
+        if path.startswith("/achievements/"):
+            name = Path(path).name
+            suffix = Path(name).suffix.lower()
+            icon = (ACHIEVEMENT_ICON_DIR / name).resolve()
+            root = ACHIEVEMENT_ICON_DIR.resolve()
+            if (
+                name != path.removeprefix("/achievements/")
+                or suffix not in ACHIEVEMENT_ICON_TYPES
+                or root not in icon.parents
+                or not icon.is_file()
+            ):
+                self._send(404, b"Not found", "text/plain; charset=utf-8")
+                return
+            self._send(200, icon.read_bytes(), ACHIEVEMENT_ICON_TYPES[suffix])
             return
 
         if path in {"/logo.png", "/favicon.ico"}:

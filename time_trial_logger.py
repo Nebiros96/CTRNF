@@ -39,6 +39,8 @@ SKINS_CSV_PATH = PROJECT_ROOT / "data" / "game_skins.csv"
 CHARACTERS_CSV_PATH = PROJECT_ROOT / "data" / "game_characters.csv"
 TRACKS_CSV_PATH = PROJECT_ROOT / "data" / "game_tracks.csv"
 ACHIEVEMENTS_CSV_PATH = PROJECT_ROOT / "data" / "achievements.csv"
+ACHIEVEMENT_ICON_DIR = PROJECT_ROOT / "utils" / "achievements"
+_ACHIEVEMENT_ICON_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".jfif")
 MASK_CLUBS = ("Aku Aku", "Uka Uka", "Velo", "Sparx")
 TIER_LABEL = {"bronze": "Bronce", "silver": "Plata", "gold": "Oro", "platinum": "Platino"}
 # Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000.
@@ -623,6 +625,17 @@ def _classify_achievement(name: str, notes: str, goal_raw: str) -> dict:
     raise ValueError(f"notes de achievement no reconocidas: {notes or '(vacío)'}")
 
 
+def achievement_icon_url(achievement_id: str, fallback: str) -> str:
+    """Local file utils/achievements/{id}.ext wins. The CSV url is the fallback."""
+    token = (achievement_id or "").strip()
+    if not token or any(mark in token for mark in ("/", "\\", "..")):
+        return fallback
+    for extension in _ACHIEVEMENT_ICON_EXTENSIONS:
+        if (ACHIEVEMENT_ICON_DIR / f"{token}{extension}").is_file():
+            return f"/achievements/{token}{extension}"
+    return fallback
+
+
 def _load_achievements(path: Path) -> list[dict]:
     if not path.exists() or path.stat().st_size == 0:
         return []
@@ -644,7 +657,7 @@ def _load_achievements(path: Path) -> list[dict]:
                 "type": tier,
                 "tier": TIER_LABEL.get(tier.casefold(), tier or "Bronce"),
                 "milli": _parse_milli(row.get("mult") or ""),
-                "url": (row.get("url") or "").strip(),
+                "url": achievement_icon_url((row.get("id") or "").strip(), (row.get("url") or "").strip()),
                 **kind,
             }
         )
