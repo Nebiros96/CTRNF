@@ -262,6 +262,7 @@ def ensure_delta_pb_column(path: Path) -> None:
 
 def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[str, str]:
     seconds = parse_time(raw_time)
+    ensure_possible_time(track, seconds)
     best_by_track = ensure_pb_column(csv_path)
     ensure_delta_pb_column(csv_path)
     track = (track or "").strip()
@@ -342,6 +343,63 @@ def _display_skin_name(value: str, fallback: str) -> str:
     if len(text) >= 2 and text[0] == text[-1] == '"':
         text = text[1:-1]
     return text or fallback
+
+
+def _track_catalog_row(track: str) -> dict[str, str]:
+    key = (track or "").strip()
+    if not key or key.casefold() in {"null", "none"}:
+        return {}
+    for row in _read_table(TRACKS_CSV_PATH):
+        if (row.get("track") or "").strip() == key:
+            return row
+    return {}
+
+
+def _csv_centis(raw: str) -> int | None:
+    text = (raw or "").strip().replace(" ", "").replace(",", ".")
+    if not text:
+        return None
+    try:
+        return int((Decimal(text) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    except Exception:
+        return None
+
+
+def _centis_from_seconds(seconds: float) -> int:
+    return int((Decimal(str(seconds)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) * 100)
+
+
+def _clock_from_centis(total: int) -> str:
+    minutes, rest = divmod(total, 6_000)
+    seconds, frac = divmod(rest, 100)
+    return f"{minutes}:{seconds:02d}:{frac:02d}"
+
+
+def _csv_int(raw: str) -> int | None:
+    text = (raw or "").strip().replace(" ", "")
+    if not text.isdigit():
+        return None
+    return int(text)
+
+
+def ensure_possible_time(track: str, seconds: float) -> None:
+    """Reject a time at or below the track's published threshold."""
+    row = _track_catalog_row(track)
+    limit = _csv_centis(row.get("time_threshold") or "")
+    if limit is None or _centis_from_seconds(seconds) > limit:
+        return
+    name = (row.get("track_clean") or "").strip() or "esta pista"
+    raise ValueError(f"No es posible guardar ese tiempo. El límite de {name} es {_clock_from_centis(limit)}.")
+
+
+def ensure_possible_score(track: str, score: int) -> None:
+    """Reject a Ring Rally score at or above the track's published threshold."""
+    row = _track_catalog_row(track)
+    limit = _csv_int(row.get("score_threshold") or "")
+    if limit is None or score < limit:
+        return
+    name = (row.get("track_clean") or "").strip() or "esta pista"
+    raise ValueError(f"No es posible guardar ese puntaje. El límite de {name} es {limit:,}.")
 
 
 def _read_table(path: Path) -> list[dict[str, str]]:
@@ -1051,6 +1109,7 @@ def save_rally_record(
 ) -> tuple[dict[str, str], list[dict]]:
     score = parse_score(raw_score)
     laps = parse_laps(raw_laps)
+    ensure_possible_score(track, score)
     with _rally_lock:
         fieldnames, rows = _read_rally(csv_path)
         catalog = load_rally_catalog()
