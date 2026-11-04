@@ -39,7 +39,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.4.1"
+APP_VERSION = "CTR - v0.4.2"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -65,7 +65,7 @@ def version_key(value: str) -> tuple[int, int, int, int, int] | None:
 
 def find_log_file() -> Path | None:
     configured = core.DEFAULT_LOG
-    if configured.is_file():
+    if configured is not None and configured.is_file():
         return configured
     roots = [Path(os.environ.get("USERPROFILE", "")) / "Documents", Path("C:/CTRNF"), Path("C:/Games"), Path("D:/Games")]
     candidates: list[Path] = []
@@ -154,7 +154,7 @@ def trophies_payload(running: bool) -> dict:
     return {
         "mode": "rally_trophies",
         "game_running": running,
-        "log_found": core.DEFAULT_LOG.is_file(),
+        "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
         "trophies": built["trophies"],
         "multiplier": built["multiplier"],
         "summary": {
@@ -172,7 +172,7 @@ def progress_payload(running: bool) -> dict:
     return {
         "mode": "rally_progress",
         "game_running": running,
-        "log_found": core.DEFAULT_LOG.is_file(),
+        "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
         "progression": built["characters"],
         "active_character_id": built["active_character_id"],
         "multiplier": built["multiplier"],
@@ -442,11 +442,11 @@ class DashboardState:
             self.log.close()
         self.log = None
         path = core.DEFAULT_LOG
-        if not path.is_file():
+        if path is None or not path.is_file():
             path = find_log_file()
-            if path:
+            if path is not None:
                 core.DEFAULT_LOG = path
-        if not path.is_file():
+        if path is None or not path.is_file():
             return
         if seed:
             core.scan_existing_log(path, self.metadata)
@@ -609,7 +609,7 @@ class DashboardState:
             "skins": skins,
             "selected": selected,
             "game_running": running,
-            "log_found": core.DEFAULT_LOG.is_file(),
+            "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
             "current_track": {
                 "track": selected_track,
                 "track_clean": (current_track.get("track_clean") or "").strip() or "null",
@@ -1040,12 +1040,12 @@ class DashboardLauncher:
 
     def refresh_settings(self) -> None:
         log_path = core.DEFAULT_LOG
-        if not log_path.is_file():
+        if log_path is None or not log_path.is_file():
             detected = find_log_file()
             if detected:
                 STATE.update_log(detected)
                 log_path = detected
-        self.log_path_var.set(f"{log_path.parent}\n{log_path.name}" if log_path.is_file() else "No se encontró un archivo .log. Selecciona la ruta manualmente.")
+        self.log_path_var.set(f"{log_path.parent}\n{log_path.name}" if log_path is not None and log_path.is_file() else "No se encontró un archivo .log. Selecciona la ruta manualmente.")
         tt_count = len(read_csv(RESULTS_CSV))
         rally_count = len(read_csv(RALLY_RESULTS_CSV))
         self.data_count_var.set(f"Time Trial: {tt_count} registros     ·     Ring Rally: {rally_count} registros")
