@@ -1121,7 +1121,9 @@ function paintTrophies(trophies) {
     title.textContent = trophy.name;
     const tierLabel = document.createElement("span");
     tierLabel.className = "trophy-tier";
-    tierLabel.textContent = `${trophy.tier || trophy.type} +${trophy.mult}`;
+    const bonus = Number(trophy.mult) > 0 ? ` +${trophy.mult}` : "";
+    const mode = (trophy.game_mode || "").toLowerCase().includes("time") ? " · Time Trial" : "";
+    tierLabel.textContent = `${trophy.tier || trophy.type}${bonus}${mode}`;
     head.append(title, tierLabel);
     const meta = document.createElement("p");
     meta.className = "trophy-meta";

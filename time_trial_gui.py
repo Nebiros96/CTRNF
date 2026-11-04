@@ -39,7 +39,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.4.3"
+APP_VERSION = "CTR - v0.6"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -64,13 +64,26 @@ LOG_SEARCH_SKIP = {
 }
 
 
+def blend_hex(foreground: str, background: str, alpha: float) -> str:
+    """Mezcla un color con el fondo. Tk no pinta alfa real en los botones."""
+
+    def channels(value: str) -> tuple[int, int, int]:
+        raw = value.removeprefix("#")
+        return int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
+
+    fg = channels(foreground)
+    bg = channels(background)
+    mixed = tuple(round(channel * alpha + other * (1 - alpha)) for channel, other in zip(fg, bg))
+    return "#" + "".join(f"{channel:02x}" for channel in mixed)
+
+
 def version_key(value: str) -> tuple[int, int, int, int, int] | None:
-    match = re.search(r"v?(\d+)\.(\d+)\.(\d+)(?:[-.]?(alpha|beta|rc)(?:[.-]?(\d+))?)?", value or "", re.IGNORECASE)
+    match = re.search(r"v?(\d+)\.(\d+)(?:\.(\d+))?(?:[-.]?(alpha|beta|rc)(?:[.-]?(\d+))?)?", value or "", re.IGNORECASE)
     if not match:
         return None
     major, minor, patch, stage, stage_number = match.groups()
     stage_rank = {"alpha": 0, "beta": 1, "rc": 2, None: 3}[stage.casefold() if stage else None]
-    return int(major), int(minor), int(patch), stage_rank, int(stage_number or 0)
+    return int(major), int(minor), int(patch or 0), stage_rank, int(stage_number or 0)
 
 
 def saved_log_path() -> Path | None:
@@ -814,7 +827,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/state":
             browse = parse_qs(urlparse(self.path).query).get("track", [""])[0]
             mode = parse_qs(urlparse(self.path).query).get("mode", ["time_trial"])[0]
-            payload = json.dumps(STATE.get_payload(browse, mode), ensure_ascii=False).encode("utf-8")
+            try:
+                payload = json.dumps(STATE.get_payload(browse, mode), ensure_ascii=False).encode("utf-8")
+            except (OSError, ValueError, csv.Error) as exc:
+                self._send(500, json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+                return
             self._send(200, payload, "application/json; charset=utf-8")
             return
         if path == "/api/assets-version":
@@ -960,9 +977,17 @@ class DashboardLauncher:
         self.root.minsize(min(900, window_width), 680)
         self.root.geometry(f"{window_width}x{window_height}")
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self._window_icons = []
+        if LOGO_PATH.is_file():
+            try:
+                photo = tk.PhotoImage(file=str(LOGO_PATH))
+                self._window_icons.append(photo)
+                self.root.iconphoto(True, photo)
+            except tk.TclError:
+                pass
         if ICON_PATH.is_file():
             try:
-                self.root.iconbitmap(str(ICON_PATH))
+                self.root.iconbitmap(default=str(ICON_PATH))
             except tk.TclError:
                 pass
 
@@ -977,6 +1002,10 @@ class DashboardLauncher:
         style.configure("Status.TLabel", background=self.PANEL, foreground=self.MUTED, font=("Segoe UI", 10))
         style.configure("Accent.TButton", font=("Segoe UI", 13, "bold"), padding=(16, 15), background=self.BLUE, foreground=self.TEXT)
         style.map("Accent.TButton", background=[("active", self.BLUE_HOVER), ("disabled", "#35465b")])
+        danger = blend_hex("#e23d3d", self.PANEL, 0.82)
+        danger_hover = blend_hex("#ff5c5c", self.PANEL, 0.92)
+        style.configure("Danger.TButton", font=("Segoe UI", 13, "bold"), padding=(16, 15), background=danger, foreground=self.TEXT)
+        style.map("Danger.TButton", background=[("active", danger_hover), ("disabled", "#35465b")])
         style.configure("Secondary.TButton", font=("Segoe UI", 10), padding=(12, 8), background="#202838", foreground=self.TEXT)
         style.map("Secondary.TButton", background=[("active", "#303b4e")])
         style.configure("Side.TFrame", background="#151b26")
@@ -1013,7 +1042,6 @@ class DashboardLauncher:
         self.release_url = GITHUB_RELEASES_URL
         self.dismissed_update = False
         self.update_banner = ttk.Frame(shell, style="Update.TFrame", padding=(12, 8))
-        self.update_banner.pack(fill="x", pady=(8, 0))
         self.update_status_var = tk.StringVar(value="Comprobando actualizaciones…")
         ttk.Label(self.update_banner, textvariable=self.update_status_var, style="Update.TLabel", wraplength=520).pack(side="left", fill="x", expand=True, padx=(2, 12))
         update_actions = ttk.Frame(self.update_banner, style="Update.TFrame")
@@ -1030,6 +1058,7 @@ class DashboardLauncher:
         self.dismiss_button.pack_forget()
 
         content = ttk.Frame(shell, style="Launcher.TFrame")
+        self.page_row = content
         content.pack(fill="both", expand=True, pady=(14, 0))
         sidebar = ttk.Frame(content, style="Side.TFrame", width=220, padding=(12, 16))
         sidebar.pack(side="left", fill="y", padx=(0, 14))
@@ -1049,9 +1078,9 @@ class DashboardLauncher:
 
         self.workspace = ttk.Frame(content, style="Launcher.TFrame")
         self.workspace.pack(side="left", fill="both", expand=True)
-        self.server_page = ttk.Frame(self.workspace, style="Panel.TFrame", padding=(26, 24))
+        self.root.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.server_page, card = self._scroll_page((26, 24))
         self.server_page.pack(fill="both", expand=True)
-        card = self.server_page
         ttk.Label(card, text="JUEGO  /  SERVIDOR LOCAL", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
         ttk.Label(card, text="Conecta tu dashboard", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
         ttk.Label(card, text="Arranca el servidor para registrar partidas y consultar tu progreso.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 18))
@@ -1063,17 +1092,15 @@ class DashboardLauncher:
         actions = ttk.Frame(card, style="Panel.TFrame")
         actions.pack(fill="x", pady=(12, 0))
         self.open_button = ttk.Button(actions, text="Abrir dashboard", style="Secondary.TButton", command=self.open_dashboard, state="disabled")
-        self.open_button.pack(side="left", padx=(10, 0))
-        self.stop_button = ttk.Button(actions, text="Detener", style="Secondary.TButton", command=self.stop, state="disabled")
-        self.stop_button.pack(side="right")
+        self.open_button.pack(side="left")
         ttk.Separator(card, orient="horizontal").pack(fill="x", pady=(25, 14))
         ttk.Label(card, text="La interfaz se abrirá en tu navegador predeterminado. El servidor permanece activo mientras esta ventana esté abierta.", style="Status.TLabel", wraplength=600).pack(anchor="w")
 
-        self.settings_page = ttk.Frame(self.workspace, style="Panel.TFrame", padding=(20, 16))
-        ttk.Label(self.settings_page, text="CONFIGURACIÓN  /  PREFERENCIAS LOCALES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
-        ttk.Label(self.settings_page, text="Configuración", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
+        self.settings_page, settings_body = self._scroll_page((20, 16))
+        ttk.Label(settings_body, text="CONFIGURACIÓN  /  PREFERENCIAS LOCALES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
+        ttk.Label(settings_body, text="Configuración", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
 
-        log_panel = ttk.Frame(self.settings_page, style="Panel.TFrame")
+        log_panel = ttk.Frame(settings_body, style="Panel.TFrame")
         log_panel.pack(fill="x", pady=(14, 0))
         ttk.Label(log_panel, text="Archivo de registro del juego", style="PanelTitle.TLabel").pack(anchor="w")
         ttk.Label(log_panel, text="Al abrir se intenta encontrar el log. Si no aparece, lo eliges una vez y queda guardado en este equipo. Puedes cambiarlo si mueves el juego.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
@@ -1084,7 +1111,7 @@ class DashboardLauncher:
         self.searching_log = False
         self.log_dialog_open = False
 
-        backup_panel = ttk.Frame(self.settings_page, style="Panel.TFrame")
+        backup_panel = ttk.Frame(settings_body, style="Panel.TFrame")
         backup_panel.pack(fill="x", pady=(20, 0))
         ttk.Label(backup_panel, text="Importar y exportar datos", style="PanelTitle.TLabel").pack(anchor="w")
         ttk.Label(backup_panel, text="Exporta los CSV personales en un respaldo ZIP. La importación solo restaura datasets vacíos; no reemplaza registros existentes.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
@@ -1096,7 +1123,7 @@ class DashboardLauncher:
         ttk.Button(backup_actions, text="Importar respaldo…", style="Secondary.TButton", command=self.import_backup).pack(side="left", padx=(10, 0))
 
         self.settings_status_var = tk.StringVar(value="")
-        self.settings_status_label = ttk.Label(self.settings_page, textvariable=self.settings_status_var, style="Status.TLabel", wraplength=600)
+        self.settings_status_label = ttk.Label(settings_body, textvariable=self.settings_status_var, style="Status.TLabel", wraplength=600)
         self.settings_status_label.pack(anchor="w", pady=(12, 0))
         saved = saved_log_path()
         self.searching_log = saved is None or not saved.is_file()
@@ -1109,6 +1136,70 @@ class DashboardLauncher:
         ttk.Label(footer, text=APP_VERSION, style="Footer.TLabel").pack(side="left", anchor="w")
         ttk.Label(footer, text="Desarrollado por Julián Gómez", style="Footer.TLabel").pack(side="right", anchor="e")
         self.check_updates()
+
+    def _scroll_page(self, padding: tuple[int, int]):
+        from tkinter import ttk
+
+        outer = ttk.Frame(self.workspace, style="Panel.TFrame")
+        canvas = self.tk.Canvas(outer, bg=self.PANEL, highlightthickness=0, bd=0)
+        bar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas, style="Panel.TFrame", padding=padding)
+        window = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def fit(_event=None):
+            width = canvas.winfo_width()
+            if width <= 1:
+                return
+            inner.update_idletasks()
+            height = max(inner.winfo_reqheight(), 1)
+            canvas.coords(window, 0, 0)
+            canvas.itemconfigure(window, width=width, height=height)
+            view_height = canvas.winfo_height()
+            if height <= view_height:
+                canvas.configure(scrollregion=(0, 0, width, view_height))
+                canvas.yview_moveto(0)
+                if bar.winfo_ismapped():
+                    bar.pack_forget()
+            else:
+                canvas.configure(scrollregion=(0, 0, width, height))
+                if not bar.winfo_ismapped():
+                    bar.pack(side="right", fill="y")
+                top, _bottom = canvas.yview()
+                if top <= 0:
+                    canvas.yview_moveto(0)
+
+        inner.bind("<Configure>", fit)
+        canvas.bind("<Configure>", fit)
+        canvas.pack(side="left", fill="both", expand=True)
+        outer._ctrnf_scroll = canvas
+        return outer, inner
+
+    def _on_mousewheel(self, event) -> None:
+        widget = self.root.winfo_containing(event.x_root, event.y_root)
+        target = None
+        while widget is not None:
+            target = getattr(widget, "_ctrnf_scroll", None)
+            if target is not None:
+                break
+            widget = getattr(widget, "master", None)
+        if target is None:
+            return
+        top, bottom = target.yview()
+        if top <= 0 and bottom >= 1:
+            return
+        if event.delta > 0 and top <= 0:
+            return
+        if event.delta < 0 and bottom >= 1:
+            return
+        target.yview_scroll(int(-event.delta / 120), "units")
+
+    def _show_page(self, page, nav) -> None:
+        for frame in (self.server_page, self.settings_page):
+            frame.pack_forget()
+        page.pack(fill="both", expand=True)
+        for button in (self.server_nav_button, self.settings_nav_button):
+            button.configure(style="Nav.TButton")
+        nav.configure(style="NavActive.TButton")
 
     def start(self) -> None:
         self.start_button.configure(state="disabled")
@@ -1162,7 +1253,8 @@ class DashboardLauncher:
         self.update_button.configure(state="disabled")
         self.dismiss_button.configure(state="disabled")
         self.release_url = GITHUB_RELEASES_URL
-        if state == "update" and release:
+        self.update_banner.pack_forget()
+        if state == "update" and release and not self.dismissed_update:
             tag = release.get("tag_name", "Nueva versión")
             self.release_url = release.get("html_url") or GITHUB_RELEASES_URL
             self.update_status_var.set(f"Nueva actualización disponible: {tag}  ·  instalada {APP_VERSION_TAG}")
@@ -1171,15 +1263,7 @@ class DashboardLauncher:
             self.update_button.pack(side="left", before=self.news_button)
             self.dismiss_button.pack(side="left", before=self.review_button, padx=(6, 0))
             self.news_button.configure(text="Novedades")
-        elif state == "current" and release:
-            self.update_status_var.set(f"Estás al día: {APP_VERSION_TAG}. Última publicada: {release.get('tag_name', APP_VERSION_TAG)}.")
-            self.news_button.configure(text="Ver Releases")
-        elif state == "none":
-            self.update_status_var.set("Aún no hay versiones publicadas. El aviso aparecerá aquí cuando publiques una GitHub Release.")
-            self.news_button.configure(text="Ver Releases")
-        else:
-            self.update_status_var.set("No se pudo comprobar GitHub Releases. Puedes volver a intentarlo.")
-            self.news_button.configure(text="Ver Releases")
+            self.update_banner.pack(fill="x", pady=(8, 0), before=self.page_row)
 
     def open_latest_release(self) -> None:
         webbrowser.open(self.release_url)
@@ -1189,16 +1273,10 @@ class DashboardLauncher:
         self.update_banner.pack_forget()
 
     def show_server_page(self) -> None:
-        self.settings_page.pack_forget()
-        self.server_page.pack(fill="both", expand=True)
-        self.server_nav_button.configure(style="NavActive.TButton")
-        self.settings_nav_button.configure(style="Nav.TButton")
+        self._show_page(self.server_page, self.server_nav_button)
 
     def show_settings_page(self) -> None:
-        self.server_page.pack_forget()
-        self.settings_page.pack(fill="both", expand=True)
-        self.server_nav_button.configure(style="Nav.TButton")
-        self.settings_nav_button.configure(style="NavActive.TButton")
+        self._show_page(self.settings_page, self.settings_nav_button)
         self.refresh_settings()
 
     def _start_log_search(self) -> None:
@@ -1335,15 +1413,14 @@ class DashboardLauncher:
         self.side_state_var.set("● Activo")
         self.status_label.configure(foreground=self.GOOD)
         self.open_button.configure(state="normal")
-        self.stop_button.configure(state="normal")
-        self.start_button.configure(state="disabled")
+        self.start_button.configure(state="normal", text="DETENER SERVIDOR", style="Danger.TButton", command=self.stop)
         self.open_dashboard()
 
     def _server_failed(self, message: str) -> None:
         self.status_var.set(f"No se pudo iniciar el servidor: {message}")
         self.side_state_var.set("No disponible")
         self.status_label.configure(foreground="#ff8585")
-        self.start_button.configure(state="normal")
+        self._show_start_button()
 
     def open_dashboard(self) -> None:
         if self.url:
@@ -1356,12 +1433,14 @@ class DashboardLauncher:
         self.server = None
         self.url = ""
         self.open_button.configure(state="disabled")
-        self.stop_button.configure(state="disabled")
-        self.start_button.configure(state="normal")
+        self._show_start_button()
         self.status_var.set("Servidor detenido")
         self.side_state_var.set("Detenido")
         self.status_label.configure(foreground=self.MUTED)
         threading.Thread(target=lambda: (server.shutdown(), server.server_close()), daemon=True).start()
+
+    def _show_start_button(self) -> None:
+        self.start_button.configure(state="normal", text="INICIAR SERVIDOR", style="Accent.TButton", command=self.start)
 
     def close(self) -> None:
         self.closing = True
@@ -1372,6 +1451,11 @@ class DashboardLauncher:
 def run_launcher(parser_port: int = 8899) -> None:
     import tkinter as tk
 
+    if os.name == "nt":
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Nebiros96.CTRNF.Dashboard")
+        except (AttributeError, OSError):
+            pass
     root = tk.Tk()
     DashboardLauncher(root, parser_port)
     root.mainloop()

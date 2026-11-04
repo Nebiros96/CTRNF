@@ -1,14 +1,14 @@
-<p align="center">
-  <img src="utils/portada_ancha.png" alt="Crash Team Racing Nitro-Fueled" width="100%">
-</p>
+# Crash™ Team Racing NF - Dashboard (v0.6)
 
-# Crash™ Team Racing NF - Dashboard (v0.4.1)
+Tablero personal para Crash Team Racing Nitro-Fueled desde el Port Nativo de [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC). 
 
-Tablero personal para Crash Team Racing Nitro-Fueled. Lleva la cuenta de tus tiempos de Time Trial y de tus puntajes de Ring Rally, con la pista y el personaje que acabas de usar en el juego.
+## Información importante para el primer arranque
 
-Abres `CTRNF.exe`, el lanzador enciende la aplicación y el tablero aparece en el navegador. Tus registros se quedan en el equipo, en `%LOCALAPPDATA%\CTRNF\data`, y siguen ahí cuando actualizas. Si hay una versión nueva en las Releases de este repositorio, el lanzador te avisa; la descarga y la instalación las haces tú.
+* TOTALMENTE RECOEMNDADO haber arrancado el Juego desde el Port antes de abrir el ejecutable, esto crea el archivo log que es el que lee el ejecutable.
+* Es posible que el ejecutable no pueda leer automáticamente el log, para ello desde el ejecutable puedes seleccionar el archivo manualmente navegando la ruta del PORT instalado.
+* Abres `CTRNF.exe`, el lanzador enciende la aplicación y el tablero aparece en el navegador. Los registros se quedan en el equipo, en `%LOCALAPPDATA%\CTRNF\data`, y siguen ahí cuando actualices. Si hay una versión nueva en las Releases de este repositorio, el lanzador te avisa; descargas y reemplaza el ejecutable.
 
-<img src="utils/ejecutable.JPG" alt="Versión 0.4.1 del ejecutable" width="500">
+![Versión 0.6 del ejecutable](utils/ejecutable.JPG)
 
 ## Time Trial
 
@@ -16,33 +16,33 @@ Eliges la pista que acabas de correr, registras el tiempo y lo guardas. El forma
 
 A la derecha queda el top 10 de esa pista: puesto, skin, tiempo, fecha y la diferencia con tu mejor marca. El primer puesto va con borde dorado. Abajo, en la misma vista, están los tiempos de los fantasmas del juego para compararlos con lo que acabas de hacer.
 
-<img src="utils/TimeTrial.JPG" alt="Time Trial en Retro Stadium, con el formulario de registro y el top 10 de la pista" width="900">
+![Time Trial en Retro Stadium, con el formulario de registro y el top 10 de la pista](utils/TimeTrial.JPG)
 
 Para la pista en curso también ves cuántas veces la registraste, cuánto mejoraste desde el primer tiempo y qué tan parecidos son entre sí tus intentos.
 
-<img src="utils/TTStats.JPG" alt="Indicadores de la pista: registros, mejora absoluta, mejora relativa y desviación estándar" width="480">
+![Indicadores de la pista: registros, mejora absoluta, mejora relativa y desviación estándar](utils/TTStats.JPG)
 
 ## Ring Rally
 
 El mismo gesto, ahora con puntaje. Anotas los puntos y el número de vueltas de la carrera. El top 10 de la pista ordena de mayor a menor y señala cuándo ese intento fue tu mejor marca, o por cuántos puntos se quedó atrás.
 
-<img src="utils/RingRally.JPG" alt="Ring Rally en Jungle Boogie, con el registro de puntaje y el top de la pista" width="900">
+![Ring Rally en Jungle Boogie, con el registro de puntaje y el top de la pista](utils/RingRally.JPG)
 
 Cuando una skin llega a los puntos que le faltaban, el tablero te lo dice antes de seguir.
 
-<img src="utils/unlock.JPG" alt="Aviso de skin desbloqueada al terminar un Ring Rally" width="480">
+![Aviso de skin desbloqueada al terminar un Ring Rally](utils/unlock.JPG)
 
 ## Álbum de skins
 
 El álbum junta las skins por personaje y por rareza: Basic, Exotic, Legendary y Beenox. Arriba ves cuántas llevas desbloqueadas y el multiplicador global que usa la siguiente carrera, con cualquier personaje.
 
-<img src="utils/SkinsAlbum.JPG" alt="Álbum de skins de Dr. N. Gin, con el progreso por rareza y el multiplicador global" width="900">
+![Álbum de skins de Dr. N. Gin, con el progreso por rareza y el multiplicador global](utils/SkinsAlbum.JPG)
 
 ## Trofeos
 
 Cada trofeo muestra en qué vas, de qué nivel es y cuánto suma al multiplicador. Si ya lo completaste, aparece la fecha.
 
-<img src="utils/Trophies.JPG" alt="Lista de trofeos con progreso, nivel y fecha de desbloqueo" width="720">
+![Lista de trofeos con progreso, nivel y fecha de desbloqueo](utils/Trophies.JPG)
 
 ## Respaldo
 
