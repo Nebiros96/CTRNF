@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v0.6)
+# Crash™ Team Racing NF - Dashboard (v0.6.1)
 
 Tablero personal para Crash Team Racing Nitro-Fueled desde el Port Nativo de [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC). 
 
@@ -8,7 +8,7 @@ Tablero personal para Crash Team Racing Nitro-Fueled desde el Port Nativo de [Ry
 * Es posible que el ejecutable no pueda leer automáticamente el log, para ello desde el ejecutable puedes seleccionar el archivo manualmente navegando la ruta del PORT instalado.
 * Abres `CTRNF.exe`, el lanzador enciende la aplicación y el tablero aparece en el navegador. Los registros se quedan en el equipo, en `%LOCALAPPDATA%\CTRNF\data`, y siguen ahí cuando actualices. Si hay una versión nueva en las Releases de este repositorio, el lanzador te avisa; descargas y reemplaza el ejecutable.
 
-![Versión 0.6 del ejecutable](utils/ejecutable.JPG)
+![Versión 0.6.1 del ejecutable](utils/ejecutable.JPG)
 
 ## Time Trial
 
