@@ -46,7 +46,7 @@ Cada trofeo muestra en qué vas, de qué nivel es y cuánto suma al multiplicado
 
 ## Respaldo
 
-En Configuración puedes exportar un ZIP con tus tiempos de Contrarreloj y tus puntajes de Ring Rally. Si la aplicación no encuentra sola el log del juego, desde ahí eliges el archivo. Al importar un respaldo, solo se completa un registro que todavía está vacío.
+En Configuración puedes exportar un ZIP con tus tiempos de Contrarreloj y tus puntajes de Ring Rally. Al abrir, el programa intenta encontrar el log del juego. Si no aparece, lo eliges una vez y esa ruta queda guardada en el equipo; puedes cambiarla si mueves el juego. Al importar un respaldo, solo se completa un registro que todavía está vacío.
 
 Cada pista tiene un límite para no guardar un tiempo imposible o un puntaje fuera de rango. Esos límites salen de los récords mundiales del modo glitchless publicados en [crashteamranking.com](https://crashteamranking.com/), con un margen del 5 %. Se actualizaron el 31 de octubre de 2026.
 
