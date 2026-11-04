@@ -27,6 +27,9 @@ data/achievements.csv
 # Descubrimiento generado por el escáner, no es fuente del juego.
 game_catalog.csv
 
+# Notas internas de desarrollo
+README_desarrollo.md
+
 # Sistema
 Thumbs.db
 Desktop.ini

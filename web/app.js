@@ -60,18 +60,50 @@ function paintConnection(data) {
   connection.className = data.game_running ? "pill live" : "pill offline";
 }
 
+function knownSkin(raw) {
+  const value = (raw || "").trim();
+  if (!value || value.toLowerCase() === "null" || value.toLowerCase() === "none") return null;
+  const row = find(appState?.skins, "skin", value);
+  if (!(row.character || "").trim() && !(row.skin_name || "").trim()) return null;
+  return row;
+}
+
+function paintCharacterBox(nameId, detailId, imageId, raw) {
+  const row = knownSkin(raw);
+  const image = $(imageId);
+  if (!row) {
+    $(nameId).textContent = "Elige un personaje";
+    $(detailId).textContent = "";
+    if (image.dataset.url !== "") {
+      image.dataset.url = "";
+      image.className = "null-image";
+      image.replaceChildren();
+    }
+    return;
+  }
+  const name = row.character || "null";
+  $(nameId).textContent = name;
+  $(detailId).textContent = (row.skin_name || "").trim();
+  const url = (row.url || "").trim();
+  if (image.dataset.url !== url) {
+    image.dataset.url = url;
+    image.className = "null-image";
+    imageBox(image, url, name);
+  }
+}
+
 function updateAsset(kind, raw) {
   if (!appState) return;
   raw = (raw || "").trim();
-  const isTrack = kind === "track";
-  const rows = isTrack ? appState.tracks : appState.skins;
-  const row = find(rows, isTrack ? "track" : "skin", raw);
-  const name = isTrack ? (row.track_clean || "null") : (row.character || "null");
-  $(`${kind}-name`).textContent = name;
-  if (!isTrack) $("skin-raw").textContent = skinPrettyName(raw) || "null";
-
+  if (kind !== "track") {
+    paintCharacterBox("skin-name", "skin-raw", "skin-image", raw);
+    return;
+  }
+  const row = find(appState.tracks, "track", raw);
+  const name = row.track_clean || "null";
+  $("track-name").textContent = name;
   const url = (row.url || "").trim();
-  const image = $(`${kind}-image`);
+  const image = $("track-image");
   if (image.dataset.url !== url) {
     image.dataset.url = url;
     imageBox(image, url, name);
@@ -1252,12 +1284,14 @@ function showRallyState(data) {
 
 function updateRallyAsset(kind, raw) {
   raw = (raw || "").trim();
-  const isTrack = kind === "track";
-  const row = find(isTrack ? appState.tracks : appState.skins, isTrack ? "track" : "skin", raw);
-  const name = isTrack ? (row.track_clean || "null") : (row.character || "null");
-  $(`rally-${kind}-name`).textContent = name;
-  if (!isTrack) $("rally-skin-raw").textContent = skinPrettyName(raw) || "null";
-  const box = $(`rally-${kind}-image`);
+  if (kind !== "track") {
+    paintCharacterBox("rally-skin-name", "rally-skin-raw", "rally-skin-image", raw);
+    return;
+  }
+  const row = find(appState.tracks, "track", raw);
+  const name = row.track_clean || "null";
+  $("rally-track-name").textContent = name;
+  const box = $("rally-track-image");
   const url = (row.url || "").trim();
   if (box.dataset.url !== url) { box.dataset.url = url; imageBox(box, url, name); }
 }

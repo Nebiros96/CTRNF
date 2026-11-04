@@ -1,137 +1,51 @@
-# CTRNF Time Trial Logger
+<p align="center">
+  <img src="utils/portada_ancha.png" alt="Crash Team Racing Nitro-Fueled" width="100%">
+</p>
 
-Prototipo local para registrar partidas de Time Trial y Ring Rally leyendo los metadatos del
-log `last_run` y guardando cada resultado en un CSV.
+# Crash™ Team Racing NF - Dashboard (v0.4.1)
 
-## Requisitos
+Tablero personal para Crash Team Racing Nitro-Fueled. Lleva la cuenta de tus tiempos de Time Trial y de tus puntajes de Ring Rally, con la pista y el personaje que acabas de usar en el juego.
 
-- Windows 10/11
-- Python 3.10 o posterior (sin paquetes externos)
-- El juego/port debe escribir en el log indicado
+Abres `CTRNF.exe`, el lanzador enciende la aplicación y el tablero aparece en el navegador. Tus registros se quedan en el equipo, en `%LOCALAPPDATA%\CTRNF\data`, y siguen ahí cuando actualizas. Si hay una versión nueva en las Releases de este repositorio, el lanzador te avisa; la descarga y la instalación las haces tú.
 
-## Uso
+## Time Trial
 
-Desde esta carpeta:
+Eliges la pista que acabas de correr, registras el tiempo y lo guardas. El formato es minutos, segundos y centésimas, por ejemplo `1:25:03`.
 
-```powershell
-py .\time_trial_logger.py --watch
-```
+A la derecha queda el top 10 de esa pista: puesto, skin, tiempo, fecha y la diferencia con tu mejor marca. El primer puesto va con borde dorado. Abajo, en la misma vista, están los tiempos de los fantasmas del juego para compararlos con lo que acabas de hacer.
 
-Para usar la aplicación, ejecuta `dist/CTRNF.exe` (CTR Nitro Fueled - Personal Dashboard). Es un ejecutable único para
-Windows; abre el lanzador de escritorio con el logo y permite arrancar/detener el
-servidor local. Al arrancarlo, el dashboard se abre en el navegador. No requiere
-Python instalado en el equipo de quien lo ejecuta.
+<img src="utils/TimeTrial.JPG" alt="Time Trial en Retro Stadium, con el formulario de registro y el top 10 de la pista" width="900">
 
-Los resultados y la ruta configurada del log se guardan en
-`%LOCALAPPDATA%\CTRNF\data`, fuera del ejecutable, para que persistan entre
-inicios y actualizaciones. Los catálogos se empaquetan como recursos de la app.
-El launcher comprueba las GitHub Releases del repositorio al iniciar. Si encuentra
-una versión más reciente, muestra botones para abrir la descarga, consultar las
-novedades o descartar el aviso; la actualización se descarga e instala manualmente.
+Para la pista en curso también ves cuántas veces la registraste, cuánto mejoraste desde el primer tiempo y qué tan parecidos son entre sí tus intentos.
 
-Para abrir el lanzador desde el código fuente con Python:
+<img src="utils/TTStats.JPG" alt="Indicadores de la pista: registros, mejora absoluta, mejora relativa y desviación estándar" width="480">
 
-```powershell
-py .\time_trial_gui.py
-```
+## Ring Rally
 
-Para iniciar el servidor sin la ventana lanzadora:
+El mismo gesto, ahora con puntaje. Anotas los puntos y el número de vueltas de la carrera. El top 10 de la pista ordena de mayor a menor y señala cuándo ese intento fue tu mejor marca, o por cuántos puntos se quedó atrás.
 
-```powershell
-py .\time_trial_gui.py --server-only
-```
+<img src="utils/RingRally.JPG" alt="Ring Rally en Jungle Boogie, con el registro de puntaje y el top de la pista" width="900">
 
-Para reconstruir el ejecutable (requiere PyInstaller y Pillow):
+Cuando una skin llega a los puntos que le faltaban, el tablero te lo dice antes de seguir.
 
-```powershell
-py -3 -m PyInstaller --noconfirm --clean --onefile --windowed --name CTRNF --icon utils\ctrnf.ico --exclude-module catalog_scanner --add-data "web;web" --add-data "utils\logo_by_LexiLoo826.png;utils" --add-data "utils\fondo_launcher.png;utils" --add-data "utils\ctrnf.ico;utils" --add-data "data\game_tracks.csv;data" --add-data "data\game_skins.csv;data" --add-data "data\game_characters.csv;data" --add-data "data\achievements.csv;data" time_trial_gui.py
-```
+<img src="utils/unlock.JPG" alt="Aviso de skin desbloqueada al terminar un Ring Rally" width="480">
 
-## Herramientas de desarrollo
+## Álbum de skins
 
-`catalog_scanner.py` es una utilidad opcional para explorar el log del juego y
-generar `game_catalog.csv`. Se conserva en el repositorio para trabajo de
-desarrollo; no es parte del flujo del dashboard ni se empaqueta en el ejecutable
-o en sus releases.
+El álbum junta las skins por personaje y por rareza: Basic, Exotic, Legendary y Beenox. Arriba ves cuántas llevas desbloqueadas y el multiplicador global que usa la siguiente carrera, con cualquier personaje.
 
-```powershell
-py .\catalog_scanner.py --watch
-```
+<img src="utils/SkinsAlbum.JPG" alt="Álbum de skins de Dr. N. Gin, con el progreso por rareza y el multiplicador global" width="900">
 
-El dashboard usa el puerto local `8899`; si ya está ocupado, intenta los
-siguientes puertos disponibles. Puedes indicar uno explícito, por ejemplo
-`py .\time_trial_gui.py --port 9001`.
+## Trofeos
 
-El servidor y la interfaz están separados. `time_trial_gui.py` mantiene el
-backend/API conectado a `time_trial_logger.py`; los archivos visuales viven en
-`web/index.html`, `web/style.css` y `web/app.js`. Puedes editar y guardar esos
-archivos con el servidor abierto: el navegador detecta los cambios y recarga la
-interfaz automáticamente. Los cambios al código Python del backend sí requieren
-reiniciar el servidor.
+Cada trofeo muestra en qué vas, de qué nivel es y cuánto suma al multiplicador. Si ya lo completaste, aparece la fecha.
 
-El dashboard tiene vistas separadas para Time Trial y Ring Rally. Ring Rally guarda puntajes enteros en `data/rally_ring.csv`, ordena los mejores puntajes de mayor a menor y muestra la diferencia en puntos. El dashboard muestra las imágenes directamente desde las URLs de
-`data/game_tracks.csv` y `data/game_skins.csv`, y muestra `null` cuando falta una
-imagen. La sección de registro enseña como guía `track_clean` y el nombre del
-personaje asociado a la skin, actualizados desde `last_run`; los valores crudos
-siguen siendo los que se escriben en el CSV. También muestra el nombre crudo
-completo de la skin en texto pequeño como referencia para completar sus URLs de
-imagen. Para registrar una partida solo
-hay que ingresar el tiempo y guardarlo. Los tiempos se guardan mediante
-`time_trial_logger.py` en `data/time_trials.csv`. El top 10
-filtra por la pista actual; si el juego está cerrado, usa la pista del último
-Time Trial guardado. En una sola columna muestra los diez registros más rápidos
-de esa pista, sin agrupar por personaje ni skin. Cada puesto enseña únicamente
-el `time_raw` legible, la fecha de captura (`dd/mm/yyyy`) y la imagen de la
-skin de ese registro. Solo el primer puesto tiene borde dorado. Usa
-`track_clean` para el nombre visible de la pista.
+<img src="utils/Trophies.JPG" alt="Lista de trofeos con progreso, nivel y fecha de desbloqueo" width="720">
 
-Las configuraciones están en la sección **Configuración** del ejecutable. La app
-busca inicialmente `last_run*.log` en ubicaciones comunes y permite seleccionar
-otro archivo manualmente; la ruta se guarda localmente junto a los datos del
-usuario. Desde allí se puede exportar un respaldo ZIP de `time_trials.csv` y
-`rally_ring.csv`. La importación solo restaura un CSV si ese dataset no existe o
-está vacío; nunca sobrescribe registros existentes.
+## Respaldo
 
-También se puede pasar un tiempo directamente (útil para comprobar el formato):
+En Configuración puedes exportar un ZIP con tus tiempos de Contrarreloj y tus puntajes de Ring Rally. Si la aplicación no encuentra sola el log del juego, desde ahí eliges el archivo. Al importar un respaldo, solo se completa un registro que todavía está vacío.
 
-```powershell
-py .\time_trial_logger.py --record "1:20:99"
-```
+Cada pista tiene un límite para no guardar un tiempo imposible o un puntaje fuera de rango. Esos límites salen de los récords mundiales del modo glitchless publicados en [crashteamranking.com](https://crashteamranking.com/), con un margen del 5 %. Se actualizaron el 31 de octubre de 2026.
 
-El CSV se crea junto al programa como `time_trials.csv`. Cada fila contiene el
-ID consecutivo de la partida, `track_id` y `skin_id`, los valores crudos de
-pista y skin, el tiempo original, el tiempo en segundos y la fecha local
-de captura. Los IDs de pista/skin comienzan en 1 y se reutilizan cuando el
-valor ya apareció en el CSV. Si se elimina el CSV, ambos catálogos empiezan de
-nuevo en 1. Al iniciar el seguimiento, se escanea el log existente para obtener
-pista/personaje actuales; el historial anterior no se convierte en carreras.
-
-## Formatos de tiempo
-
-Se aceptan `M:SS:CC` (minutos, segundos, centésimas; por ejemplo `1:20:99` =
-`80.99` segundos), `M:SS.CC` y `SS.CC`. Se valida que los segundos estén entre
-00 y 59 y las centésimas entre 00 y 99.
-
-## Campos CSV
-
-`id,track_id,track,skin_id,skin,time_raw,time_seconds,pb,delta_pb,captured_at` para Time Trial. Ring Rally usa `data/rally_ring.csv` con `id,track_id,track,skin_id,skin,score,laps,pb,delta_pb,captured_at`. `score` y `laps` son enteros; `pb` marca si es el mayor puntaje registrado hasta ese momento para la pista y `delta_pb` es puntaje actual menos PB anterior.
-
-`pb` vale `1` si ese tiempo fue el mejor de su pista hasta ese registro, sin
-importar la skin; de lo contrario vale `0`. Los flags históricos se recalculan
-en orden de ID al migrar un CSV antiguo. En la interfaz, solo se muestra la
-etiqueta `PB` para las filas cuyo flag es `1`.
-
-`delta_pb` es `time_seconds` menos el mejor tiempo que existía en esa pista
-antes de la partida. Los negativos indican mejora, los positivos indican que
-el intento fue más lento y `0.00` representa la primera marca o un empate. Se
-calcula una vez y queda como dato histórico; no se actualiza al cambiar el récord
-absoluto.
-
-El CSV anterior tenía otro esquema. Si todavía existe cuando se guarde el
-próximo tiempo, el programa avisará que hay que eliminarlo o renombrarlo antes
-de continuar.
-
-## Umbrales
-
-`time_threshold` y `score_threshold` de cada pista en `data/game_tracks.csv` son la fuente de validación. Se calcularon aplicando el 5% a los récords mundiales del modo _GLITCHLESS_ publicados en https://crashteamranking.com/. No se permite guardar un tiempo inferior a `time_threshold` ni un puntaje superior a `score_threshold` para esa pista.
-Fecha de actualización de umbrales: 31 de octubre de 2026.
+Crash Team Racing Nitro-Fueled es una marca de Activision. Este tablero es un proyecto de fans y no está asociado al juego.
