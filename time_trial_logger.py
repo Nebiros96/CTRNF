@@ -474,17 +474,22 @@ def load_rally_catalog(
         game = (row.get("game_base") or "").strip().casefold()
         if game:
             characters_by_game.setdefault(game, []).append(character_id)
+    tracks: dict[str, dict[str, str]] = {}
     tracks_by_game: dict[str, list[str]] = {}
     for row in _read_table(tracks_path):
         track = (row.get("track") or "").strip()
+        if not track:
+            continue
+        tracks[track] = row
         game = (row.get("track_game") or "").strip().casefold()
-        if track and game:
+        if game:
             tracks_by_game.setdefault(game, []).append(track)
     return {
         "skin_by_name": skin_by_name,
         "ladders": ladders,
         "characters": characters,
         "characters_by_game": characters_by_game,
+        "tracks": tracks,
         "tracks_by_game": tracks_by_game,
         "achievements": _load_achievements(achievements_path),
     }
@@ -593,9 +598,31 @@ def _club_from_note(notes: str) -> str:
     raise ValueError(f"máscara de achievement no reconocida: {notes}")
 
 
-def _classify_achievement(name: str, notes: str, goal_raw: str) -> dict:
+def _is_time_trial_mode(game_mode: str) -> bool:
+    folded = (game_mode or "").casefold()
+    return "time trial" in folded or "contrarreloj" in folded
+
+
+def _classify_time_trial(name: str, notes: str, goal_raw: str) -> dict:
+    """Contrarreloj rows share some notes with Ring Rally, so the mode decides first."""
     notes_cf = notes.casefold().strip()
     name_cf = name.casefold()
+    if notes_cf == "any combination":
+        return {"kind": "time_trials", "goal": _parse_goal_int(goal_raw)}
+    if "any track" in notes_cf:
+        return {"kind": "dev_tracks", "goal": _parse_goal_int(goal_raw) or 1}
+    if "all tracks" in notes_cf and "velo" in name_cf:
+        return {"kind": "velo_tracks", "goal": _parse_goal_int(goal_raw)}
+    if "all tracks" in notes_cf:
+        return {"kind": "dev_tracks", "goal": _parse_goal_int(goal_raw)}
+    raise ValueError(f"notes de achievement de Contrarreloj no reconocidas: {notes or '(vacío)'}")
+
+
+def _classify_achievement(name: str, notes: str, goal_raw: str, game_mode: str = "") -> dict:
+    notes_cf = notes.casefold().strip()
+    name_cf = name.casefold()
+    if _is_time_trial_mode(game_mode):
+        return _classify_time_trial(name, notes, goal_raw)
     if "unlock all" in notes_cf and "achievement" in notes_cf:
         return {"kind": "platinum"}
     if notes_cf.startswith("multiplier"):
@@ -646,7 +673,11 @@ def _load_achievements(path: Path) -> list[dict]:
             continue
         notes = (row.get("notes") or "").strip()
         goal_raw = (row.get("goal") or "").strip()
-        kind = _classify_achievement(name, notes, goal_raw)
+        game_mode = (row.get("game_mode") or "").strip()
+        try:
+            kind = _classify_achievement(name, notes, goal_raw, game_mode)
+        except ValueError:
+            continue
         tier = (row.get("type") or "").strip()
         achievements.append(
             {
@@ -654,6 +685,7 @@ def _load_achievements(path: Path) -> list[dict]:
                 "name": name,
                 "notes": notes,
                 "description": (row.get("description") or "").strip(),
+                "game_mode": game_mode,
                 "type": tier,
                 "tier": TIER_LABEL.get(tier.casefold(), tier or "Bronce"),
                 "milli": _parse_milli(row.get("mult") or ""),
@@ -682,6 +714,9 @@ def _blank_stats() -> dict:
         "points_by": {},
         "base_by_character": {},
         "base_by_club": {},
+        "tt_races": 0,
+        "velo_tracks": set(),
+        "dev_tracks": set(),
     }
 
 
@@ -696,6 +731,9 @@ def _clone_stats(stats: dict) -> dict:
         "points_by": dict(stats["points_by"]),
         "base_by_character": dict(stats["base_by_character"]),
         "base_by_club": dict(stats["base_by_club"]),
+        "tt_races": stats.get("tt_races", 0),
+        "velo_tracks": set(stats.get("velo_tracks") or ()),
+        "dev_tracks": set(stats.get("dev_tracks") or ()),
     }
 
 
@@ -751,6 +789,40 @@ def _set_count(wanted: list[str], seen: set[str]) -> tuple[int, int]:
     return sum(1 for item in wanted if item in seen), len(wanted)
 
 
+def _tracks_with_time(catalog: dict, field: str) -> list[str]:
+    found = []
+    for track, row in (catalog.get("tracks") or {}).items():
+        if _csv_centis(row.get(field) or "") is not None:
+            found.append(track)
+    return found
+
+
+def _add_time_trial_row(stats: dict, row: dict[str, str], catalog: dict) -> None:
+    """A saved Contrarreloj counts as a race, and as a Velo or developer beat when it is faster."""
+    stats["tt_races"] = stats.get("tt_races", 0) + 1
+    track = (row.get("track") or "").strip()
+    if not track or track.casefold() in {"null", "none"}:
+        return
+    try:
+        seconds = float((row.get("time_seconds") or "").strip().replace(",", "."))
+    except (TypeError, ValueError):
+        return
+    player = _centis_from_seconds(seconds)
+    profile = (catalog.get("tracks") or {}).get(track, {})
+    velo = _csv_centis(profile.get("velo_time") or "")
+    dev = _csv_centis(profile.get("dev_time") or "")
+    if velo is not None and player < velo:
+        stats.setdefault("velo_tracks", set()).add(track)
+    if dev is not None and player < dev:
+        stats.setdefault("dev_tracks", set()).add(track)
+
+
+def _apply_time_trials(stats: dict, catalog: dict, rows: list[dict[str, str]] | None = None) -> None:
+    source = _read_table(CSV_PATH) if rows is None else rows
+    for row in source:
+        _add_time_trial_row(stats, row, catalog)
+
+
 def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, int]:
     kind = ach["kind"]
     if kind == "total_points":
@@ -779,6 +851,16 @@ def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, in
     if kind == "character_points":
         best = max(stats["base_by_character"].values(), default=0)
         return best, ach["goal"]
+    if kind == "time_trials":
+        return stats.get("tt_races", 0), ach["goal"]
+    if kind == "velo_tracks":
+        beaten = len(stats.get("velo_tracks") or ())
+        target = ach["goal"] or len(_tracks_with_time(catalog, "velo_time"))
+        return beaten, target
+    if kind == "dev_tracks":
+        beaten = len(stats.get("dev_tracks") or ())
+        target = ach["goal"] or len(_tracks_with_time(catalog, "dev_time"))
+        return beaten, target
     return 0, 0
 
 
@@ -786,7 +868,9 @@ def _achievement_state(stats: dict, catalog: dict) -> tuple[dict[str, dict], int
     """Progress of every trophy and the global bonus, skins included.
 
     The multiplier trophy looks at skins plus the other trophies, without its
-    own bonus. Ring Rally Legend unlocks only after every other trophy.
+    own bonus. Ring Rally Legend unlocks only after every other trophy that
+    adds a bonus. An empty mult is 0, so that trophy stays on the list and
+    unlocking it does not move the Ring Rally multiplier.
     """
     achievements = catalog.get("achievements") or []
     regular = [ach for ach in achievements if ach["kind"] not in {"multiplier", "platinum"}]
@@ -798,7 +882,7 @@ def _achievement_state(stats: dict, catalog: dict) -> tuple[dict[str, dict], int
         current, target = _measure_achievement(ach, stats, catalog)
         unlocked = target > 0 and current >= target
         state[ach["id"]] = {"current": current, "target": target, "unlocked": unlocked}
-        if unlocked:
+        if unlocked and ach["milli"] > 0:
             bonus += ach["milli"]
     if multiplier is not None:
         target = multiplier["goal_milli"]
@@ -806,7 +890,7 @@ def _achievement_state(stats: dict, catalog: dict) -> tuple[dict[str, dict], int
         state[multiplier["id"]] = {"current": bonus, "target": target, "unlocked": unlocked}
         if unlocked:
             bonus += multiplier["milli"]
-    others = [ach for ach in achievements if ach is not platinum]
+    others = [ach for ach in achievements if ach is not platinum and ach["milli"] > 0]
     other_unlocked = sum(1 for ach in others if state.get(ach["id"], {}).get("unlocked"))
     if platinum is not None:
         target = len(others)
@@ -849,6 +933,14 @@ def _trophy_meta(ach: dict, target: int) -> str:
         return f"Suma {_fmt_count(ach['goal'])} pts base con máscara {ach['club']}. {extra}"
     if kind == "character_points":
         return f"Suma {_fmt_count(ach['goal'])} pts base con un mismo personaje"
+    if kind == "time_trials":
+        return f"Completa {_fmt_count(ach['goal'])} carreras de Contrarreloj"
+    if kind == "velo_tracks":
+        return f"Supera el tiempo de Velo en las {target} pistas"
+    if kind == "dev_tracks":
+        if int(ach.get("goal") or target) == 1:
+            return "Supera un tiempo de desarrollador"
+        return f"Supera el tiempo del desarrollador en las {target} pistas"
     if kind == "platinum":
         return f"Desbloquea los otros {target} trofeos"
     return ach.get("notes") or ""
@@ -943,6 +1035,7 @@ def score_with_progression(
     character_id = _character_id(skin, catalog)
     ladder = catalog["ladders"].get(character_id, []) if character_id else []
     prior_stats = _stats_from_rows(prior_rows, catalog)
+    _apply_time_trials(prior_stats, catalog)
     prior_state, milli = _achievement_state(prior_stats, catalog)
     points = prior_stats["points_by"].get(character_id, 0) if character_id else 0
     score_mult = scaled_score(score, milli)
@@ -1216,7 +1309,9 @@ def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = N
             }
         )
     active = _character_id(rows[-1].get("skin", ""), catalog) if rows else ""
-    _state, global_milli = _achievement_state(_stats_from_rows(rows, catalog), catalog)
+    stats = _stats_from_rows(rows, catalog)
+    _apply_time_trials(stats, catalog)
+    _state, global_milli = _achievement_state(stats, catalog)
     return {
         "characters": characters,
         "active_character_id": active,
@@ -1232,21 +1327,28 @@ def build_trophies(rows: list[dict[str, str]], catalog: dict | None = None) -> d
     achievements = catalog.get("achievements") or []
     stats = _blank_stats()
     unlocked_at: dict[str, str] = {}
-    ordered = sorted(
-        rows,
-        key=lambda row: int(row["id"]) if str(row.get("id", "")).isdigit() else 10**9,
-    )
+
+    def event_key(kind: str, row: dict[str, str]) -> tuple:
+        stamp = (row.get("captured_at") or "").strip()
+        ident = int(row["id"]) if str(row.get("id", "")).isdigit() else 10**9
+        return stamp, 0 if kind == "rally" else 1, ident
+
+    events = [("rally", row) for row in rows] + [("trial", row) for row in _read_table(CSV_PATH)]
+    events.sort(key=lambda item: event_key(item[0], item[1]))
     final_state: dict[str, dict] = {}
     total_milli = 0
-    for row in ordered:
-        _add_rally_row(stats, row, catalog)
+    for kind, row in events:
+        if kind == "rally":
+            _add_rally_row(stats, row, catalog)
+        else:
+            _add_time_trial_row(stats, row, catalog)
         final_state, total_milli = _achievement_state(stats, catalog)
         captured = (row.get("captured_at") or "").strip()
         for ach in achievements:
             info = final_state.get(ach["id"], {})
             if info.get("unlocked") and ach["id"] not in unlocked_at:
                 unlocked_at[ach["id"]] = captured
-    if not ordered:
+    if not events:
         final_state, total_milli = _achievement_state(stats, catalog)
     trophies = []
     unlocked_count = 0
@@ -1266,6 +1368,7 @@ def build_trophies(rows: list[dict[str, str]], catalog: dict | None = None) -> d
                 "tier": ach["tier"],
                 "url": ach["url"],
                 "description": ach.get("description", ""),
+                "game_mode": ach.get("game_mode", ""),
                 "mult": f"{ach['milli'] / 1000:.3f}",
                 "meta": ach.get("description", ""),
                 "current": current,

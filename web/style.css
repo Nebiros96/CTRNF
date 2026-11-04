@@ -125,7 +125,10 @@ body {
   gap: 10px;
   margin: 0 0 22px;
 }
-.nav .pill { margin-left: auto; }
+.nav-status { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.patreon-link { display: inline-flex; align-items: center; gap: 8px; color: rgb(255, 212, 59); font-size: 14px; font-weight: 800; line-height: 1; text-decoration: none; white-space: nowrap; }
+.patreon-link i { font-size: 22px; }
+.patreon-link:hover { opacity: 0.82; }
 .nav-btn {
   padding: 10px 16px;
   border: 1px solid var(--line);
@@ -154,7 +157,7 @@ body {
   .kpi + .kpi { padding-left: 14px; }
   .brand-logo { width: 76px; height: 76px; }
   .nav { align-items: flex-start; flex-wrap: wrap; }
-  .nav .pill { margin: 4px 0 0; }
+  .nav-status { margin: 4px 0 0; }
   .card { grid-template-columns: 34px 68px minmax(0, 1fr); }
   .card .thumb, .card .null-image { width: 68px; height: 68px; }
   .last { align-items: flex-start; flex-direction: column; }

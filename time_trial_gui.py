@@ -39,7 +39,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.4.1"
+APP_VERSION = "CTR - v0.6"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -51,43 +51,237 @@ RESULTS_CSV = core.CSV_PATH
 RALLY_RESULTS_CSV = core.RALLY_RING_CSV_PATH
 VELO_SKIN = "SystemData_availableDrivers_55_skins_0_outfit"
 SETTINGS_PATH = DATA_DIR / "settings.json"
-PORTABLE_LOG_NAMES = ("last_run.log", "last_run_*.log")
+GAME_PROCESSES = {"shadps4", "sacredfire", "crashteamracingnitrofueled"}
+LOG_SEARCH_SKIP = {
+    "$recycle.bin",
+    "system volume information",
+    "windows",
+    "program files",
+    "program files (x86)",
+    "node_modules",
+    ".git",
+    "__pycache__",
+}
+
+
+def blend_hex(foreground: str, background: str, alpha: float) -> str:
+    """Mezcla un color con el fondo. Tk no pinta alfa real en los botones."""
+
+    def channels(value: str) -> tuple[int, int, int]:
+        raw = value.removeprefix("#")
+        return int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
+
+    fg = channels(foreground)
+    bg = channels(background)
+    mixed = tuple(round(channel * alpha + other * (1 - alpha)) for channel, other in zip(fg, bg))
+    return "#" + "".join(f"{channel:02x}" for channel in mixed)
 
 
 def version_key(value: str) -> tuple[int, int, int, int, int] | None:
-    match = re.search(r"v?(\d+)\.(\d+)\.(\d+)(?:[-.]?(alpha|beta|rc)(?:[.-]?(\d+))?)?", value or "", re.IGNORECASE)
+    match = re.search(r"v?(\d+)\.(\d+)(?:\.(\d+))?(?:[-.]?(alpha|beta|rc)(?:[.-]?(\d+))?)?", value or "", re.IGNORECASE)
     if not match:
         return None
     major, minor, patch, stage, stage_number = match.groups()
     stage_rank = {"alpha": 0, "beta": 1, "rc": 2, None: 3}[stage.casefold() if stage else None]
-    return int(major), int(minor), int(patch), stage_rank, int(stage_number or 0)
+    return int(major), int(minor), int(patch or 0), stage_rank, int(stage_number or 0)
 
 
-def find_log_file() -> Path | None:
-    configured = core.DEFAULT_LOG
-    if configured.is_file():
-        return configured
-    roots = [Path(os.environ.get("USERPROFILE", "")) / "Documents", Path("C:/CTRNF"), Path("C:/Games"), Path("D:/Games")]
-    candidates: list[Path] = []
-    for root in roots:
-        if not root.is_dir():
-            continue
+def saved_log_path() -> Path | None:
+    """Ruta elegida o encontrada antes. None si este equipo todavía no tiene una."""
+    try:
+        raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("log_path", "")
+    except (OSError, ValueError, AttributeError):
+        return None
+    text = str(raw).strip() if raw else ""
+    return Path(text).expanduser() if text else None
+
+
+def _is_log_name(name: str) -> bool:
+    folded = name.casefold()
+    return folded == "last_run.log" or (folded.startswith("last_run_") and folded.endswith(".log"))
+
+
+def _newest_log(paths: list[Path]) -> Path | None:
+    files: list[Path] = []
+    for path in paths:
         try:
-            for pattern in PORTABLE_LOG_NAMES:
-                candidates.extend(root.glob(pattern))
-                if pattern.endswith("*.log"):
-                    candidates.extend(root.glob(f"**/{pattern}"))
+            if path.is_file():
+                files.append(path)
         except OSError:
             continue
-    candidates = [path for path in candidates if path.is_file()]
-    return max(candidates, key=lambda path: path.stat().st_mtime) if candidates else None
+    if not files:
+        return None
+    return max(files, key=lambda path: path.stat().st_mtime)
+
+
+def _logs_under(root: Path, max_depth: int) -> list[Path]:
+    if max_depth < 0 or not root.is_dir():
+        return []
+    found: list[Path] = []
+    base = root.resolve()
+
+    def on_error(_error: OSError) -> None:
+        return
+
+    for current, dirs, files in os.walk(base, onerror=on_error):
+        try:
+            depth = len(Path(current).resolve().relative_to(base).parts)
+        except (OSError, ValueError):
+            dirs.clear()
+            continue
+        if depth >= max_depth:
+            dirs.clear()
+        dirs[:] = [name for name in dirs if name.casefold() not in LOG_SEARCH_SKIP]
+        found.extend(Path(current) / name for name in files if _is_log_name(name))
+    return found
+
+
+def _recognized_pids() -> list[int]:
+    if not hasattr(subprocess, "CREATE_NO_WINDOW"):
+        return []
+    try:
+        result = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=3,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    process_ids: list[int] = []
+    for row in csv.reader(result.stdout.splitlines()):
+        if len(row) < 2 or not row[1].isdigit():
+            continue
+        process_name = re.sub(r"[^a-z0-9]", "", row[0].casefold())
+        if process_name.endswith("exe"):
+            process_name = process_name[:-3]
+        if process_name in GAME_PROCESSES:
+            process_ids.append(int(row[1]))
+    return process_ids
+
+
+def _executable_path(pid: int) -> Path | None:
+    kernel32 = ctypes.windll.kernel32
+    kernel32.OpenProcess.restype = ctypes.c_void_p
+    kernel32.OpenProcess.argtypes = (ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32)
+    kernel32.QueryFullProcessImageNameW.restype = ctypes.c_int
+    kernel32.QueryFullProcessImageNameW.argtypes = (
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_wchar_p,
+        ctypes.POINTER(ctypes.c_uint32),
+    )
+    kernel32.CloseHandle.argtypes = (ctypes.c_void_p,)
+    kernel32.CloseHandle.restype = ctypes.c_int
+    handle = kernel32.OpenProcess(0x1000, 0, pid)
+    if not handle:
+        return None
+    try:
+        size = ctypes.c_uint32(32768)
+        buffer = ctypes.create_unicode_buffer(size.value)
+        if not kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+            return None
+        text = buffer.value.strip()
+        return Path(text) if text else None
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _running_game_dirs() -> list[Path]:
+    directories: list[Path] = []
+    seen: set[str] = set()
+    for pid in _recognized_pids():
+        executable = _executable_path(pid)
+        if executable is None:
+            continue
+        parent = executable.parent
+        broad = parent.parent
+        directories_for_pid = [parent]
+        try:
+            broad_name = broad.name.casefold()
+            if broad.is_dir() and broad != broad.anchor and broad != parent and broad_name not in LOG_SEARCH_SKIP:
+                directories_for_pid.append(broad)
+        except OSError:
+            pass
+        for directory in directories_for_pid:
+            try:
+                if not directory.is_dir():
+                    continue
+                resolved = directory.resolve()
+                if resolved == Path(resolved.anchor):
+                    continue
+                key = str(resolved).casefold()
+            except OSError:
+                continue
+            if key in seen:
+                continue
+            seen.add(key)
+            directories.append(directory)
+    return directories
+
+
+def _known_log_roots() -> list[Path]:
+    roots = [
+        Path(os.environ.get("USERPROFILE", "")) / "Documents",
+        Path("C:/CTRNF"),
+        Path("C:/Games"),
+        Path("D:/Games"),
+    ]
+    if getattr(sys, "frozen", False):
+        roots.append(Path(sys.executable).resolve().parent)
+    else:
+        roots.append(Path.cwd())
+    return roots
+
+
+def search_log_file(*, include_known_folders: bool = True) -> Path | None:
+    """Ayuda de arranque. No recorre el disco entero ni pisa una ruta ya guardada."""
+    near_game: list[Path] = []
+    for directory in _running_game_dirs():
+        near_game.extend(_logs_under(directory, 3))
+    found = _newest_log(near_game)
+    if found is not None or not include_known_folders:
+        return found
+    discovered: list[Path] = []
+    for root in _known_log_roots():
+        discovered.extend(_logs_under(root, 4))
+    return _newest_log(discovered)
+
+
+def remember_log_file(path: Path) -> None:
+    resolved = path.expanduser().resolve()
+    core.DEFAULT_LOG = resolved
+    current: dict = {}
+    try:
+        loaded = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            current = loaded
+    except (OSError, ValueError):
+        current = {}
+    current["log_path"] = str(resolved)
+    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_PATH.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def set_log_file(path: Path | None) -> None:
-    core.DEFAULT_LOG = path or Path("last_run.log")
-    settings = {"log_path": str(path) if path else ""}
+    if path is not None and str(path).strip():
+        remember_log_file(path)
+        return
+    core.DEFAULT_LOG = Path("last_run.log")
+    current: dict = {}
+    try:
+        loaded = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            current = loaded
+    except (OSError, ValueError):
+        current = {}
+    current["log_path"] = ""
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SETTINGS_PATH.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
+    SETTINGS_PATH.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 DATA_FILES = {"time_trials.csv": RESULTS_CSV, "rally_ring.csv": RALLY_RESULTS_CSV}
@@ -154,7 +348,7 @@ def trophies_payload(running: bool) -> dict:
     return {
         "mode": "rally_trophies",
         "game_running": running,
-        "log_found": core.DEFAULT_LOG.is_file(),
+        "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
         "trophies": built["trophies"],
         "multiplier": built["multiplier"],
         "summary": {
@@ -172,7 +366,7 @@ def progress_payload(running: bool) -> dict:
     return {
         "mode": "rally_progress",
         "game_running": running,
-        "log_found": core.DEFAULT_LOG.is_file(),
+        "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
         "progression": built["characters"],
         "active_character_id": built["active_character_id"],
         "multiplier": built["multiplier"],
@@ -378,32 +572,7 @@ def catalog_track(value: str, track_by_raw: dict[str, dict]) -> str:
 
 
 def is_game_running() -> bool:
-    if not hasattr(subprocess, "CREATE_NO_WINDOW"):
-        return False
-    try:
-        result = subprocess.run(
-            ["tasklist", "/FO", "CSV", "/NH"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=3,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return False
-
-    recognized = {"shadps4", "sacredfire", "crashteamracingnitrofueled"}
-    process_ids = []
-    for row in csv.reader(result.stdout.splitlines()):
-        if len(row) < 2:
-            continue
-        process_name = re.sub(r"[^a-z0-9]", "", row[0].casefold())
-        if process_name.endswith("exe"):
-            process_name = process_name[:-3]
-        if process_name in recognized and row[1].isdigit():
-            process_ids.append(int(row[1]))
+    process_ids = _recognized_pids()
     if not process_ids:
         return False
 
@@ -429,24 +598,20 @@ def is_game_running() -> bool:
 class DashboardState:
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        detected = find_log_file()
-        if detected and detected != core.DEFAULT_LOG:
-            set_log_file(detected)
+        saved = saved_log_path()
+        if saved is not None:
+            core.DEFAULT_LOG = saved
         self.metadata = {"track": "", "skin": ""}
         self.game_running = is_game_running()
         self.log = None
-        self._open_log(seed=self.game_running)
+        self._open_log(seed=self.game_running and saved is not None and saved.is_file())
 
     def _open_log(self, *, seed: bool = False) -> None:
         if self.log:
             self.log.close()
         self.log = None
         path = core.DEFAULT_LOG
-        if not path.is_file():
-            path = find_log_file()
-            if path:
-                core.DEFAULT_LOG = path
-        if not path.is_file():
+        if path is None or not path.is_file():
             return
         if seed:
             core.scan_existing_log(path, self.metadata)
@@ -476,6 +641,10 @@ class DashboardState:
         if running_now and not was_running:
             with self.lock:
                 self.metadata = {"track": "", "skin": ""}
+                if core.DEFAULT_LOG is None or not core.DEFAULT_LOG.is_file():
+                    found = search_log_file(include_known_folders=False)
+                    if found is not None:
+                        remember_log_file(found)
                 self._open_log(seed=True)
 
     def update_log(self, path: Path | None) -> dict:
@@ -609,7 +778,7 @@ class DashboardState:
             "skins": skins,
             "selected": selected,
             "game_running": running,
-            "log_found": core.DEFAULT_LOG.is_file(),
+            "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
             "current_track": {
                 "track": selected_track,
                 "track_clean": (current_track.get("track_clean") or "").strip() or "null",
@@ -658,7 +827,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/state":
             browse = parse_qs(urlparse(self.path).query).get("track", [""])[0]
             mode = parse_qs(urlparse(self.path).query).get("mode", ["time_trial"])[0]
-            payload = json.dumps(STATE.get_payload(browse, mode), ensure_ascii=False).encode("utf-8")
+            try:
+                payload = json.dumps(STATE.get_payload(browse, mode), ensure_ascii=False).encode("utf-8")
+            except (OSError, ValueError, csv.Error) as exc:
+                self._send(500, json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+                return
             self._send(200, payload, "application/json; charset=utf-8")
             return
         if path == "/api/assets-version":
@@ -804,9 +977,17 @@ class DashboardLauncher:
         self.root.minsize(min(900, window_width), 680)
         self.root.geometry(f"{window_width}x{window_height}")
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self._window_icons = []
+        if LOGO_PATH.is_file():
+            try:
+                photo = tk.PhotoImage(file=str(LOGO_PATH))
+                self._window_icons.append(photo)
+                self.root.iconphoto(True, photo)
+            except tk.TclError:
+                pass
         if ICON_PATH.is_file():
             try:
-                self.root.iconbitmap(str(ICON_PATH))
+                self.root.iconbitmap(default=str(ICON_PATH))
             except tk.TclError:
                 pass
 
@@ -821,6 +1002,10 @@ class DashboardLauncher:
         style.configure("Status.TLabel", background=self.PANEL, foreground=self.MUTED, font=("Segoe UI", 10))
         style.configure("Accent.TButton", font=("Segoe UI", 13, "bold"), padding=(16, 15), background=self.BLUE, foreground=self.TEXT)
         style.map("Accent.TButton", background=[("active", self.BLUE_HOVER), ("disabled", "#35465b")])
+        danger = blend_hex("#e23d3d", self.PANEL, 0.82)
+        danger_hover = blend_hex("#ff5c5c", self.PANEL, 0.92)
+        style.configure("Danger.TButton", font=("Segoe UI", 13, "bold"), padding=(16, 15), background=danger, foreground=self.TEXT)
+        style.map("Danger.TButton", background=[("active", danger_hover), ("disabled", "#35465b")])
         style.configure("Secondary.TButton", font=("Segoe UI", 10), padding=(12, 8), background="#202838", foreground=self.TEXT)
         style.map("Secondary.TButton", background=[("active", "#303b4e")])
         style.configure("Side.TFrame", background="#151b26")
@@ -857,7 +1042,6 @@ class DashboardLauncher:
         self.release_url = GITHUB_RELEASES_URL
         self.dismissed_update = False
         self.update_banner = ttk.Frame(shell, style="Update.TFrame", padding=(12, 8))
-        self.update_banner.pack(fill="x", pady=(8, 0))
         self.update_status_var = tk.StringVar(value="Comprobando actualizaciones…")
         ttk.Label(self.update_banner, textvariable=self.update_status_var, style="Update.TLabel", wraplength=520).pack(side="left", fill="x", expand=True, padx=(2, 12))
         update_actions = ttk.Frame(self.update_banner, style="Update.TFrame")
@@ -874,6 +1058,7 @@ class DashboardLauncher:
         self.dismiss_button.pack_forget()
 
         content = ttk.Frame(shell, style="Launcher.TFrame")
+        self.page_row = content
         content.pack(fill="both", expand=True, pady=(14, 0))
         sidebar = ttk.Frame(content, style="Side.TFrame", width=220, padding=(12, 16))
         sidebar.pack(side="left", fill="y", padx=(0, 14))
@@ -893,9 +1078,9 @@ class DashboardLauncher:
 
         self.workspace = ttk.Frame(content, style="Launcher.TFrame")
         self.workspace.pack(side="left", fill="both", expand=True)
-        self.server_page = ttk.Frame(self.workspace, style="Panel.TFrame", padding=(26, 24))
+        self.root.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.server_page, card = self._scroll_page((26, 24))
         self.server_page.pack(fill="both", expand=True)
-        card = self.server_page
         ttk.Label(card, text="JUEGO  /  SERVIDOR LOCAL", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
         ttk.Label(card, text="Conecta tu dashboard", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
         ttk.Label(card, text="Arranca el servidor para registrar partidas y consultar tu progreso.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 18))
@@ -907,25 +1092,26 @@ class DashboardLauncher:
         actions = ttk.Frame(card, style="Panel.TFrame")
         actions.pack(fill="x", pady=(12, 0))
         self.open_button = ttk.Button(actions, text="Abrir dashboard", style="Secondary.TButton", command=self.open_dashboard, state="disabled")
-        self.open_button.pack(side="left", padx=(10, 0))
-        self.stop_button = ttk.Button(actions, text="Detener", style="Secondary.TButton", command=self.stop, state="disabled")
-        self.stop_button.pack(side="right")
+        self.open_button.pack(side="left")
         ttk.Separator(card, orient="horizontal").pack(fill="x", pady=(25, 14))
         ttk.Label(card, text="La interfaz se abrirá en tu navegador predeterminado. El servidor permanece activo mientras esta ventana esté abierta.", style="Status.TLabel", wraplength=600).pack(anchor="w")
 
-        self.settings_page = ttk.Frame(self.workspace, style="Panel.TFrame", padding=(20, 16))
-        ttk.Label(self.settings_page, text="CONFIGURACIÓN  /  PREFERENCIAS LOCALES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
-        ttk.Label(self.settings_page, text="Configuración", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
+        self.settings_page, settings_body = self._scroll_page((20, 16))
+        ttk.Label(settings_body, text="CONFIGURACIÓN  /  PREFERENCIAS LOCALES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
+        ttk.Label(settings_body, text="Configuración", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
 
-        log_panel = ttk.Frame(self.settings_page, style="Panel.TFrame")
+        log_panel = ttk.Frame(settings_body, style="Panel.TFrame")
         log_panel.pack(fill="x", pady=(14, 0))
         ttk.Label(log_panel, text="Archivo de registro del juego", style="PanelTitle.TLabel").pack(anchor="w")
-        ttk.Label(log_panel, text="Se busca automáticamente al iniciar. Si no se encuentra, selecciona el archivo .log de tu instalación.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
-        self.log_path_var = tk.StringVar(value="Buscando archivo de log…")
+        ttk.Label(log_panel, text="Al abrir se intenta encontrar el log. Si no aparece, lo eliges una vez y queda guardado en este equipo. Puedes cambiarlo si mueves el juego.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
+        self.log_path_var = tk.StringVar(value="Buscando el log del juego…")
         ttk.Label(log_panel, textvariable=self.log_path_var, style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(0, 10))
-        ttk.Button(log_panel, text="Elegir archivo .log…", style="Secondary.TButton", command=self.choose_log).pack(anchor="w")
+        self.choose_log_button = ttk.Button(log_panel, text="Elegir archivo .log…", style="Secondary.TButton", command=self.choose_log)
+        self.choose_log_button.pack(anchor="w")
+        self.searching_log = False
+        self.log_dialog_open = False
 
-        backup_panel = ttk.Frame(self.settings_page, style="Panel.TFrame")
+        backup_panel = ttk.Frame(settings_body, style="Panel.TFrame")
         backup_panel.pack(fill="x", pady=(20, 0))
         ttk.Label(backup_panel, text="Importar y exportar datos", style="PanelTitle.TLabel").pack(anchor="w")
         ttk.Label(backup_panel, text="Exporta los CSV personales en un respaldo ZIP. La importación solo restaura datasets vacíos; no reemplaza registros existentes.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
@@ -937,15 +1123,83 @@ class DashboardLauncher:
         ttk.Button(backup_actions, text="Importar respaldo…", style="Secondary.TButton", command=self.import_backup).pack(side="left", padx=(10, 0))
 
         self.settings_status_var = tk.StringVar(value="")
-        self.settings_status_label = ttk.Label(self.settings_page, textvariable=self.settings_status_var, style="Status.TLabel", wraplength=600)
+        self.settings_status_label = ttk.Label(settings_body, textvariable=self.settings_status_var, style="Status.TLabel", wraplength=600)
         self.settings_status_label.pack(anchor="w", pady=(12, 0))
+        saved = saved_log_path()
+        self.searching_log = saved is None or not saved.is_file()
         self.refresh_settings()
+        if self.searching_log:
+            self.root.after(200, self._start_log_search)
 
         footer = ttk.Frame(shell, style="Launcher.TFrame")
         footer.pack(side="bottom", fill="x", pady=(12, 0))
         ttk.Label(footer, text=APP_VERSION, style="Footer.TLabel").pack(side="left", anchor="w")
         ttk.Label(footer, text="Desarrollado por Julián Gómez", style="Footer.TLabel").pack(side="right", anchor="e")
         self.check_updates()
+
+    def _scroll_page(self, padding: tuple[int, int]):
+        from tkinter import ttk
+
+        outer = ttk.Frame(self.workspace, style="Panel.TFrame")
+        canvas = self.tk.Canvas(outer, bg=self.PANEL, highlightthickness=0, bd=0)
+        bar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas, style="Panel.TFrame", padding=padding)
+        window = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def fit(_event=None):
+            width = canvas.winfo_width()
+            if width <= 1:
+                return
+            inner.update_idletasks()
+            height = max(inner.winfo_reqheight(), 1)
+            canvas.coords(window, 0, 0)
+            canvas.itemconfigure(window, width=width, height=height)
+            view_height = canvas.winfo_height()
+            if height <= view_height:
+                canvas.configure(scrollregion=(0, 0, width, view_height))
+                canvas.yview_moveto(0)
+                if bar.winfo_ismapped():
+                    bar.pack_forget()
+            else:
+                canvas.configure(scrollregion=(0, 0, width, height))
+                if not bar.winfo_ismapped():
+                    bar.pack(side="right", fill="y")
+                top, _bottom = canvas.yview()
+                if top <= 0:
+                    canvas.yview_moveto(0)
+
+        inner.bind("<Configure>", fit)
+        canvas.bind("<Configure>", fit)
+        canvas.pack(side="left", fill="both", expand=True)
+        outer._ctrnf_scroll = canvas
+        return outer, inner
+
+    def _on_mousewheel(self, event) -> None:
+        widget = self.root.winfo_containing(event.x_root, event.y_root)
+        target = None
+        while widget is not None:
+            target = getattr(widget, "_ctrnf_scroll", None)
+            if target is not None:
+                break
+            widget = getattr(widget, "master", None)
+        if target is None:
+            return
+        top, bottom = target.yview()
+        if top <= 0 and bottom >= 1:
+            return
+        if event.delta > 0 and top <= 0:
+            return
+        if event.delta < 0 and bottom >= 1:
+            return
+        target.yview_scroll(int(-event.delta / 120), "units")
+
+    def _show_page(self, page, nav) -> None:
+        for frame in (self.server_page, self.settings_page):
+            frame.pack_forget()
+        page.pack(fill="both", expand=True)
+        for button in (self.server_nav_button, self.settings_nav_button):
+            button.configure(style="Nav.TButton")
+        nav.configure(style="NavActive.TButton")
 
     def start(self) -> None:
         self.start_button.configure(state="disabled")
@@ -999,7 +1253,8 @@ class DashboardLauncher:
         self.update_button.configure(state="disabled")
         self.dismiss_button.configure(state="disabled")
         self.release_url = GITHUB_RELEASES_URL
-        if state == "update" and release:
+        self.update_banner.pack_forget()
+        if state == "update" and release and not self.dismissed_update:
             tag = release.get("tag_name", "Nueva versión")
             self.release_url = release.get("html_url") or GITHUB_RELEASES_URL
             self.update_status_var.set(f"Nueva actualización disponible: {tag}  ·  instalada {APP_VERSION_TAG}")
@@ -1008,15 +1263,7 @@ class DashboardLauncher:
             self.update_button.pack(side="left", before=self.news_button)
             self.dismiss_button.pack(side="left", before=self.review_button, padx=(6, 0))
             self.news_button.configure(text="Novedades")
-        elif state == "current" and release:
-            self.update_status_var.set(f"Estás al día: {APP_VERSION_TAG}. Última publicada: {release.get('tag_name', APP_VERSION_TAG)}.")
-            self.news_button.configure(text="Ver Releases")
-        elif state == "none":
-            self.update_status_var.set("Aún no hay versiones publicadas. El aviso aparecerá aquí cuando publiques una GitHub Release.")
-            self.news_button.configure(text="Ver Releases")
-        else:
-            self.update_status_var.set("No se pudo comprobar GitHub Releases. Puedes volver a intentarlo.")
-            self.news_button.configure(text="Ver Releases")
+            self.update_banner.pack(fill="x", pady=(8, 0), before=self.page_row)
 
     def open_latest_release(self) -> None:
         webbrowser.open(self.release_url)
@@ -1026,41 +1273,81 @@ class DashboardLauncher:
         self.update_banner.pack_forget()
 
     def show_server_page(self) -> None:
-        self.settings_page.pack_forget()
-        self.server_page.pack(fill="both", expand=True)
-        self.server_nav_button.configure(style="NavActive.TButton")
-        self.settings_nav_button.configure(style="Nav.TButton")
+        self._show_page(self.server_page, self.server_nav_button)
 
     def show_settings_page(self) -> None:
-        self.server_page.pack_forget()
-        self.settings_page.pack(fill="both", expand=True)
-        self.server_nav_button.configure(style="Nav.TButton")
-        self.settings_nav_button.configure(style="NavActive.TButton")
+        self._show_page(self.settings_page, self.settings_nav_button)
         self.refresh_settings()
 
+    def _start_log_search(self) -> None:
+        threading.Thread(target=self._search_log_worker, daemon=True).start()
+
+    def _search_log_worker(self) -> None:
+        found = search_log_file()
+        try:
+            self.root.after(0, lambda: self._finish_log_search(found))
+        except self.tk.TclError:
+            pass
+
+    def _finish_log_search(self, found: Path | None) -> None:
+        self.searching_log = False
+        if self.log_dialog_open:
+            return
+        saved = saved_log_path()
+        if saved is not None and saved.is_file():
+            self.refresh_settings()
+            return
+        if found is not None:
+            STATE.update_log(found)
+            self.settings_status_var.set("Se encontró el log y quedó guardado en este equipo.")
+            self.settings_status_label.configure(foreground=self.GOOD)
+            self.refresh_settings()
+            return
+        self.show_settings_page()
+        self.refresh_settings()
+        self.choose_log()
+
     def refresh_settings(self) -> None:
-        log_path = core.DEFAULT_LOG
-        if not log_path.is_file():
-            detected = find_log_file()
-            if detected:
-                STATE.update_log(detected)
-                log_path = detected
-        self.log_path_var.set(f"{log_path.parent}\n{log_path.name}" if log_path.is_file() else "No se encontró un archivo .log. Selecciona la ruta manualmente.")
+        saved = saved_log_path()
+        ready = saved is not None and saved.is_file()
+        if ready:
+            self.log_path_var.set(f"{saved.parent}\n{saved.name}")
+            self.choose_log_button.configure(text="Cambiar archivo .log…")
+        elif self.searching_log:
+            self.log_path_var.set("Buscando el log del juego…")
+            self.choose_log_button.configure(text="Elegir archivo .log…")
+        elif saved is not None:
+            self.log_path_var.set(f"La ruta guardada ya no está:\n{saved}\nElige el log en la nueva ubicación del juego.")
+            self.choose_log_button.configure(text="Elegir archivo .log…")
+        else:
+            self.log_path_var.set("No se encontró el log. Elige el archivo last_run de tu juego. La ruta se guarda en este equipo.")
+            self.choose_log_button.configure(text="Elegir archivo .log…")
         tt_count = len(read_csv(RESULTS_CSV))
         rally_count = len(read_csv(RALLY_RESULTS_CSV))
         self.data_count_var.set(f"Time Trial: {tt_count} registros     ·     Ring Rally: {rally_count} registros")
 
     def choose_log(self) -> None:
-        chosen = self.filedialog.askopenfilename(
-            parent=self.root,
-            title="Seleccionar el log del juego",
-            filetypes=(("Archivo de registro", "*.log"), ("Todos los archivos", "*.*")),
-        )
+        if self.log_dialog_open:
+            return
+        self.log_dialog_open = True
+        saved = saved_log_path()
+        dialog_args = {
+            "parent": self.root,
+            "title": "Seleccionar el log del juego",
+            "filetypes": (("Archivo de registro", "*.log"), ("Todos los archivos", "*.*")),
+        }
+        if saved is not None and saved.parent.is_dir():
+            dialog_args["initialdir"] = str(saved.parent)
+        try:
+            chosen = self.filedialog.askopenfilename(**dialog_args)
+        finally:
+            self.log_dialog_open = False
         if not chosen:
+            self.refresh_settings()
             return
         try:
             STATE.update_log(Path(chosen))
-            self.settings_status_var.set("Ruta del log guardada.")
+            self.settings_status_var.set("Ruta guardada. Se usará en los próximos inicios hasta que la cambies.")
             self.settings_status_label.configure(foreground=self.GOOD)
             self.refresh_settings()
         except (OSError, ValueError) as exc:
@@ -1126,15 +1413,14 @@ class DashboardLauncher:
         self.side_state_var.set("● Activo")
         self.status_label.configure(foreground=self.GOOD)
         self.open_button.configure(state="normal")
-        self.stop_button.configure(state="normal")
-        self.start_button.configure(state="disabled")
+        self.start_button.configure(state="normal", text="DETENER SERVIDOR", style="Danger.TButton", command=self.stop)
         self.open_dashboard()
 
     def _server_failed(self, message: str) -> None:
         self.status_var.set(f"No se pudo iniciar el servidor: {message}")
         self.side_state_var.set("No disponible")
         self.status_label.configure(foreground="#ff8585")
-        self.start_button.configure(state="normal")
+        self._show_start_button()
 
     def open_dashboard(self) -> None:
         if self.url:
@@ -1147,12 +1433,14 @@ class DashboardLauncher:
         self.server = None
         self.url = ""
         self.open_button.configure(state="disabled")
-        self.stop_button.configure(state="disabled")
-        self.start_button.configure(state="normal")
+        self._show_start_button()
         self.status_var.set("Servidor detenido")
         self.side_state_var.set("Detenido")
         self.status_label.configure(foreground=self.MUTED)
         threading.Thread(target=lambda: (server.shutdown(), server.server_close()), daemon=True).start()
+
+    def _show_start_button(self) -> None:
+        self.start_button.configure(state="normal", text="INICIAR SERVIDOR", style="Accent.TButton", command=self.start)
 
     def close(self) -> None:
         self.closing = True
@@ -1163,6 +1451,11 @@ class DashboardLauncher:
 def run_launcher(parser_port: int = 8899) -> None:
     import tkinter as tk
 
+    if os.name == "nt":
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Nebiros96.CTRNF.Dashboard")
+        except (AttributeError, OSError):
+            pass
     root = tk.Tk()
     DashboardLauncher(root, parser_port)
     root.mainloop()
