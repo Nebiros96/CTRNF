@@ -8,6 +8,8 @@ Tablero personal para Crash Team Racing Nitro-Fueled. Lleva la cuenta de tus tie
 
 Abres `CTRNF.exe`, el lanzador enciende la aplicación y el tablero aparece en el navegador. Tus registros se quedan en el equipo, en `%LOCALAPPDATA%\CTRNF\data`, y siguen ahí cuando actualizas. Si hay una versión nueva en las Releases de este repositorio, el lanzador te avisa; la descarga y la instalación las haces tú.
 
+<img src="utils/ejecutable.JPG" alt="Versión 0.4.1 del ejecutable" width="500">
+
 ## Time Trial
 
 Eliges la pista que acabas de correr, registras el tiempo y lo guardas. El formato es minutos, segundos y centésimas, por ejemplo `1:25:03`.
