@@ -45,7 +45,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.7.0"
+APP_VERSION = "CTR - v0.7.1"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -912,9 +912,10 @@ class DashboardState:
                 if best_row is None or score > best_score or (score == best_score and row_id(row) > row_id(best_row)):
                     best_score = score
                     best_row = row
+            who = identity((best_row or {}).get("skin", "")) if best_row else {}
             return {
                 **base,
-                **live_identity,
+                **who,
                 "score": f"{best_score:,}" if best_score is not None else "",
                 "date": shown_date(best_row),
             }
@@ -973,9 +974,10 @@ class DashboardState:
         pb_centis = clock_centis(pb)
         dev_centis = clock_centis(dev)
         delta = pb_centis - dev_centis if pb_centis is not None and dev_centis is not None else None
+        who = identity((best_row or {}).get("skin", "")) if best_row else {}
         return {
             **base,
-            **live_identity,
+            **who,
             "pb": pb,
             "date": shown_date(best_row),
             "dev_time": dev,
