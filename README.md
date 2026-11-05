@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v0.6.1)
+# Crash™ Team Racing NF - Dashboard (v0.7.0)
 
 Tablero personal para Crash Team Racing Nitro-Fueled desde el Port Nativo de [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC). 
 
@@ -43,6 +43,11 @@ El álbum junta las skins por personaje y por rareza: Basic, Exotic, Legendary y
 Cada trofeo muestra en qué vas, de qué nivel es y cuánto suma al multiplicador. Si ya lo completaste, aparece la fecha.
 
 ![Lista de trofeos con progreso, nivel y fecha de desbloqueo](utils/Trophies.JPG)
+
+## Overlays para OBS
+
+![Overlay del Time Trial](utils/overlayTT.jpg)
+![Overlay de Ring Rally](utils/overlayRR.png)
 
 ## Respaldo
 

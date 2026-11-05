@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CTRNF · Ring Rally</title>
+  <link rel="stylesheet" href="pb.css">
+</head>
+<body data-card="rally">
+  <!-- OBS: /streaming/rally.html · 420 × 100 · fondo transparente -->
+  <article id="overlay" class="card" hidden>
+    <header class="head">
+      <div id="track" class="track"></div>
+    </header>
+    <div class="body">
+      <div class="portrait"><img id="skin" alt="" width="34" height="34"></div>
+      <div class="identity">
+        <div class="who"><span id="character"></span><span id="skin-name"></span></div>
+        <div id="date" class="when"></div>
+      </div>
+      <div class="times">
+        <div class="row">
+          <span class="tag">PB</span>
+          <span id="score" class="clock">—</span>
+          <svg id="medal" class="medal" viewBox="0 0 16 16" aria-hidden="true">
+            <path fill="#f6d56a" d="M5 1.2h1.6L8 4.8 9.4 1.2H11L8.8 5.6H7.2z"/>
+            <circle cx="8" cy="10.15" r="4.55" fill="#f3a712"/>
+            <circle cx="8" cy="10.15" r="3.15" fill="none" stroke="#6b4c09" stroke-width=".7"/>
+            <path fill="#fff4cc" d="M8 7.7 8.7 9.2l1.6.15-1.22 1.08.38 1.55L8 11.15 6.54 11.98l.38-1.55-1.22-1.08 1.6-.15z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </article>
+  <script src="overlay.js"></script>
+</body>
+</html>

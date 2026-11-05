@@ -25,6 +25,12 @@ import time_trial_logger as core
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 WEB_DIR = ROOT / "web"
+STREAM_DIR = ROOT / "streaming"
+STREAM_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+}
 LOGO_PATH = ROOT / "utils" / "logo_by_LexiLoo826.png"
 ## Art cover used in the launcher window.
 COVER_PATH = ROOT / "utils" / "fondo_launcher.png"
@@ -39,7 +45,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.6.1"
+APP_VERSION = "CTR - v0.7.0"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -410,6 +416,30 @@ def dev_clock(value: str) -> str:
     return f"{minutes}:{seconds:02d}:{centis:02d}"
 
 
+_CLOCK_RE = re.compile(r"^(\d+):(\d{2})[:.](\d{2})$")
+
+
+def clock_centis(value: str) -> int | None:
+    """Lee un tiempo M:SS:CC o M:SS.CC. No acepta segundos sueltos."""
+    match = _CLOCK_RE.fullmatch((value or "").strip())
+    if not match:
+        return None
+    minutes, seconds, centis = (int(part) for part in match.groups())
+    if seconds > 59 or centis > 99:
+        return None
+    return minutes * 6_000 + seconds * 100 + centis
+
+
+def format_signed_clock(centis: int) -> str:
+    """Diferencia en el mismo reloj del juego. Negativo: el PB es más rápido."""
+    sign = "−" if centis < 0 else "+" if centis > 0 else ""
+    total = abs(centis)
+    minutes, rest = divmod(total, 6_000)
+    seconds, frac = divmod(rest, 100)
+    body = f"{minutes}:{seconds:02d}:{frac:02d}"
+    return f"{sign}{body}" if sign else body
+
+
 def beat_flags(time_seconds: str, dev_time: str, velo_time: str) -> dict[str, bool]:
     player = to_centis(time_seconds)
     dev = to_centis(dev_time)
@@ -602,6 +632,7 @@ class DashboardState:
         if saved is not None:
             core.DEFAULT_LOG = saved
         self.metadata = {"track": "", "skin": ""}
+        self.browsed = {"time_trial": "", "rally_ring": ""}
         self.game_running = is_game_running()
         self.log = None
         self._open_log(seed=self.game_running and saved is not None and saved.is_file())
@@ -690,6 +721,12 @@ class DashboardState:
             selected_track = browse_track
         else:
             selected_track = last_saved
+        mode_key = "rally_ring" if rally_mode else "time_trial"
+        with self.lock:
+            if running:
+                self.browsed[mode_key] = ""
+            elif browse_track in track_by_raw:
+                self.browsed[mode_key] = browse_track
         current_track = track_by_raw.get(selected_track, {})
 
         track_times: list[dict] = []
@@ -797,6 +834,158 @@ class DashboardState:
             ),
         }
 
+    def overlay_state(self, card: str = "pb") -> dict:
+        """Datos de una tarjeta de OBS para la pista que el log tiene cargada."""
+        self.refresh_game_status()
+        self.poll_log()
+        with self.lock:
+            running = self.game_running
+            live = dict(self.metadata)
+
+        log_found = core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file()
+        kind = card if card in {"pb", "last", "rally"} else "pb"
+        mode_key = "rally_ring" if kind == "rally" else "time_trial"
+        tracks = read_csv(TRACKS_CSV)
+        track_by_raw = {row.get("track", ""): row for row in tracks}
+        course_rows = read_csv(RALLY_RESULTS_CSV if kind == "rally" else RESULTS_CSV)
+        newest = course_rows[-1] if course_rows else None
+        live_track = catalog_track(live.get("track", ""), track_by_raw)
+        last_saved = catalog_track((newest.get("track") if newest else "") or "", track_by_raw)
+        with self.lock:
+            remembered = self.browsed.get(mode_key, "")
+        live_skin = (live.get("skin") or "").strip()
+        saved_skin = ((newest.get("skin") if newest else "") or "").strip()
+        if running and live_track:
+            track_key, skin_raw = live_track, live_skin
+        elif not running and remembered in track_by_raw:
+            track_key, skin_raw = remembered, saved_skin or live_skin
+        elif running:
+            track_key, skin_raw = last_saved, live_skin or saved_skin
+        else:
+            track_key, skin_raw = last_saved, saved_skin or live_skin
+        if not track_key:
+            return {"active": False, "card": kind, "game_running": running, "log_found": log_found}
+
+        track_row = track_by_raw.get(track_key, {})
+        skins = {row.get("skin", ""): row for row in read_csv(SKINS_CSV)}
+
+        def identity(raw: str) -> dict[str, str]:
+            text = (raw or "").strip()
+            row = skins.get(text, {}) if text and text.casefold() not in {"null", "none"} else {}
+            return {
+                "character": (row.get("character") or "").strip(),
+                "skin": text,
+                "skin_name": (row.get("skin_name") or "").strip(),
+                "skin_url": (row.get("url") or "").strip(),
+            }
+
+        def row_id(row: dict[str, str]) -> int:
+            try:
+                return int(row.get("id") or 0)
+            except (TypeError, ValueError):
+                return 0
+
+        def shown_date(row: dict[str, str] | None) -> str:
+            text = display_date((row or {}).get("captured_at", ""))
+            return "" if text == "null" else text
+
+        base = {
+            "active": True,
+            "card": kind,
+            "game_running": running,
+            "log_found": log_found,
+            "track": track_key,
+            "track_clean": (track_row.get("track_clean") or "").strip() or track_key,
+        }
+        live_identity = identity(skin_raw)
+
+        if kind == "rally":
+            best_score: int | None = None
+            best_row: dict[str, str] | None = None
+            for row in read_csv(RALLY_RESULTS_CSV):
+                if (row.get("track") or "").strip() != track_key:
+                    continue
+                try:
+                    score = int(row.get("score") or "")
+                except (TypeError, ValueError):
+                    continue
+                if best_row is None or score > best_score or (score == best_score and row_id(row) > row_id(best_row)):
+                    best_score = score
+                    best_row = row
+            return {
+                **base,
+                **live_identity,
+                "score": f"{best_score:,}" if best_score is not None else "",
+                "date": shown_date(best_row),
+            }
+
+        best_seconds: float | None = None
+        best_row: dict[str, str] | None = None
+        last_row: dict[str, str] | None = None
+        records = 0
+        for row in read_csv(RESULTS_CSV):
+            if (row.get("track") or "").strip() != track_key:
+                continue
+            records += 1
+            if last_row is None or row_id(row) >= row_id(last_row):
+                last_row = row
+            try:
+                seconds = float(row.get("time_seconds") or "")
+            except (TypeError, ValueError):
+                continue
+            if best_seconds is None or seconds < best_seconds:
+                best_seconds = seconds
+                best_row = row
+
+        def clock_of(row: dict[str, str] | None, seconds: float | None) -> str:
+            raw = ((row or {}).get("time_raw") or "").strip()
+            if clock_centis(raw) is not None:
+                return raw
+            if seconds is None:
+                return ""
+            shown = dev_clock(f"{seconds:.2f}")
+            return "" if shown == "null" else shown
+
+        pb = clock_of(best_row, best_seconds)
+        if kind == "last":
+            try:
+                last_seconds = float((last_row or {}).get("time_seconds") or "")
+            except (TypeError, ValueError):
+                last_seconds = None
+            last_clock = clock_of(last_row, last_seconds)
+            last_centis = clock_centis(last_clock)
+            pb_centis = clock_centis(pb)
+            delta = last_centis - pb_centis if last_centis is not None and pb_centis is not None else None
+            who = identity((last_row or {}).get("skin", "")) if last_row else live_identity
+            return {
+                **base,
+                **who,
+                "time": last_clock,
+                "date": shown_date(last_row),
+                "records": records,
+                "delta_centis": delta,
+                "delta": format_signed_clock(delta) if delta is not None else "",
+            }
+
+        dev = dev_clock(track_row.get("dev_time") or "")
+        if dev == "null":
+            dev = ""
+        pb_centis = clock_centis(pb)
+        dev_centis = clock_centis(dev)
+        delta = pb_centis - dev_centis if pb_centis is not None and dev_centis is not None else None
+        return {
+            **base,
+            **live_identity,
+            "pb": pb,
+            "date": shown_date(best_row),
+            "dev_time": dev,
+            "dev_name": (track_row.get("dev_name") or "").strip(),
+            "dev_url": (track_row.get("dev_url") or "").strip(),
+            "delta_centis": delta,
+            "delta": format_signed_clock(delta) if delta is not None else "",
+            "beat_dev": delta is not None and delta < 0,
+        }
+
 
 STATE = DashboardState()
 
@@ -824,6 +1013,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        if path == "/api/overlay":
+            card = parse_qs(urlparse(self.path).query).get("card", ["pb"])[0]
+            try:
+                payload = json.dumps(STATE.overlay_state(card), ensure_ascii=False).encode("utf-8")
+            except (OSError, ValueError, csv.Error) as exc:
+                self._send(500, json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+                return
+            self._send(200, payload, "application/json; charset=utf-8")
+            return
         if path == "/api/state":
             browse = parse_qs(urlparse(self.path).query).get("track", [""])[0]
             mode = parse_qs(urlparse(self.path).query).get("mode", ["time_trial"])[0]
@@ -868,6 +1066,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, b"Logo not found", "text/plain; charset=utf-8")
             return
 
+        if path in {"/streaming", "/streaming/"}:
+            path = "/streaming/index.html"
+        if path.startswith("/streaming/"):
+            self._send_stream(path)
+            return
+
         files = {
             "/": ("index.html", "text/html; charset=utf-8"),
             "/index.html": ("index.html", "text/html; charset=utf-8"),
@@ -883,6 +1087,24 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, b"Dashboard asset not found", "text/plain; charset=utf-8")
             return
         self._send(404, b"Not found", "text/plain; charset=utf-8")
+
+    def _send_stream(self, path: str) -> None:
+        relative = path.removeprefix("/streaming/").lstrip("/")
+        root = STREAM_DIR.resolve()
+        target = (STREAM_DIR / relative).resolve()
+        content_type = STREAM_TYPES.get(target.suffix.lower())
+        if (
+            not relative
+            or not content_type
+            or (root != target and root not in target.parents)
+            or not target.is_file()
+        ):
+            self._send(404, b"Not found", "text/plain; charset=utf-8")
+            return
+        try:
+            self._send(200, target.read_bytes(), content_type)
+        except OSError:
+            self._send(404, b"Not found", "text/plain; charset=utf-8")
 
     def do_POST(self) -> None:
         route = urlparse(self.path).path
@@ -932,6 +1154,7 @@ def run_server_only(parser_port: int = 8899) -> None:
 
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"CTR Nitro-Fueled dashboard: {url}")
+    print(f"Overlays OBS 420×100: {url}streaming/pb.html  {url}streaming/last.html  {url}streaming/rally.html")
     print(f"Time Trial CSV: {RESULTS_CSV}")
     print(f"Ring Rally CSV: {RALLY_RESULTS_CSV}")
     print("Deja este servidor abierto; web/ se recarga automáticamente al editar la interfaz. Ctrl+C para cerrar.")
@@ -1066,6 +1289,8 @@ class DashboardLauncher:
         ttk.Label(sidebar, text="NAVEGACIÓN", style="SideTitle.TLabel").pack(anchor="w", padx=8, pady=(4, 13))
         self.server_nav_button = ttk.Button(sidebar, text="▰   Servidor", style="NavActive.TButton", command=self.show_server_page)
         self.server_nav_button.pack(fill="x")
+        self.streaming_nav_button = ttk.Button(sidebar, text="▶   Streaming", style="Nav.TButton", command=self.show_streaming_page)
+        self.streaming_nav_button.pack(fill="x", pady=(5, 0))
         self.settings_nav_button = ttk.Button(sidebar, text="⚙   Configuración", style="Nav.TButton", command=self.show_settings_page)
         self.settings_nav_button.pack(fill="x", pady=(5, 0))
         ttk.Label(sidebar, text="ESTADO", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(27, 6))
@@ -1095,6 +1320,8 @@ class DashboardLauncher:
         self.open_button.pack(side="left")
         ttk.Separator(card, orient="horizontal").pack(fill="x", pady=(25, 14))
         ttk.Label(card, text="La interfaz se abrirá en tu navegador predeterminado. El servidor permanece activo mientras esta ventana esté abierta.", style="Status.TLabel", wraplength=600).pack(anchor="w")
+
+        self._build_streaming_page()
 
         self.settings_page, settings_body = self._scroll_page((20, 16))
         ttk.Label(settings_body, text="CONFIGURACIÓN  /  PREFERENCIAS LOCALES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
@@ -1174,6 +1401,95 @@ class DashboardLauncher:
         outer._ctrnf_scroll = canvas
         return outer, inner
 
+    def _build_streaming_page(self) -> None:
+        from tkinter import ttk
+
+        page, body = self._scroll_page((26, 24))
+        self.streaming_page = page
+        self.stream_rows = {}
+        ttk.Label(body, text="STREAMING  /  OBS", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
+        ttk.Label(body, text="Overlays para OBS", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
+        ttk.Label(
+            body,
+            text="Tres fuentes de navegador. En OBS usa ancho 420 y alto 100, y deja el CSS personalizado vacío: el fondo ya es transparente. Las direcciones aparecen al iniciar el servidor.",
+            style="Status.TLabel",
+            wraplength=600,
+        ).pack(anchor="w", pady=(6, 4))
+        cards = (
+            (
+                "pb",
+                "PB de Contrarreloj",
+                "La pista en curso, tu mejor tiempo, la fecha de ese PB y el tiempo del desarrollador.",
+                "/streaming/pb.html",
+            ),
+            (
+                "last",
+                "Último registro",
+                "El último tiempo guardado en esa pista, su fecha, cuántos registros lleva y la diferencia con tu PB.",
+                "/streaming/last.html",
+            ),
+            (
+                "rally",
+                "PB de Ring Rally",
+                "El mejor puntaje de la pista en curso y la fecha en que lo conseguiste.",
+                "/streaming/rally.html",
+            ),
+        )
+        for key, title, detail, path in cards:
+            panel = ttk.Frame(body, style="Panel.TFrame")
+            panel.pack(fill="x", pady=(16, 0))
+            ttk.Label(panel, text=title, style="PanelTitle.TLabel").pack(anchor="w")
+            ttk.Label(panel, text=detail, style="Status.TLabel", wraplength=560).pack(anchor="w", pady=(6, 10))
+            row = ttk.Frame(panel, style="Panel.TFrame")
+            row.pack(fill="x")
+            var = self.tk.StringVar()
+            entry = self.tk.Entry(
+                row,
+                textvariable=var,
+                readonlybackground="#111722",
+                fg=self.TEXT,
+                disabledforeground=self.MUTED,
+                bg="#111722",
+                relief="flat",
+                font=("Segoe UI", 10),
+                state="readonly",
+                borderwidth=0,
+                highlightthickness=1,
+                highlightbackground=self.LINE,
+                highlightcolor=self.BLUE,
+            )
+            entry.pack(side="left", fill="x", expand=True, ipady=6, padx=(0, 8))
+            button = ttk.Button(
+                row,
+                text="Copiar",
+                style="Secondary.TButton",
+                state="disabled",
+                command=lambda key=key: self.copy_stream_url(key),
+            )
+            button.pack(side="left")
+            self.stream_rows[key] = {"var": var, "button": button, "path": path}
+
+    def _set_stream_urls(self, port: int | None) -> None:
+        for row in self.stream_rows.values():
+            if port:
+                row["var"].set(f"http://127.0.0.1:{port}{row['path']}")
+                row["button"].configure(state="normal", text="Copiar")
+            else:
+                row["var"].set("")
+                row["button"].configure(state="disabled", text="Copiar")
+
+    def copy_stream_url(self, key: str) -> None:
+        row = self.stream_rows.get(key)
+        if not row:
+            return
+        url = row["var"].get().strip()
+        if not url:
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(url)
+        row["button"].configure(text="Copiado")
+        self.root.after(1200, lambda button=row["button"]: button.configure(text="Copiar"))
+
     def _on_mousewheel(self, event) -> None:
         widget = self.root.winfo_containing(event.x_root, event.y_root)
         target = None
@@ -1194,10 +1510,10 @@ class DashboardLauncher:
         target.yview_scroll(int(-event.delta / 120), "units")
 
     def _show_page(self, page, nav) -> None:
-        for frame in (self.server_page, self.settings_page):
+        for frame in (self.server_page, self.streaming_page, self.settings_page):
             frame.pack_forget()
         page.pack(fill="both", expand=True)
-        for button in (self.server_nav_button, self.settings_nav_button):
+        for button in (self.server_nav_button, self.streaming_nav_button, self.settings_nav_button):
             button.configure(style="Nav.TButton")
         nav.configure(style="NavActive.TButton")
 
@@ -1274,6 +1590,9 @@ class DashboardLauncher:
 
     def show_server_page(self) -> None:
         self._show_page(self.server_page, self.server_nav_button)
+
+    def show_streaming_page(self) -> None:
+        self._show_page(self.streaming_page, self.streaming_nav_button)
 
     def show_settings_page(self) -> None:
         self._show_page(self.settings_page, self.settings_nav_button)
@@ -1409,7 +1728,9 @@ class DashboardLauncher:
             self.root.after(0, lambda message=str(exc): self._server_failed(message))
 
     def _server_started(self) -> None:
-        self.status_var.set(f"Servidor activo en el puerto {self.server.server_address[1]}")
+        port = self.server.server_address[1]
+        self.status_var.set(f"Servidor activo en el puerto {port}")
+        self._set_stream_urls(port)
         self.side_state_var.set("● Activo")
         self.status_label.configure(foreground=self.GOOD)
         self.open_button.configure(state="normal")
@@ -1418,6 +1739,7 @@ class DashboardLauncher:
 
     def _server_failed(self, message: str) -> None:
         self.status_var.set(f"No se pudo iniciar el servidor: {message}")
+        self._set_stream_urls(None)
         self.side_state_var.set("No disponible")
         self.status_label.configure(foreground="#ff8585")
         self._show_start_button()
@@ -1432,6 +1754,7 @@ class DashboardLauncher:
             return
         self.server = None
         self.url = ""
+        self._set_stream_urls(None)
         self.open_button.configure(state="disabled")
         self._show_start_button()
         self.status_var.set("Servidor detenido")
