@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
-const DEV_BEAT_ICON = "https://crashteamranking.com/wp-content/uploads/avatars/1337/5ebd47f41417b-bpfull.png";
-const VELO_BEAT_ICON = "https://static.wikia.nocookie.net/crashban/images/2/2a/Crash_Team_Racing_Nitro-Fueled_Emperor_Velo_XXVII_icon.png/revision/latest?cb=20200221032256";
+const DEV_BEAT_ICON = "/catalog/0f07c126a90e73a7.png";
+const VELO_BEAT_ICON = "/catalog/e48c99fa6e3ef42a.webp";
 let appState = null;
 let lastTopSignature = "";
 let assetVersion = "";
@@ -28,7 +28,6 @@ function imageBox(container, url, alt, options = {}) {
   }
   const image = document.createElement("img");
   image.className = imageClass;
-  image.src = url;
   image.alt = alt || "";
   image.loading = "lazy";
   image.onerror = () => {
@@ -37,6 +36,7 @@ function imageBox(container, url, alt, options = {}) {
     placeholder.textContent = "null";
     image.replaceWith(placeholder);
   };
+  image.src = url;
   container.append(image);
 }
 
@@ -270,9 +270,9 @@ function renderLastTrial(last) {
     wrap.className = "beat-icons";
     for (const [src, alt] of icons) {
       const image = document.createElement("img");
-      image.src = src;
       image.alt = alt;
       image.title = alt;
+      image.src = src;
       wrap.append(image);
     }
     badges.append(wrap);
@@ -335,25 +335,10 @@ function fillCards(box, records, options = {}) {
       : (record.kind === "velo" ? "VEL" : "DEV");
 
     const imageWrap = document.createElement("div");
-    if (record.skin_url) {
-      const image = document.createElement("img");
-      image.className = "thumb";
-      image.src = record.skin_url;
-      image.alt = record.character || "null";
-      image.loading = "lazy";
-      image.onerror = () => {
-        const placeholder = document.createElement("div");
-        placeholder.className = "null-image";
-        placeholder.textContent = "null";
-        image.replaceWith(placeholder);
-      };
-      imageWrap.append(image);
-    } else {
-      const placeholder = document.createElement("div");
-      placeholder.className = "null-image";
-      placeholder.textContent = "null";
-      imageWrap.append(placeholder);
-    }
+    imageBox(imageWrap, record.skin_url, record.character || "null", {
+      imageClass: "thumb",
+      fallbackClass: "null-image",
+    });
 
     const details = document.createElement("div");
     details.className = "details";
@@ -399,9 +384,9 @@ function fillCards(box, records, options = {}) {
         icons.className = "beat-icons";
         for (const [src, alt] of badges) {
           const image = document.createElement("img");
-          image.src = src;
           image.alt = alt;
           image.title = alt;
+          image.src = src;
           icons.append(image);
         }
         corner.append(icons);
@@ -569,8 +554,8 @@ function paintProgressHero(character) {
   if (character.url_mask) {
     const mask = document.createElement("img");
     mask.className = "mask-icon";
-    mask.src = character.url_mask;
     mask.alt = character.mask || "";
+    mask.src = character.url_mask;
     maskLine.append(mask);
   }
   if (character.mask) {

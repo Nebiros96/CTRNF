@@ -45,7 +45,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.7.1"
+APP_VERSION = "CTR - v0.8"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -344,7 +344,7 @@ def read_csv(path: Path) -> list[dict[str, str]]:
         header = source.readline()
         delimiter = ";" if header.count(";") > header.count(",") else ","
         source.seek(0)
-        return list(csv.DictReader(source, delimiter=delimiter))
+        return [core.localize_image_fields(row) for row in csv.DictReader(source, delimiter=delimiter)]
 
 
 def trophies_payload(running: bool) -> dict:
@@ -1043,6 +1043,25 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, json.dumps({"version": version}).encode("utf-8"), "application/json; charset=utf-8")
             except OSError as exc:
                 self._send(500, json.dumps({"error": str(exc)}).encode("utf-8"), "application/json; charset=utf-8")
+            return
+        if path.startswith("/catalog/"):
+            name = path.removeprefix("/catalog/")
+            image = core.catalog_image_file(name)
+            if image is None:
+                self._send(404, b"Not found", "text/plain; charset=utf-8")
+                return
+            content_type = {
+                ".webp": "image/webp",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".avif": "image/avif",
+            }[image.suffix.lower()]
+            try:
+                self._send(200, image.read_bytes(), content_type)
+            except OSError:
+                self._send(404, b"Not found", "text/plain; charset=utf-8")
             return
 
         if path.startswith("/achievements/"):

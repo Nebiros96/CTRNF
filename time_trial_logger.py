@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
@@ -41,6 +42,9 @@ TRACKS_CSV_PATH = PROJECT_ROOT / "data" / "game_tracks.csv"
 ACHIEVEMENTS_CSV_PATH = PROJECT_ROOT / "data" / "achievements.csv"
 ACHIEVEMENT_ICON_DIR = PROJECT_ROOT / "utils" / "achievements"
 _ACHIEVEMENT_ICON_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".jfif")
+CATALOG_IMAGE_DIR = PROJECT_ROOT / "web" / "catalog"
+_CATALOG_IMAGE_EXTENSIONS = (".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif")
+_CATALOG_IMAGE_FIELDS = ("url", "url_mask", "url_character", "dev_url")
 MASK_CLUBS = ("Aku Aku", "Uka Uka", "Velo", "Sparx")
 TIER_LABEL = {"bronze": "Bronce", "silver": "Plata", "gold": "Oro", "platinum": "Platino"}
 # Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000.
@@ -411,7 +415,7 @@ def _read_table(path: Path) -> list[dict[str, str]]:
         header = source.readline()
         delimiter = ";" if header.count(";") > header.count(",") else ","
         source.seek(0)
-        return list(csv.DictReader(source, delimiter=delimiter))
+        return [localize_image_fields(row) for row in csv.DictReader(source, delimiter=delimiter)]
 
 
 def load_rally_catalog(
@@ -650,6 +654,45 @@ def _classify_achievement(name: str, notes: str, goal_raw: str, game_mode: str =
     if "character" in name_cf:
         return {"kind": "all_characters", "game": notes.strip()}
     raise ValueError(f"notes de achievement no reconocidas: {notes or '(vacío)'}")
+
+
+def catalog_image_stem(url: str) -> str:
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
+
+
+def catalog_image_url(url: str) -> str:
+    """Usa la copia en web/catalog cuando existe. Si no, conserva la URL original."""
+
+    raw = (url or "").strip()
+    if not raw.startswith(("http://", "https://")):
+        return raw
+    stem = catalog_image_stem(raw)
+    for extension in _CATALOG_IMAGE_EXTENSIONS:
+        if (CATALOG_IMAGE_DIR / f"{stem}{extension}").is_file():
+            return f"/catalog/{stem}{extension}"
+    return raw
+
+
+def localize_image_fields(row: dict[str, str]) -> dict[str, str]:
+    for field in _CATALOG_IMAGE_FIELDS:
+        value = (row.get(field) or "").strip()
+        if value:
+            row[field] = catalog_image_url(value)
+    return row
+
+
+def catalog_image_file(name: str) -> Path | None:
+    if not name or name != Path(name).name:
+        return None
+    suffix = Path(name).suffix.lower()
+    stem = Path(name).stem
+    if suffix not in _CATALOG_IMAGE_EXTENSIONS or re.fullmatch(r"[0-9a-f]{16}", stem) is None:
+        return None
+    target = (CATALOG_IMAGE_DIR / name).resolve()
+    root = CATALOG_IMAGE_DIR.resolve()
+    if target.parent != root or not target.is_file():
+        return None
+    return target
 
 
 def achievement_icon_url(achievement_id: str, fallback: str) -> str:
