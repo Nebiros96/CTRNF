@@ -602,9 +602,18 @@ def _club_from_note(notes: str) -> str:
     raise ValueError(f"máscara de achievement no reconocida: {notes}")
 
 
+def is_mod_track(row: dict[str, str] | None) -> bool:
+    """Community tracks are Time Trial only and stay out of the 40-track trophies."""
+    return ((row or {}).get("track_game") or "").strip().casefold() == "mod"
+
+
 def _is_time_trial_mode(game_mode: str) -> bool:
     folded = (game_mode or "").casefold()
     return "time trial" in folded or "contrarreloj" in folded
+
+
+def _is_bonus_mode(game_mode: str) -> bool:
+    return (game_mode or "").strip().casefold() == "bonus"
 
 
 def _classify_time_trial(name: str, notes: str, goal_raw: str) -> dict:
@@ -622,11 +631,20 @@ def _classify_time_trial(name: str, notes: str, goal_raw: str) -> dict:
     raise ValueError(f"notes de achievement de Contrarreloj no reconocidas: {notes or '(vacío)'}")
 
 
+def _classify_bonus(notes: str, goal_raw: str) -> dict:
+    notes_cf = notes.casefold().strip()
+    if "mod" in notes_cf and "track" in notes_cf:
+        return {"kind": "mod_tracks", "goal": _parse_goal_int(goal_raw) or 1}
+    raise ValueError(f"notes de achievement bonus no reconocidas: {notes or '(vacío)'}")
+
+
 def _classify_achievement(name: str, notes: str, goal_raw: str, game_mode: str = "") -> dict:
     notes_cf = notes.casefold().strip()
     name_cf = name.casefold()
     if _is_time_trial_mode(game_mode):
         return _classify_time_trial(name, notes, goal_raw)
+    if _is_bonus_mode(game_mode):
+        return _classify_bonus(notes, goal_raw)
     if "unlock all" in notes_cf and "achievement" in notes_cf:
         return {"kind": "platinum"}
     if notes_cf.startswith("multiplier"):
@@ -730,7 +748,7 @@ def _load_achievements(path: Path) -> list[dict]:
                 "description": (row.get("description") or "").strip(),
                 "game_mode": game_mode,
                 "type": tier,
-                "tier": TIER_LABEL.get(tier.casefold(), tier or "Bronce"),
+                "tier": TIER_LABEL.get(tier.casefold(), tier) if tier else "",
                 "milli": _parse_milli(row.get("mult") or ""),
                 "url": achievement_icon_url((row.get("id") or "").strip(), (row.get("url") or "").strip()),
                 **kind,
@@ -760,6 +778,7 @@ def _blank_stats() -> dict:
         "tt_races": 0,
         "velo_tracks": set(),
         "dev_tracks": set(),
+        "mod_tracks": set(),
     }
 
 
@@ -777,10 +796,15 @@ def _clone_stats(stats: dict) -> dict:
         "tt_races": stats.get("tt_races", 0),
         "velo_tracks": set(stats.get("velo_tracks") or ()),
         "dev_tracks": set(stats.get("dev_tracks") or ()),
+        "mod_tracks": set(stats.get("mod_tracks") or ()),
     }
 
 
 def _add_rally_row(stats: dict, row: dict[str, str], catalog: dict, score_mult: int | None = None) -> None:
+    track = (row.get("track") or "").strip()
+    profile = (catalog.get("tracks") or {}).get(track, {})
+    if is_mod_track(profile):
+        return
     score = _cell_int(row, "score")
     amount = score if score_mult is None else score_mult
     if score_mult is None and (row.get("score_mult") or "").strip():
@@ -789,7 +813,6 @@ def _add_rally_row(stats: dict, row: dict[str, str], catalog: dict, score_mult: 
     stats["max_score"] = max(stats["max_score"], score)
     stats["laps"] += _cell_int(row, "laps")
     stats["races"] += 1
-    track = (row.get("track") or "").strip()
     if track and track.casefold() not in {"null", "none"}:
         stats["tracks"].add(track)
     character_id = _character_id(row.get("skin", ""), catalog)
@@ -835,6 +858,8 @@ def _set_count(wanted: list[str], seen: set[str]) -> tuple[int, int]:
 def _tracks_with_time(catalog: dict, field: str) -> list[str]:
     found = []
     for track, row in (catalog.get("tracks") or {}).items():
+        if is_mod_track(row):
+            continue
         if _csv_centis(row.get(field) or "") is not None:
             found.append(track)
     return found
@@ -852,6 +877,9 @@ def _add_time_trial_row(stats: dict, row: dict[str, str], catalog: dict) -> None
         return
     player = _centis_from_seconds(seconds)
     profile = (catalog.get("tracks") or {}).get(track, {})
+    if is_mod_track(profile):
+        stats.setdefault("mod_tracks", set()).add(track)
+        return
     velo = _csv_centis(profile.get("velo_time") or "")
     dev = _csv_centis(profile.get("dev_time") or "")
     if velo is not None and player < velo:
@@ -904,6 +932,11 @@ def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, in
         beaten = len(stats.get("dev_tracks") or ())
         target = ach["goal"] or len(_tracks_with_time(catalog, "dev_time"))
         return beaten, target
+    if kind == "mod_tracks":
+        done = len(stats.get("mod_tracks") or ())
+        mods = [row for row in (catalog.get("tracks") or {}).values() if is_mod_track(row)]
+        target = ach["goal"] or len(mods)
+        return done, target
     return 0, 0
 
 
@@ -984,6 +1017,10 @@ def _trophy_meta(ach: dict, target: int) -> str:
         if int(ach.get("goal") or target) == 1:
             return "Supera un tiempo de desarrollador"
         return f"Supera el tiempo del desarrollador en las {target} pistas"
+    if kind == "mod_tracks":
+        if target <= 1:
+            return "Corre en una pista modificada por la comunidad"
+        return f"Corre en {target} pistas modificadas por la comunidad"
     if kind == "platinum":
         return f"Desbloquea los otros {target} trofeos"
     return ach.get("notes") or ""
@@ -1256,6 +1293,8 @@ def ensure_rally_progression(csv_path: Path | None = None) -> None:
 def save_rally_record(
     track: str, skin: str, raw_score: str, raw_laps: str, csv_path: Path
 ) -> tuple[dict[str, str], list[dict]]:
+    if is_mod_track(_track_catalog_row(track)):
+        raise ValueError("Las pistas mod solo se registran en Contrarreloj.")
     score = parse_score(raw_score)
     laps = parse_laps(raw_laps)
     ensure_possible_score(track, score)

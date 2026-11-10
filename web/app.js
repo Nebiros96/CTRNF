@@ -221,6 +221,22 @@ function ghostIcon(slot, url, alt) {
   imageBox(slot, url, alt, { imageClass: "ghost-icon", fallbackClass: "ghost-fallback" });
 }
 
+function ghostRow(entry) {
+  const row = document.createElement("div");
+  row.className = "ghost-row";
+  const slot = document.createElement("div");
+  slot.className = "ghost-slot";
+  ghostIcon(slot, entry.url, entry.name);
+  const name = document.createElement("div");
+  name.className = "ghost-name";
+  name.textContent = entry.name || "null";
+  const time = document.createElement("div");
+  time.className = "ghost-time";
+  time.textContent = entry.time || "null";
+  row.append(slot, name, time);
+  return row;
+}
+
 function renderGhosts(data) {
   const key = (data.selected?.track || data.current_track?.track || "").trim();
   const catalogTrack = (data.catalog || []).find((item) => item.track === key) || {};
@@ -228,18 +244,19 @@ function renderGhosts(data) {
   const references = catalogTrack.references || [];
   const velo = references.find((item) => item.kind === "velo");
   const dev = references.find((item) => item.kind === "dev");
+  const pb = (data.top10 || []).find((row) => row.time_raw && row.time_raw !== "null");
   const devName = dev?.character || catalogTrack.dev_name || rawTrack.dev_name || "null";
-  const devUrl = (dev?.skin_url || catalogTrack.dev_url || rawTrack.dev_url || "").trim();
-  const veloTime = velo?.time_raw || clockFromSeconds(rawTrack.velo_time);
-  const devTime = dev?.time_raw || catalogTrack.dev_time || clockFromSeconds(rawTrack.dev_time);
-  const signature = JSON.stringify({ key, devName, devUrl, veloTime, devTime });
+  const entries = [
+    { name: "Velo", time: velo?.time_raw || clockFromSeconds(rawTrack.velo_time), url: VELO_BEAT_ICON },
+    { name: devName, time: dev?.time_raw || catalogTrack.dev_time || clockFromSeconds(rawTrack.dev_time), url: (dev?.skin_url || catalogTrack.dev_url || rawTrack.dev_url || "").trim() },
+    { name: "Personal Best", time: pb?.time_raw || "null", url: (pb?.skin_url || "").trim() },
+  ].sort((a, b) => clockCentis(a.time) - clockCentis(b.time));
+  const signature = JSON.stringify({ key, entries });
   if (signature === lastGhostSignature) return;
   lastGhostSignature = signature;
-  $("ghost-dev-name").textContent = devName;
-  $("ghost-velo-time").textContent = veloTime || "null";
-  $("ghost-dev-time").textContent = devTime || "null";
-  ghostIcon($("ghost-velo-icon"), VELO_BEAT_ICON, "Velo");
-  ghostIcon($("ghost-dev-icon"), devUrl, devName);
+  const list = $("ghost-list");
+  list.replaceChildren();
+  for (const entry of entries) list.append(ghostRow(entry));
 }
 
 function renderLastTrial(last) {
@@ -312,17 +329,13 @@ function fillCards(box, records, options = {}) {
 
   let playerRank = 0;
   let listRank = 0;
-  let markedBest = false;
   for (const record of records) {
     const reference = Boolean(record.reference);
     const numbered = !reference || options.numberReferences;
     if (!reference) playerRank += 1;
     if (numbered) listRank += 1;
-    const isBest = !reference && !markedBest;
-    if (isBest) markedBest = true;
-
     const card = document.createElement("article");
-    card.className = isBest ? "card top1" : "card";
+    card.className = "card";
     if (reference) card.classList.add("reference");
     if (reference && record.kind === "dev") card.classList.add("reference-dev");
 
@@ -1065,77 +1078,119 @@ function showProgressState(data) {
 
 let trophySignature = "";
 
+function formatTrophyCount(value) {
+  const number = Math.trunc(Math.abs(Number(value) || 0));
+  if (number < 1_000_000) return formatScore(number);
+  const millions = Math.round((number / 1_000_000) * 10) / 10;
+  const text = Number.isInteger(millions) ? formatScore(millions) : millions.toFixed(1);
+  return `${text} M`;
+}
+
 function formatTrophyAmount(trophy) {
-  const current = Number(trophy.current) || 0;
   const target = Number(trophy.target) || 0;
+  let current = Number(trophy.current) || 0;
+  if (target > 0 && current > target) current = target;
   if (trophy.unit === "milli") {
     return `${(current / 1000).toFixed(3)} / ${(target / 1000).toFixed(3)}`;
   }
-  return `${formatScore(current)} / ${formatScore(target)}`;
+  return `${formatTrophyCount(current)} / ${formatTrophyCount(target)}`;
 }
 
 function formatTrophyDate(value) {
   if (!value) return "Sin desbloquear";
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${date.getFullYear()}`;
+}
+
+const TROPHY_GROUPS = [
+  { key: "time trial", listId: "trophy-list-time-trial", countId: "trophy-count-time-trial" },
+  { key: "ring rally", listId: "trophy-list-ring-rally", countId: "trophy-count-ring-rally" },
+  { key: "bonus", listId: "trophy-list-bonus", countId: "trophy-count-bonus" },
+];
+
+function trophyGroupKey(trophy) {
+  const mode = (trophy.game_mode || "").toLowerCase();
+  if (mode.includes("time")) return "time trial";
+  if (mode.includes("bonus")) return "bonus";
+  return "ring rally";
+}
+
+function trophyArticle(trophy) {
+  const row = document.createElement("article");
+  const tier = (trophy.type || "").toLowerCase();
+  row.className = `trophy${trophy.unlocked ? " unlocked" : " locked"}${tier ? ` tier-${tier}` : ""}`;
+  const icon = document.createElement("div");
+  icon.className = "trophy-icon";
+  imageBox(icon, trophy.url, trophy.name, { imageClass: "trophy-art", fallbackClass: "trophy-fallback" });
+  const body = document.createElement("div");
+  body.className = "trophy-body";
+  const head = document.createElement("div");
+  head.className = "trophy-title-row";
+  const title = document.createElement("h3");
+  title.textContent = trophy.name;
+  head.append(title);
+  const bonus = Number(trophy.mult) > 0 ? `+${trophy.mult}` : "";
+  const tierText = [trophy.tier || trophy.type, bonus].filter(Boolean).join(" ");
+  if (tierText) {
+    const tierLabel = document.createElement("span");
+    tierLabel.className = "trophy-tier";
+    tierLabel.textContent = tierText;
+    head.append(tierLabel);
+  }
+  const meta = document.createElement("p");
+  meta.className = "trophy-meta";
+  meta.textContent = trophy.description ?? trophy.meta ?? "";
+  const progress = document.createElement("div");
+  progress.className = "trophy-progress";
+  const amount = document.createElement("div");
+  amount.className = "trophy-amount";
+  amount.textContent = formatTrophyAmount(trophy);
+  const bar = document.createElement("div");
+  bar.className = "unlock-track";
+  bar.setAttribute("role", "progressbar");
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", "100");
+  const width = Math.max(0, Math.min(100, Number(trophy.progress) * 100));
+  bar.setAttribute("aria-valuenow", String(Math.round(width)));
+  const fill = document.createElement("div");
+  fill.className = "unlock-fill";
+  fill.style.width = `${width}%`;
+  bar.append(fill);
+  progress.append(amount, bar);
+  body.append(head, meta, progress);
+  const date = document.createElement("div");
+  date.className = "trophy-date";
+  date.textContent = trophy.unlocked ? formatTrophyDate(trophy.unlocked_at) : "Sin desbloquear";
+  row.append(icon, body, date);
+  return row;
 }
 
 function paintTrophies(trophies) {
-  const list = $("trophy-list");
-  list.replaceChildren();
-  if (!trophies.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "No hay trofeos en achievements.csv.";
-    list.append(empty);
-    return;
-  }
+  const grouped = new Map(TROPHY_GROUPS.map((group) => [group.key, []]));
   for (const trophy of trophies) {
-    const row = document.createElement("article");
-    const tier = (trophy.type || "").toLowerCase();
-    row.className = `trophy${trophy.unlocked ? " unlocked" : " locked"} tier-${tier}`;
-    const icon = document.createElement("div");
-    icon.className = "trophy-icon";
-    imageBox(icon, trophy.url, trophy.name, { imageClass: "trophy-art", fallbackClass: "trophy-fallback" });
-    const body = document.createElement("div");
-    body.className = "trophy-body";
-    const head = document.createElement("div");
-    head.className = "trophy-title-row";
-    const title = document.createElement("h3");
-    title.textContent = trophy.name;
-    const tierLabel = document.createElement("span");
-    tierLabel.className = "trophy-tier";
-    const bonus = Number(trophy.mult) > 0 ? ` +${trophy.mult}` : "";
-    const mode = (trophy.game_mode || "").toLowerCase().includes("time") ? " · Time Trial" : "";
-    tierLabel.textContent = `${trophy.tier || trophy.type}${bonus}${mode}`;
-    head.append(title, tierLabel);
-    const meta = document.createElement("p");
-    meta.className = "trophy-meta";
-    meta.textContent = trophy.description ?? trophy.meta ?? "";
-    const progress = document.createElement("div");
-    progress.className = "trophy-progress";
-    const amount = document.createElement("div");
-    amount.className = "trophy-amount";
-    amount.textContent = formatTrophyAmount(trophy);
-    const bar = document.createElement("div");
-    bar.className = "unlock-track";
-    bar.setAttribute("role", "progressbar");
-    bar.setAttribute("aria-valuemin", "0");
-    bar.setAttribute("aria-valuemax", "100");
-    const width = Math.max(0, Math.min(100, Number(trophy.progress) * 100));
-    bar.setAttribute("aria-valuenow", String(Math.round(width)));
-    const fill = document.createElement("div");
-    fill.className = "unlock-fill";
-    fill.style.width = `${width}%`;
-    bar.append(fill);
-    progress.append(amount, bar);
-    body.append(head, meta, progress);
-    const date = document.createElement("div");
-    date.className = "trophy-date";
-    date.textContent = trophy.unlocked ? formatTrophyDate(trophy.unlocked_at) : "Sin desbloquear";
-    row.append(icon, body, date);
-    list.append(row);
+    const key = trophyGroupKey(trophy);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(trophy);
+  }
+  for (const group of TROPHY_GROUPS) {
+    const list = $(group.listId);
+    const rows = grouped.get(group.key) || [];
+    list.replaceChildren();
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "No hay trofeos en este grupo.";
+      list.append(empty);
+    } else {
+      for (const trophy of rows) list.append(trophyArticle(trophy));
+    }
+    const unlocked = rows.filter((row) => row.unlocked).length;
+    $(group.countId).textContent = `${unlocked} de ${rows.length}`;
   }
 }
 
@@ -1149,7 +1204,6 @@ function showTrophyState(data) {
   $("kpi-records").textContent = String(data.summary?.records ?? 0);
   $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Trofeos";
   $("kpi-devs").textContent = `${unlocked} de ${total}`;
-  $("trophy-count").textContent = `${unlocked} de ${total}`;
   const signature = JSON.stringify({ multiplier: data.multiplier, trophies });
   if (signature === trophySignature) return;
   trophySignature = signature;
@@ -1172,31 +1226,104 @@ function setView(name) {
   refresh();
 }
 
+const TRACK_GAME_ORDER = ["Crash Team Racing", "Crash Nitro Kart", "CTR Nitro Fueled", "Mod"];
+
+function closeTrackMenus(except) {
+  for (const menu of document.querySelectorAll(".track-menu.open")) {
+    if (menu === except) continue;
+    menu.classList.remove("open");
+    menu.querySelector(".track-menu-button")?.setAttribute("aria-expanded", "false");
+    const panel = menu.querySelector(".track-menu-panel");
+    if (panel) panel.hidden = true;
+  }
+}
+
+function setTrackMenuOpen(menu, open) {
+  if (!menu) return;
+  if (!open) {
+    closeTrackMenus();
+    return;
+  }
+  closeTrackMenus(menu);
+  menu.classList.add("open");
+  menu.querySelector(".track-menu-button").setAttribute("aria-expanded", "true");
+  const panel = menu.querySelector(".track-menu-panel");
+  panel.hidden = false;
+  panel.querySelector(".track-menu-option[aria-selected='true']")?.scrollIntoView({ block: "nearest" });
+}
+
+function chooseTrackMenu(menu, track, name) {
+  menu.dataset.value = track;
+  menu.querySelector(".track-menu-value").textContent = name;
+  for (const option of menu.querySelectorAll(".track-menu-option")) {
+    option.setAttribute("aria-selected", option.dataset.track === track ? "true" : "false");
+  }
+  setTrackMenuOpen(menu, false);
+  menu.dispatchEvent(new Event("change"));
+}
+
+function paintTrackMenu(menu, rows, current) {
+  const signature = JSON.stringify(rows);
+  const panel = menu.querySelector(".track-menu-panel");
+  if (menu.dataset.signature !== signature) {
+    menu.dataset.signature = signature;
+    panel.replaceChildren();
+    const groups = new Map();
+    for (const row of rows) {
+      const game = (row.game || "").trim() || "Otras";
+      if (!groups.has(game)) groups.set(game, []);
+      groups.get(game).push(row);
+    }
+    const names = [...groups.keys()].sort((a, b) => {
+      const left = TRACK_GAME_ORDER.indexOf(a);
+      const right = TRACK_GAME_ORDER.indexOf(b);
+      return (left < 0 ? 99 : left) - (right < 0 ? 99 : right);
+    });
+    for (const name of names) {
+      const group = document.createElement("div");
+      group.className = "track-menu-group";
+      const label = document.createElement("div");
+      label.className = "track-menu-label";
+      label.textContent = name;
+      group.append(label);
+      for (const row of groups.get(name)) {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "track-menu-option";
+        option.setAttribute("role", "option");
+        option.dataset.track = row.track;
+        option.textContent = row.name;
+        option.addEventListener("click", () => chooseTrackMenu(menu, row.track, row.name));
+        group.append(option);
+      }
+      panel.append(group);
+    }
+  }
+  const chosen = rows.find((row) => row.track === current)
+    || rows.find((row) => row.track === menu.dataset.value)
+    || rows[0];
+  menu.dataset.value = chosen?.track || "";
+  menu.querySelector(".track-menu-value").textContent = chosen?.name || "Elegir pista";
+  for (const option of panel.querySelectorAll(".track-menu-option")) {
+    option.setAttribute("aria-selected", option.dataset.track === menu.dataset.value ? "true" : "false");
+  }
+}
+
 function renderTrackPicker(data) {
   const picker = $("track-picker");
   const name = $("track-name");
   const running = Boolean(data.game_running);
   const rows = (data.catalog || [])
     .filter((item) => item.track)
-    .map((item) => ({ track: item.track, name: item.track_clean || item.track }));
+    .map((item) => ({ track: item.track, name: item.track_clean || item.track, game: item.track_game || "" }));
   const canPick = !running && rows.length > 0;
   name.hidden = canPick;
   picker.hidden = !canPick;
-  if (!canPick) return;
-
-  const signature = JSON.stringify(rows);
-  if (picker.dataset.signature !== signature) {
-    picker.dataset.signature = signature;
-    picker.replaceChildren();
-    for (const row of rows) {
-      const option = document.createElement("option");
-      option.value = row.track;
-      option.textContent = row.name;
-      picker.append(option);
-    }
+  if (!canPick) {
+    setTrackMenuOpen(picker, false);
+    return;
   }
-  const current = data.current_track?.track || data.selected?.track || "";
-  if (current && picker.value !== current) picker.value = current;
+  paintTrackMenu(picker, rows, data.current_track?.track || data.selected?.track || "");
 }
 
 function showState(data) {
@@ -1214,11 +1341,12 @@ function showState(data) {
   renderIndicators(data);
   $("leader-track").textContent = data.current_track?.track_clean || "null";
   const catalogRows = data.catalog || [];
+  const officialRows = catalogRows.filter((track) => String(track.track_game || "").toLowerCase() !== "mod");
   const summary = data.summary || {};
   const records = summary.records ?? catalogRows.reduce((total, track) => total + (Number(track.records) || 0), 0);
-  const tracks = summary.tracks ?? catalogRows.length;
-  const devsBeaten = catalogRows.some((track) => "dev_time_surpass" in track)
-    ? catalogRows.reduce((total, track) => total + (Number(track.dev_time_surpass) === 1 ? 1 : 0), 0)
+  const tracks = summary.tracks ?? officialRows.length;
+  const devsBeaten = officialRows.some((track) => "dev_time_surpass" in track)
+    ? officialRows.reduce((total, track) => total + (Number(track.dev_time_surpass) === 1 ? 1 : 0), 0)
     : (summary.devs_beaten ?? 0);
   $("kpi-records").textContent = String(records);
   $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Desarrolladores superados";
@@ -1246,10 +1374,10 @@ function showRallyState(data) {
   $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Pistas con puntaje";
   $("kpi-devs").textContent = `${(data.catalog || []).filter((row) => Number(row.records) > 0).length} pistas`;
   fillCards($("rally-cards"), data.top10 || [], { scoreMode: true });
-  const firstCard = $("rally-cards").querySelector(".card");
-  if (firstCard) firstCard.classList.add("top1");
   const last = data.last_trial;
-  $("rally-last").textContent = last ? `${formatScore(last.score)} pts` : "null";
+  $("rally-last").textContent = last
+    ? `${last.track_clean || "null"} · ${last.character || "null"} · ${formatScore(last.score)} pts`
+    : "null";
   $("rally-last-notes").textContent = "";
   const delta = $("rally-last-delta");
   const badges = $("rally-last-badges");
@@ -1286,19 +1414,17 @@ function updateRallyAsset(kind, raw) {
 function renderRallyTrackPicker(data) {
   const picker = $("rally-track-picker");
   const name = $("rally-track-name");
-  const rows = (data.catalog || []).filter((item) => item.track).map((item) => ({ track: item.track, name: item.track_clean || item.track }));
+  const rows = (data.catalog || [])
+    .filter((item) => item.track)
+    .map((item) => ({ track: item.track, name: item.track_clean || item.track, game: item.track_game || "" }));
   const canPick = !data.game_running && rows.length > 0;
   name.hidden = canPick;
   picker.hidden = !canPick;
-  if (!canPick) return;
-  const signature = JSON.stringify(rows);
-  if (picker.dataset.signature !== signature) {
-    picker.dataset.signature = signature;
-    picker.replaceChildren();
-    for (const row of rows) { const option = document.createElement("option"); option.value = row.track; option.textContent = row.name; picker.append(option); }
+  if (!canPick) {
+    setTrackMenuOpen(picker, false);
+    return;
   }
-  const current = data.current_track?.track || data.selected?.track || "";
-  if (current && picker.value !== current) picker.value = current;
+  paintTrackMenu(picker, rows, data.current_track?.track || data.selected?.track || "");
 }
 
 async function refresh() {
@@ -1343,10 +1469,25 @@ for (const button of document.querySelectorAll(".nav-btn")) {
 }
 
 $("track-picker").addEventListener("change", () => {
-  browsedTrackByMode.time_trial = $("track-picker").value;
+  browsedTrackByMode.time_trial = $("track-picker").dataset.value;
   refresh();
 });
-$("rally-track-picker").addEventListener("change", () => { browsedTrackByMode.rally_ring = $("rally-track-picker").value; refresh(); });
+$("rally-track-picker").addEventListener("change", () => {
+  browsedTrackByMode.rally_ring = $("rally-track-picker").dataset.value;
+  refresh();
+});
+for (const menu of document.querySelectorAll(".track-menu")) {
+  menu.querySelector(".track-menu-button").addEventListener("click", () => {
+    setTrackMenuOpen(menu, !menu.classList.contains("open"));
+  });
+}
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".track-menu")) return;
+  closeTrackMenus();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeTrackMenus();
+});
 $("progress-search").addEventListener("input", () => {
   progressQuery = $("progress-search").value;
   progressSignature = "";

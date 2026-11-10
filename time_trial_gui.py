@@ -45,7 +45,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.8"
+APP_VERSION = "CTR - v0.9"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -572,6 +572,7 @@ def track_catalog(
             {
                 "track": key,
                 "track_clean": (track_row.get("track_clean") or "").strip() or "null",
+                "track_game": (track_row.get("track_game") or "").strip(),
                 "url": (track_row.get("url") or "").strip(),
                 "dev_time": dev_clock(track_row.get("dev_time") or ""),
                 "dev_name": (track_row.get("dev_name") or "").strip() or "null",
@@ -699,6 +700,8 @@ class DashboardState:
         tracks = read_csv(TRACKS_CSV)
         skins = read_csv(SKINS_CSV)
         rally_mode = mode == "rally_ring"
+        if rally_mode:
+            tracks = [row for row in tracks if not core.is_mod_track(row)]
         results_path = RALLY_RESULTS_CSV if rally_mode else RESULTS_CSV
         if rally_mode:
             core.ensure_rally_progression(RALLY_RESULTS_CSV)
@@ -804,12 +807,14 @@ class DashboardState:
             {
                 "track": row.get("track", ""),
                 "track_clean": row.get("track_clean", ""),
+                "track_game": row.get("track_game", ""),
                 "records": sum(1 for result in results if result.get("track") == row.get("track")),
                 "url": row.get("url", ""),
             }
             for row in tracks
         ]
-        devs_beaten = sum(track.get("dev_time_surpass", 0) for track in catalog)
+        official = [track for track in catalog if not core.is_mod_track(track)]
+        devs_beaten = sum(track.get("dev_time_surpass", 0) for track in official)
         return {
             "tracks": tracks,
             "skins": skins,
@@ -826,7 +831,7 @@ class DashboardState:
             "summary": {
                 "records": len(results),
                 "devs_beaten": 0 if rally_mode else devs_beaten,
-                "tracks": len(catalog),
+                "tracks": len(catalog) if rally_mode else len(official),
             },
             "mode": "rally_ring" if rally_mode else "time_trial",
             "indicators": None if rally_mode else track_indicators(

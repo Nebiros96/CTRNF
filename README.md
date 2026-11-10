@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v0.8)
+# Crash™ Team Racing NF - Dashboard (v0.9)
 
 Tablero personal para Crash Team Racing Nitro-Fueled desde el Port Nativo de [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC). 
 

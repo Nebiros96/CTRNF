@@ -56,7 +56,12 @@
             <div>
               <div class="meta">PISTA</div>
               <div id="track-name" class="name">null</div>
-              <select id="track-picker" class="track-picker" hidden aria-label="Elegir pista"></select>
+              <div id="track-picker" class="track-menu" hidden>
+                <button type="button" class="track-menu-button" aria-haspopup="listbox" aria-expanded="false" aria-label="Elegir pista">
+                  <span class="track-menu-value">Elegir pista</span>
+                </button>
+                <div class="track-menu-panel" role="listbox" hidden></div>
+              </div>
             </div>
           </div>
 
@@ -77,18 +82,9 @@
           <div id="status" class="status" role="status">Listo</div>
         </section>
 
-        <section class="panel" aria-label="Tiempos de fantasmas">
-          <h2>Tiempos de fantasmas</h2>
-          <div class="ghost-row">
-            <div id="ghost-velo-icon" class="ghost-slot"></div>
-            <div class="ghost-name">Velo</div>
-            <div id="ghost-velo-time" class="ghost-time">null</div>
-          </div>
-          <div class="ghost-row">
-            <div id="ghost-dev-icon" class="ghost-slot"></div>
-            <div id="ghost-dev-name" class="ghost-name">null</div>
-            <div id="ghost-dev-time" class="ghost-time">null</div>
-          </div>
+        <section class="panel" aria-label="Tiempos de referencia">
+          <h2>Tiempos de referencia</h2>
+          <div id="ghost-list"></div>
         </section>
 
         <section class="panel" aria-label="Indicadores de la pista">
@@ -130,9 +126,9 @@
         <div class="register-side">
           <section class="panel">
             <h2>Registrar puntajes</h2>
-            <div class="asset"><div id="rally-track-image" class="null-image">null</div><div><div class="meta">PISTA</div><div id="rally-track-name" class="name">null</div><select id="rally-track-picker" class="track-picker" hidden aria-label="Elegir pista"></select></div></div>
+            <div class="asset"><div id="rally-track-image" class="null-image">null</div><div><div class="meta">PISTA</div><div id="rally-track-name" class="name">null</div><div id="rally-track-picker" class="track-menu" hidden><button type="button" class="track-menu-button" aria-haspopup="listbox" aria-expanded="false" aria-label="Elegir pista"><span class="track-menu-value">Elegir pista</span></button><div class="track-menu-panel" role="listbox" hidden></div></div></div></div>
             <div class="asset"><div id="rally-skin-image" class="null-image"></div><div><div class="meta">PERSONAJE</div><div id="rally-skin-name" class="name">Elige un personaje</div><div id="rally-skin-raw" class="meta"></div></div></div>
-            <div class="field"><label for="score">Puntaje · entero</label><input id="score" type="text" inputmode="numeric" placeholder="100452" autocomplete="off"></div>
+            <div class="field"><label for="score">Puntaje</label><input id="score" type="text" inputmode="numeric" placeholder="100452" autocomplete="off"></div>
             <div class="field"><label for="laps">Número de vueltas</label><input id="laps" type="text" inputmode="numeric" placeholder="3" autocomplete="off"></div>
             <button id="rally-save" class="button" type="button" disabled>Guardar registro</button>
             <div id="rally-status" class="status" role="status">Listo</div>
@@ -169,16 +165,38 @@
     </section>
 
     <section id="view-trophies" hidden>
-      <section class="panel trophy-panel" aria-live="polite">
-        <div class="trophy-top">
-          <div>
-            <div class="eyebrow">Ring Rally</div>
-            <h2>Trofeos</h2>
+      <div class="trophy-groups">
+        <section class="panel trophy-panel" aria-live="polite">
+          <div class="trophy-top">
+            <div>
+              <div class="eyebrow">Contrarreloj</div>
+              <h2>Time Trial</h2>
+            </div>
+            <div id="trophy-count-time-trial" class="trophy-count">0 de 0</div>
           </div>
-          <div id="trophy-count" class="trophy-count">0 de 0</div>
-        </div>
-        <div id="trophy-list" class="trophy-list"></div>
-      </section>
+          <div id="trophy-list-time-trial" class="trophy-list"></div>
+        </section>
+        <section class="panel trophy-panel" aria-live="polite">
+          <div class="trophy-top">
+            <div>
+              <div class="eyebrow">Ring Rally</div>
+              <h2>Ring Rally</h2>
+            </div>
+            <div id="trophy-count-ring-rally" class="trophy-count">0 de 0</div>
+          </div>
+          <div id="trophy-list-ring-rally" class="trophy-list"></div>
+        </section>
+        <section class="panel trophy-panel" aria-live="polite">
+          <div class="trophy-top">
+            <div>
+              <div class="eyebrow">Comunidad</div>
+              <h2>Bonus</h2>
+            </div>
+            <div id="trophy-count-bonus" class="trophy-count">0 de 0</div>
+          </div>
+          <div id="trophy-list-bonus" class="trophy-list"></div>
+        </section>
+      </div>
     </section>
 
     <footer class="site-footer">
