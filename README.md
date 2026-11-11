@@ -1,58 +1,53 @@
-# Crash™ Team Racing NF - Dashboard (v0.9.1)
+# Crash™ Team Racing NF - Dashboard (v1.0)
 
-Tablero personal para Crash Team Racing Nitro-Fueled desde el Port Nativo de [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC). 
+A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
-## Información importante para el primer arranque
+## Before the first launch
 
-* TOTALMENTE RECOEMNDADO haber arrancado el Juego desde el Port antes de abrir el ejecutable, esto crea el archivo log que es el que lee el ejecutable.
-* Es posible que el ejecutable no pueda leer automáticamente el log, para ello desde el ejecutable puedes seleccionar el archivo manualmente navegando la ruta del PORT instalado.
-* Abres `CTRNF.exe`, el lanzador enciende la aplicación y el tablero aparece en el navegador. Los registros se quedan en el equipo, en `%LOCALAPPDATA%\CTRNF\data`, y siguen ahí cuando actualices. Si hay una versión nueva en las Releases de este repositorio, el lanzador te avisa; descargas y reemplaza el ejecutable.
+* It is strongly recommended to start the game from the port before opening the executable. That creates the log file the executable reads.
+* The executable may not find the log on its own. If that happens, choose the file from the executable by browsing to the installed port.
+* Open `CTRNF.exe`. The launcher starts the app and the dashboard opens in the browser. Your records stay on the computer, in `%LOCALAPPDATA%\CTRNF\data`, and they remain there when you update. If a newer release exists, the launcher offers to download it and replace `CTRNF.exe` for you. Your records are not touched.
 
-![Versión 0.8 del ejecutable](utils/ejecutable.JPG)
+![Version 1.0 of the executable](utils/ejecutable.JPG)
 
 ## Time Trial
 
-Eliges la pista que acabas de correr, registras el tiempo y lo guardas. El formato es minutos, segundos y centésimas, por ejemplo `1:25:03`.
+Choose the track you just ran, enter the time, and save it. The format is minutes, seconds, and hundredths, for example `1:25:03`.
 
-A la derecha queda el top 10 de esa pista: puesto, skin, tiempo, fecha y la diferencia con tu mejor marca. El primer puesto va con borde dorado. Abajo, en la misma vista, están los tiempos de los fantasmas del juego para compararlos con lo que acabas de hacer.
+The top 10 for that track sits on the right: rank, skin, time, date, and the gap to your best. First place has a gold edge. Below that, in the same view, are the game's ghost times so you can compare them with the run you just saved.
 
-![Time Trial en Retro Stadium, con el formulario de registro y el top 10 de la pista](utils/TimeTrial.JPG)
+![Time Trial at Retro Stadium, with the record form and the track top 10](utils/TimeTrial.JPG)
 
-Para la pista en curso también ves cuántas veces la registraste, cuánto mejoraste desde el primer tiempo y qué tan parecidos son entre sí tus intentos.
+For the current track you also see how many times you logged it, how much you improved since the first time, and how close your attempts are to each other.
 
-![Indicadores de la pista: registros, mejora absoluta, mejora relativa y desviación estándar](utils/TTStats.JPG)
+![Track stats: records, absolute gain, relative gain, and standard deviation](utils/TTStats.JPG)
 
 ## Ring Rally
 
-El mismo gesto, ahora con puntaje. Anotas los puntos y el número de vueltas de la carrera. El top 10 de la pista ordena de mayor a menor y señala cuándo ese intento fue tu mejor marca, o por cuántos puntos se quedó atrás.
+The same action, now with a score. Enter the points and the lap count. The track top 10 sorts from highest to lowest and marks when that attempt was your best, or how many points it fell short.
 
-![Ring Rally en Jungle Boogie, con el registro de puntaje y el top de la pista](utils/RingRally.JPG)
+![Ring Rally at Jungle Boogie, with the score form and the track top 10](utils/RingRally.JPG)
 
-Cuando una skin llega a los puntos que le faltaban, el tablero te lo dice antes de seguir.
+## Skin album
 
-![Aviso de skin desbloqueada al terminar un Ring Rally](utils/unlock.JPG)
+The album groups skins by character and by rarity: Basic, Exotic, Legendary, Beenox, and Ultra. At the top you see how many you have unlocked and the global multiplier the next race uses, with any character.
 
-## Álbum de skins
+![Dr. N. Gin's skin album, with progress by rarity and the global multiplier](utils/SkinsAlbum.JPG)
 
-El álbum junta las skins por personaje y por rareza: Basic, Exotic, Legendary, Beenox y Ultra. Arriba ves cuántas llevas desbloqueadas y el multiplicador global que usa la siguiente carrera, con cualquier personaje.
+## Trophies
 
-![Álbum de skins de Dr. N. Gin, con el progreso por rareza y el multiplicador global](utils/SkinsAlbum.JPG)
+Each trophy shows your progress, its tier, and how much it adds to the multiplier. A completed trophy shows the date.
 
-## Trofeos
+![Trophy list with progress, tier, and unlock date](utils/Trophies.JPG)
 
-Cada trofeo muestra en qué vas, de qué nivel es y cuánto suma al multiplicador. Si ya lo completaste, aparece la fecha.
+## OBS overlays
 
-![Lista de trofeos con progreso, nivel y fecha de desbloqueo](utils/Trophies.JPG)
+![Streaming overlay](utils/overlayTT.jpg)
 
-## Overlays para OBS
+## Backup
 
-![Overlay del Time Trial](utils/overlayTT.jpg)
-![Overlay de Ring Rally](utils/overlayRR.png)
+In Settings you can export a ZIP with your Time Trial times and your Ring Rally scores. On startup the program tries to find the game log. If it does not appear, you choose it once and that path stays on the computer; you can change it if you move the game. Importing a backup only fills a record that is still empty.
 
-## Respaldo
+Every track has a limit so an impossible time or an out-of-range score is not saved. Those limits come from the glitchless world records published on [crashteamranking.com](https://crashteamranking.com/), with a 5% margin. They were updated on October 31, 2026.
 
-En Configuración puedes exportar un ZIP con tus tiempos de Contrarreloj y tus puntajes de Ring Rally. Al abrir, el programa intenta encontrar el log del juego. Si no aparece, lo eliges una vez y esa ruta queda guardada en el equipo; puedes cambiarla si mueves el juego. Al importar un respaldo, solo se completa un registro que todavía está vacío.
-
-Cada pista tiene un límite para no guardar un tiempo imposible o un puntaje fuera de rango. Esos límites salen de los récords mundiales del modo glitchless publicados en [crashteamranking.com](https://crashteamranking.com/), con un margen del 5 %. Se actualizaron el 31 de octubre de 2026.
-
-Crash Team Racing Nitro-Fueled es una marca de Activision. Este tablero es un proyecto de fans y no está asociado al juego.
+Crash Team Racing Nitro-Fueled is an Activision trademark. This dashboard is a fan project and is not associated with the game.

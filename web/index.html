@@ -1,12 +1,16 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10131b">
+  <meta name="theme-color" content="#0b0712">
   <title>Crash™ Team Racing NF - Dashboard</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Russo+One&display=swap">
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
 </head>
@@ -19,29 +23,15 @@
           <h1 class="title">Crash™ Team Racing NF - Dashboard</h1>
         </div>
       </div>
-      <div class="kpis" aria-label="Resumen">
-        <div class="kpi">
-          <div class="stat-label">Registros</div>
-          <div id="kpi-records" class="kpi-value">0</div>
-        </div>
-        <div class="kpi">
-          <div class="stat-label">Desarrolladores superados</div>
-          <div id="kpi-devs" class="kpi-value">0 de 0</div>
-        </div>
-      </div>
     </header>
 
-    <nav class="nav" aria-label="Secciones">
+    <nav class="nav" aria-label="Sections">
       <button type="button" class="nav-btn active" data-view="rally" aria-current="page">Ring Rally</button>
       <button type="button" class="nav-btn" data-view="register">Time Trial</button>
-      <button type="button" class="nav-btn" data-view="progress">Álbum de Skins</button>
-      <button type="button" class="nav-btn" data-view="trophies">Trofeos</button>
+      <button type="button" class="nav-btn" data-view="progress">Skin Album</button>
+      <button type="button" class="nav-btn" data-view="trophies">Trophies</button>
       <div class="nav-status">
-        <div id="connection" class="pill">Conectando con last_run…</div>
-        <a class="patreon-link" href="https://www.patreon.com/cw/juligo96" target="_blank" rel="noopener noreferrer">
-          <i class="fa-brands fa-patreon" style="color: rgb(255, 212, 59);"></i>
-          <span>Apóyame en Patreon!</span>
-        </a>
+        <div id="connection" class="pill">Connecting to last_run…</div>
       </div>
     </nav>
 
@@ -49,16 +39,16 @@
       <div class="layout">
         <div class="register-side">
         <section class="panel">
-          <h2>Registrar tiempos</h2>
+          <h2>Log a time</h2>
 
           <div class="asset">
             <div id="track-image" class="null-image">null</div>
             <div>
-              <div class="meta">PISTA</div>
+              <div class="meta">TRACK</div>
               <div id="track-name" class="name">null</div>
               <div id="track-picker" class="track-menu" hidden>
-                <button type="button" class="track-menu-button" aria-haspopup="listbox" aria-expanded="false" aria-label="Elegir pista">
-                  <span class="track-menu-value">Elegir pista</span>
+                <button type="button" class="track-menu-button" aria-haspopup="listbox" aria-expanded="false" aria-label="Choose a track">
+                  <span class="track-menu-value">Choose a track</span>
                 </button>
                 <div class="track-menu-panel" role="listbox" hidden></div>
               </div>
@@ -68,50 +58,63 @@
           <div class="asset">
             <div id="skin-image" class="null-image"></div>
             <div>
-              <div class="meta">PERSONAJE</div>
-              <div id="skin-name" class="name">Elige un personaje</div>
+              <div class="meta">CHARACTER</div>
+              <div id="skin-name" class="name">Choose a character</div>
               <div id="skin-raw" class="meta"></div>
             </div>
           </div>
 
           <div class="field">
-            <label for="time">Tiempo · formato M:SS:CC</label>
+            <label for="time">Time · M:SS:CC</label>
             <input id="time" type="text" placeholder="1:25:03" autocomplete="off">
           </div>
-          <button id="save" class="button" type="button" disabled>Guardar registro</button>
-          <div id="status" class="status" role="status">Listo</div>
+          <button id="save" class="button" type="button" disabled>Save record</button>
+          <div id="status" class="status" role="status">Ready</div>
         </section>
 
-        <section class="panel" aria-label="Tiempos de referencia">
-          <h2>Tiempos de referencia</h2>
+        <section class="panel" aria-label="Reference times">
+          <h2>Reference times</h2>
           <div id="ghost-list"></div>
         </section>
 
-        <section class="panel" aria-label="Indicadores de la pista">
-          <h2>Indicadores de la pista</h2>
-          <div class="indicator-row"><div class="indicator-label"># Registros</div><div id="ind-records" class="indicator-value">null</div></div>
-          <div class="indicator-row"><div class="indicator-label">Mejora abs</div><div id="ind-absolute" class="indicator-value">null</div></div>
-          <div class="indicator-row"><div class="indicator-label">Mejora relativa</div><div id="ind-relative" class="indicator-value">null</div></div>
-          <div class="indicator-row"><div class="indicator-label">Desviación estándar</div><div id="ind-stdev" class="indicator-value">null</div></div>
+        <section class="panel kpi-panel" aria-label="Time Trial summary">
+          <div class="kpis">
+            <div class="kpi">
+              <div class="stat-label">Records</div>
+              <div id="kpi-trial-records" class="kpi-value">0</div>
+            </div>
+            <div class="kpi">
+              <div class="stat-label">Developers beaten</div>
+              <div id="kpi-trial-devs" class="kpi-value">0 of 0</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-label="Track stats">
+          <h2>Track stats</h2>
+          <div class="indicator-row"><div class="indicator-label">Records</div><div id="ind-records" class="indicator-value">null</div></div>
+          <div class="indicator-row"><div class="indicator-label">Absolute gain</div><div id="ind-absolute" class="indicator-value">null</div></div>
+          <div class="indicator-row"><div class="indicator-label">Relative gain</div><div id="ind-relative" class="indicator-value">null</div></div>
+          <div class="indicator-row"><div class="indicator-label">Standard deviation</div><div id="ind-stdev" class="indicator-value">null</div></div>
         </section>
         </div>
 
         <section class="panel">
           <div class="tophead">
             <div>
-              <div class="eyebrow">Mejores tiempos por pista</div>
+              <div class="eyebrow">Best times on this track</div>
               <h2>Top 10</h2>
               <span id="leader-track">null</span>
             </div>
-            <button id="refresh" class="refresh" type="button">Actualizar</button>
+            <button id="refresh" class="refresh" type="button">Refresh</button>
           </div>
           <div id="cards" class="cards"></div>
         </section>
       </div>
 
-      <section class="last" aria-label="Último Time Trial guardado">
+      <section class="last" aria-label="Latest Time Trial">
         <div class="last-copy">
-          <div class="label">Último Time Trial guardado</div>
+          <div class="label">Latest Time Trial</div>
           <div class="last-line">
             <strong id="last">null</strong>
             <span id="last-delta" class="last-delta"></span>
@@ -125,37 +128,49 @@
       <div class="layout">
         <div class="register-side">
           <section class="panel">
-            <h2>Registrar puntajes</h2>
-            <div class="asset"><div id="rally-track-image" class="null-image">null</div><div><div class="meta">PISTA</div><div id="rally-track-name" class="name">null</div><div id="rally-track-picker" class="track-menu" hidden><button type="button" class="track-menu-button" aria-haspopup="listbox" aria-expanded="false" aria-label="Elegir pista"><span class="track-menu-value">Elegir pista</span></button><div class="track-menu-panel" role="listbox" hidden></div></div></div></div>
-            <div class="asset"><div id="rally-skin-image" class="null-image"></div><div><div class="meta">PERSONAJE</div><div id="rally-skin-name" class="name">Elige un personaje</div><div id="rally-skin-raw" class="meta"></div></div></div>
-            <div class="field"><label for="score">Puntaje</label><input id="score" type="text" inputmode="numeric" placeholder="100452" autocomplete="off"></div>
-            <div class="field"><label for="laps">Número de vueltas</label><input id="laps" type="text" inputmode="numeric" placeholder="3" autocomplete="off"></div>
-            <button id="rally-save" class="button" type="button" disabled>Guardar registro</button>
-            <div id="rally-status" class="status" role="status">Listo</div>
+            <h2>Log a score</h2>
+            <div class="asset"><div id="rally-track-image" class="null-image">null</div><div><div class="meta">TRACK</div><div id="rally-track-name" class="name">null</div><div id="rally-track-picker" class="track-menu" hidden><button type="button" class="track-menu-button" aria-haspopup="listbox" aria-expanded="false" aria-label="Choose a track"><span class="track-menu-value">Choose a track</span></button><div class="track-menu-panel" role="listbox" hidden></div></div></div></div>
+            <div class="asset"><div id="rally-skin-image" class="null-image"></div><div><div class="meta">CHARACTER</div><div id="rally-skin-name" class="name">Choose a character</div><div id="rally-skin-raw" class="meta"></div></div></div>
+            <div class="field"><label for="score">Score</label><input id="score" type="text" inputmode="numeric" placeholder="100452" autocomplete="off"></div>
+            <div class="field"><label for="laps">Laps</label><input id="laps" type="text" inputmode="numeric" placeholder="3" autocomplete="off"></div>
+            <button id="rally-save" class="button" type="button" disabled>Save record</button>
+            <div id="rally-status" class="status" role="status">Ready</div>
+          </section>
+          <section class="panel kpi-panel" aria-label="Ring Rally summary">
+            <div class="kpis">
+              <div class="kpi">
+                <div class="stat-label">Records</div>
+                <div id="kpi-rally-records" class="kpi-value">0</div>
+              </div>
+              <div class="kpi">
+                <div class="stat-label">Tracks with a score</div>
+                <div id="kpi-rally-tracks" class="kpi-value">0</div>
+              </div>
+            </div>
           </section>
         </div>
         <section class="panel">
-          <div class="tophead"><div><div class="eyebrow">Mejores puntajes por pista</div><h2>Top 10</h2><span id="rally-leader-track">null</span></div><button id="rally-refresh" class="refresh" type="button">Actualizar</button></div>
+          <div class="tophead"><div><div class="eyebrow">Best scores on this track</div><h2>Top 10</h2><span id="rally-leader-track">null</span></div><button id="rally-refresh" class="refresh" type="button">Refresh</button></div>
           <div id="rally-cards" class="cards"></div>
         </section>
       </div>
-      <section class="last" aria-label="Último Ring Rally guardado"><div class="last-copy"><div class="label">Último Ring Rally guardado</div><div class="last-line"><strong id="rally-last">null</strong><span id="rally-last-delta" class="last-delta"></span></div><div id="rally-last-notes" class="last-notes"></div></div><div id="rally-last-badges" class="last-badges"></div></section>
+      <section class="last" aria-label="Latest Ring Rally"><div class="last-copy"><div class="label">Latest Ring Rally</div><div class="last-line"><strong id="rally-last">null</strong><span id="rally-last-delta" class="last-delta"></span></div><div id="rally-last-notes" class="last-notes"></div></div><div id="rally-last-badges" class="last-badges"></div></section>
     </section>
 
     <section id="view-progress" hidden>
-      <section id="progress-total" class="progress-total" aria-label="Puntos totales"></section>
+      <section id="progress-total" class="progress-total kpi-module" aria-label="Totals"></section>
       <div class="progress-layout">
         <aside class="panel roster-panel">
-          <h2>Personajes</h2>
+          <h2>Characters</h2>
           <div class="field roster-search">
-            <label for="progress-search">Buscar</label>
-            <input id="progress-search" type="text" placeholder="Nombre del personaje" autocomplete="off">
+            <label for="progress-search">Search</label>
+            <input id="progress-search" type="text" placeholder="Character name" autocomplete="off">
           </div>
           <div id="progress-roster" class="roster"></div>
         </aside>
         <div class="progress-main">
-          <section id="skin-totals" class="skin-totals" aria-label="Skins desbloqueadas por tipo"></section>
-          <section id="progress-global" class="progress-global" aria-label="Multiplicador global"></section>
+          <section id="skin-totals" class="skin-totals" aria-label="Unlocked skins by type"></section>
+          <section id="progress-global" class="progress-global" aria-label="Global multiplier"></section>
           <section class="panel album-panel" aria-live="polite">
             <div id="progress-hero"></div>
             <div id="progress-album" class="skin-album"></div>
@@ -168,31 +183,22 @@
       <div class="trophy-groups">
         <section class="panel trophy-panel" aria-live="polite">
           <div class="trophy-top">
-            <div>
-              <div class="eyebrow">Contrarreloj</div>
-              <h2>Time Trial</h2>
-            </div>
-            <div id="trophy-count-time-trial" class="trophy-count">0 de 0</div>
-          </div>
-          <div id="trophy-list-time-trial" class="trophy-list"></div>
-        </section>
-        <section class="panel trophy-panel" aria-live="polite">
-          <div class="trophy-top">
-            <div>
-              <div class="eyebrow">Ring Rally</div>
-              <h2>Ring Rally</h2>
-            </div>
-            <div id="trophy-count-ring-rally" class="trophy-count">0 de 0</div>
+            <h2>Ring Rally</h2>
+            <div id="trophy-count-ring-rally" class="trophy-count">0 of 0</div>
           </div>
           <div id="trophy-list-ring-rally" class="trophy-list"></div>
         </section>
         <section class="panel trophy-panel" aria-live="polite">
           <div class="trophy-top">
-            <div>
-              <div class="eyebrow">Comunidad</div>
-              <h2>Bonus</h2>
-            </div>
-            <div id="trophy-count-bonus" class="trophy-count">0 de 0</div>
+            <h2>Time Trial</h2>
+            <div id="trophy-count-time-trial" class="trophy-count">0 of 0</div>
+          </div>
+          <div id="trophy-list-time-trial" class="trophy-list"></div>
+        </section>
+        <section class="panel trophy-panel" aria-live="polite">
+          <div class="trophy-top">
+            <h2>Bonus</h2>
+            <div id="trophy-count-bonus" class="trophy-count">0 of 0</div>
           </div>
           <div id="trophy-list-bonus" class="trophy-list"></div>
         </section>
@@ -200,28 +206,34 @@
     </section>
 
     <footer class="site-footer">
-      2026 Developed by Julián Gómez | Credits Dock Icon:
-      <a href="https://www.deviantart.com/lexiloo826/art/Crash-Team-Racing-Nitro-Fueled-Dock-Icon-1107951028" target="_blank" rel="noopener noreferrer">LexiLoo826</a>,
-      all images from the official <a href="https://crashbandicoot.fandom.com/wiki/Bandipedia:Main_Page" target="_blank" rel="noopener noreferrer">Bandipedia</a>
+      <a class="patreon-link" href="https://www.patreon.com/cw/juligo96" target="_blank" rel="noopener noreferrer">
+        <i class="fa-brands fa-patreon" style="color: rgb(255, 212, 59);"></i>
+        <span>Support me on Patreon!</span>
+      </a>
+      <span>
+        2026 Developed by Julián Gómez | Credits Dock Icon:
+        <a href="https://www.deviantart.com/lexiloo826/art/Crash-Team-Racing-Nitro-Fueled-Dock-Icon-1107951028" target="_blank" rel="noopener noreferrer">LexiLoo826</a>,
+        all images from the official <a href="https://crashbandicoot.fandom.com/wiki/Bandipedia:Main_Page" target="_blank" rel="noopener noreferrer">Bandipedia</a>
+      </span>
     </footer>
   </main>
 
   <div id="confirm-modal" class="confirm-modal" hidden>
     <div class="confirm-backdrop" data-confirm-dismiss></div>
     <div id="confirm-card" class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div class="eyebrow">Revisar antes de guardar</div>
-      <h2 id="confirm-title">Confirmar registro</h2>
+      <div class="eyebrow">Review before saving</div>
+      <h2 id="confirm-title">Confirm record</h2>
       <div class="asset">
         <div id="confirm-track-image" class="null-image">null</div>
         <div>
-          <div class="meta">PISTA</div>
+          <div class="meta">TRACK</div>
           <div id="confirm-track-name" class="name">null</div>
         </div>
       </div>
       <div class="asset">
         <div id="confirm-skin-image" class="null-image">null</div>
         <div>
-          <div class="meta">SKIN USADA</div>
+          <div class="meta">SKIN</div>
           <div id="confirm-skin-name" class="name">null</div>
           <div id="confirm-skin-raw" class="confirm-raw">null</div>
         </div>
@@ -229,8 +241,8 @@
       <div id="confirm-metrics" class="confirm-metrics"></div>
       <div id="confirm-status" class="status" role="status"></div>
       <div class="confirm-actions">
-        <button id="confirm-correct" class="confirm-secondary" type="button">Corregir</button>
-        <button id="confirm-ok" class="button" type="button">Confirmar</button>
+        <button id="confirm-correct" class="confirm-secondary" type="button">Edit</button>
+        <button id="confirm-ok" class="button" type="button">Confirm</button>
       </div>
     </div>
   </div>
@@ -239,10 +251,10 @@
     <div class="confirm-backdrop"></div>
     <div id="unlock-card" class="confirm-card unlock-card" role="dialog" aria-modal="true" aria-labelledby="unlock-title">
       <div class="eyebrow">Ring Rally</div>
-      <h2 id="unlock-title">Felicidades</h2>
+      <h2 id="unlock-title">Congratulations</h2>
       <p id="unlock-lead" class="unlock-lead"></p>
       <div id="unlock-list" class="unlock-list"></div>
-      <button id="unlock-ok" class="button" type="button">Continuar</button>
+      <button id="unlock-ok" class="button" type="button">Continue</button>
     </div>
   </div>
 </body>

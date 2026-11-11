@@ -1,0 +1,240 @@
+/* Shared Nitro HUD style for the OBS cards. Every card is 420 × 100 on a transparent page. */
+:root {
+  --line: #2e2347;
+  --text: #f7f3ff;
+  --muted: #a99cc6;
+  --accent: #ff8a00;
+  --nitro: #ffd400;
+  --blue: #2fd6ff;
+  --good: #49f2a1;
+  --bad: #ff4f6d;
+  --display: "Russo One", "Segoe UI", sans-serif;
+  --ui: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --cut: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  --slant: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  color: var(--text);
+  font: 13px/1.2 var(--ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 420px;
+  height: 100px;
+  padding: 7px 22px 7px 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    repeating-linear-gradient(115deg, transparent 0 30px, #ffffff05 30px 32px),
+    linear-gradient(160deg, #1f1533f5 0%, #120c1df5 65%);
+  clip-path: var(--cut);
+}
+
+.card[hidden] { display: none; }
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10px;
+  width: 46px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--nitro), var(--accent));
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 100%;
+  background: repeating-conic-gradient(#f7f3ff 0 25%, #0b0712 0 50%) 0 0 / 5px 5px;
+  opacity: .55;
+}
+
+/* Header: mode chip, track and gap */
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 16px;
+}
+
+.mode {
+  flex: none;
+  padding: 2px 9px;
+  clip-path: var(--slant);
+  background: linear-gradient(100deg, var(--nitro), var(--accent));
+  color: #1a0d00;
+  font: 400 italic 9px/1.3 var(--display);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.track {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 400 italic 13px/1.2 var(--display);
+  letter-spacing: .03em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.delta {
+  flex: none;
+  font: 400 12px/1.2 var(--display);
+  font-variant-numeric: tabular-nums;
+}
+
+.delta:empty { display: none; }
+.delta.ahead { color: var(--good); }
+.delta.behind { color: var(--bad); }
+.delta.even { color: var(--muted); }
+
+/* Body: portrait, identity and times */
+.body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 62px minmax(0, 1fr) auto;
+  column-gap: 10px;
+  align-items: center;
+  min-height: 0;
+}
+
+.portrait {
+  width: 62px;
+  height: 62px;
+  overflow: hidden;
+  background: #1f1630;
+  clip-path: var(--cut);
+}
+
+.portrait img {
+  display: block;
+  width: 62px;
+  height: 62px;
+  object-fit: cover;
+}
+
+.portrait img.is-off { display: none; }
+
+.identity {
+  min-width: 0;
+  padding-left: 8px;
+  border-left: 3px solid var(--nitro);
+}
+
+.who {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.when {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+
+.when:empty { display: none; }
+
+.times {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.tag {
+  width: 36px;
+  padding: 2px 0;
+  clip-path: var(--slant);
+  background: linear-gradient(100deg, var(--nitro), var(--accent));
+  color: #1a0d00;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-align: center;
+}
+
+.tag.dev {
+  background: #2fd6ff2e;
+  color: var(--blue);
+}
+
+.clock {
+  min-width: 84px;
+  color: #fff;
+  font: 400 italic 20px/1.1 var(--display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+  text-align: right;
+}
+
+.clock.dev {
+  color: #cfefff;
+  font-size: 15px;
+}
+
+.clock.ahead { color: var(--good); }
+
+.count {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.count:empty { display: none; }
+
+.medal {
+  display: block;
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 0 6px #ffd40066);
+}
+
+.medal.is-off { visibility: hidden; }
+
+.dev-slot {
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+  background: #1f1630;
+}
+
+.dev-slot img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  object-fit: cover;
+}
+
+.dev-slot img.is-off { display: none; }

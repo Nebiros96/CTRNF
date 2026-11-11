@@ -1,29 +1,72 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CTRNF · Overlays</title>
+  <meta name="theme-color" content="#0b0712">
+  <title>CTRNF · OBS overlays</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Russo+One&display=swap">
   <style>
-    :root { color-scheme: dark; }
-    body { margin: 0; background: #10131b; color: #f2f5fa; font: 15px/1.45 "Segoe UI", system-ui, sans-serif; }
-    main { max-width: 720px; margin: 0 auto; padding: 36px 20px 48px; }
-    .eyebrow { color: #f3a712; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-    h1 { margin: 8px 0 10px; font-size: 32px; }
-    p, li { color: #a8b2c2; }
-    a { color: #8ec8ff; }
+    :root { color-scheme: dark; --line: #2e2347; --muted: #a99cc6; --nitro: #ffd400; --accent: #ff8a00; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        repeating-linear-gradient(115deg, transparent 0 46px, #ffffff05 46px 48px),
+        radial-gradient(ellipse 60% 45% at 85% -5%, #ff8a0033 0, transparent 70%),
+        radial-gradient(ellipse 55% 50% at 0% 0%, #7b2cff40 0, transparent 70%),
+        #0b0712;
+      background-attachment: fixed;
+      color: #f7f3ff;
+      font: 15px/1.45 "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 22px 20px 48px; }
+    main::before {
+      content: ""; display: block; height: 10px; margin: 0 0 26px;
+      background: repeating-conic-gradient(#f7f3ff 0 25%, #0b0712 0 50%) 0 0 / 10px 10px;
+      opacity: .85;
+      clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 10px 100%);
+    }
+    .eyebrow { color: var(--nitro); font-size: 12px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; }
+    h1 {
+      display: inline-block; margin: 6px 0 10px; padding-right: .18em;
+      font: 400 italic 32px/1.15 "Russo One", "Segoe UI", sans-serif; text-transform: uppercase;
+      background: linear-gradient(180deg, #fff 30%, #ffd9a8); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    p { margin: 0 0 26px; color: var(--muted); }
+    .overlays { display: grid; gap: 18px; }
+    .overlay {
+      display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 18px; align-items: center;
+      padding: 14px; border: 1px solid var(--line); border-left: 4px solid var(--nitro);
+      background: linear-gradient(90deg, #1f1533, #120c1e 70%);
+    }
+    iframe { display: block; width: 420px; height: 100px; border: 0; background: transparent; }
+    h2 { margin: 0 0 4px; font: 400 italic 17px/1.2 "Russo One", "Segoe UI", sans-serif; text-transform: uppercase; }
+    a { color: var(--nitro); font-weight: 600; word-break: break-all; }
+    @media (max-width: 760px) { .overlay { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <main>
     <div class="eyebrow">Streaming</div>
-    <h1>Overlays para OBS</h1>
-    <p>Cada tarjeta mide 420 × 100 y tiene fondo transparente. Las direcciones para copiar están en la página Streaming del ejecutable.</p>
-    <ul>
-      <li><a href="pb.html">PB de Contrarreloj</a></li>
-      <li><a href="last.html">Último registro</a></li>
-      <li><a href="rally.html">PB de Ring Rally</a></li>
-    </ul>
+    <h1>OBS overlays</h1>
+    <p>Every card is 420 × 100 with a transparent background. Copy the URLs from the Streaming page of the launcher, or open them below.</p>
+    <div class="overlays">
+      <section class="overlay">
+        <iframe src="pb.html" title="Time Trial PB"></iframe>
+        <div><h2>Time Trial PB</h2><a href="pb.html">/streaming/pb.html</a></div>
+      </section>
+      <section class="overlay">
+        <iframe src="last.html" title="Latest Time Trial"></iframe>
+        <div><h2>Latest Time Trial</h2><a href="last.html">/streaming/last.html</a></div>
+      </section>
+      <section class="overlay">
+        <iframe src="rally.html" title="Ring Rally PB"></iframe>
+        <div><h2>Ring Rally PB</h2><a href="rally.html">/streaming/rally.html</a></div>
+      </section>
+    </div>
   </main>
 </body>
 </html>

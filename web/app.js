@@ -52,11 +52,11 @@ function skinPrettyName(raw) {
 function paintConnection(data) {
   const connection = $("connection");
   if (!data.log_found) {
-    connection.textContent = "No se encontró el archivo .log · configura la ruta ⚙";
+    connection.textContent = "last_run log not found · set the path in ⚙";
     connection.className = "pill offline";
     return;
   }
-  connection.textContent = data.game_running ? "Online" : "Juego cerrado";
+  connection.textContent = data.game_running ? "Online" : "Game closed";
   connection.className = data.game_running ? "pill live" : "pill offline";
 }
 
@@ -72,7 +72,7 @@ function paintCharacterBox(nameId, detailId, imageId, raw) {
   const row = knownSkin(raw);
   const image = $(imageId);
   if (!row) {
-    $(nameId).textContent = "Elige un personaje";
+    $(nameId).textContent = "Choose a character";
     $(detailId).textContent = "";
     if (image.dataset.url !== "") {
       image.dataset.url = "";
@@ -280,8 +280,8 @@ function renderLastTrial(last) {
   title.textContent = `${last.track_clean || "null"} · ${last.character || "null"} · ${last.time_raw || "null"}`;
 
   const icons = [];
-  if (last.beat_dev) icons.push([DEV_BEAT_ICON, "Supera al desarrollador"]);
-  if (last.beat_velo) icons.push([VELO_BEAT_ICON, "Supera a Velo"]);
+  if (last.beat_dev) icons.push([DEV_BEAT_ICON, "Beats the developer"]);
+  if (last.beat_velo) icons.push([VELO_BEAT_ICON, "Beats Velo"]);
   if (icons.length) {
     const wrap = document.createElement("div");
     wrap.className = "beat-icons";
@@ -307,7 +307,7 @@ function renderLastTrial(last) {
   if (raw && Number.isFinite(value) && !firstMark) {
     delta.textContent = formatPbGap(raw);
     delta.classList.add(value < 0 ? "better" : value > 0 ? "worse" : "even");
-    delta.title = "Diferencia respecto al PB anterior";
+    delta.title = "Gap to the previous PB";
   }
 }
 
@@ -316,7 +316,7 @@ function fillCards(box, records, options = {}) {
   if (!records.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = options.scoreMode ? "Aún no hay puntajes guardados para esta pista." : "Aún no hay tiempos guardados para esta pista.";
+    empty.textContent = options.scoreMode ? "No scores saved for this track yet." : "No times saved for this track yet.";
     box.append(empty);
     return;
   }
@@ -378,14 +378,14 @@ function fillCards(box, records, options = {}) {
     const date = document.createElement("div");
     date.className = "date";
     date.textContent = reference
-      ? (record.kind === "velo" ? "Velo" : "Desarrollador")
+      ? (record.kind === "velo" ? "Velo" : "Developer")
       : (record.date || "null");
     details.append(character, pbLine, date);
     card.append(rank, imageWrap, details);
 
     const badges = [];
-    if (!reference && record.beat_dev) badges.push([DEV_BEAT_ICON, "Supera al desarrollador"]);
-    if (!reference && record.beat_velo) badges.push([VELO_BEAT_ICON, "Supera a Velo"]);
+    if (!reference && record.beat_dev) badges.push([DEV_BEAT_ICON, "Beats the developer"]);
+    if (!reference && record.beat_velo) badges.push([VELO_BEAT_ICON, "Beats Velo"]);
     const showPb = String(record.pb) === "1";
     if (showPb) card.classList.add("has-pb");
     if (badges.length) card.classList.add(badges.length > 1 ? "beats-two" : "beats-one");
@@ -452,7 +452,7 @@ function paintGlobalMultiplier(raw) {
   copy.className = "global-mult-copy";
   const eyebrow = document.createElement("div");
   eyebrow.className = "eyebrow";
-  eyebrow.textContent = "Multiplicador global";
+  eyebrow.textContent = "Global multiplier";
   const titleRow = document.createElement("div");
   titleRow.className = "global-mult-title";
   const help = document.createElement("div");
@@ -461,13 +461,13 @@ function paintGlobalMultiplier(raw) {
   helpButton.type = "button";
   helpButton.className = "multiplier-info";
   helpButton.textContent = "⚠";
-  helpButton.title = "Cómo se calcula el multiplicador";
-  helpButton.setAttribute("aria-label", "Ver cómo se calcula el multiplicador");
+  helpButton.title = "How the multiplier is calculated";
+  helpButton.setAttribute("aria-label", "See how the multiplier is calculated");
   helpButton.setAttribute("aria-expanded", "false");
   const details = document.createElement("div");
   details.className = "multiplier-help-popover";
   details.hidden = true;
-  details.textContent = "Cada skin desbloqueada suma: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005 · Ultra 0.01. Cada trofeo desbloqueado suma su bonus.";
+  details.textContent = "Each unlocked skin adds: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005 · Ultra 0.01. Each unlocked trophy adds its bonus.";
   helpButton.addEventListener("click", () => {
     details.hidden = !details.hidden;
     helpButton.setAttribute("aria-expanded", String(!details.hidden));
@@ -479,7 +479,7 @@ function paintGlobalMultiplier(raw) {
   value.textContent = formatFactor(raw).slice(1);
   const note = document.createElement("p");
   note.className = "hero-rule";
-  note.textContent = "La siguiente carrera usa este valor, con cualquier personaje.";
+  note.textContent = "Your next race uses this value, with any character.";
   copy.append(titleRow, note);
   box.append(value, copy);
 }
@@ -502,40 +502,32 @@ function paintSkinTotals(characters) {
       if (skin.unlocked) totals[key].unlocked += 1;
     }
   }
-  const unlockedTotal = Object.values(totals).reduce((sum, item) => sum + item.unlocked, 0);
-  const allSkins = Object.values(totals).reduce((sum, item) => sum + item.total, 0);
   box.replaceChildren();
-  const heading = document.createElement("div");
-  heading.className = "skin-totals-heading";
-  const title = document.createElement("div");
-  title.className = "eyebrow";
-  title.textContent = "Skins desbloqueadas";
-  const overall = document.createElement("div");
-  overall.className = "skin-totals-overall";
-  overall.textContent = `${unlockedTotal} de ${allSkins}`;
-  heading.append(title, overall);
   const grid = document.createElement("div");
   grid.className = "skin-totals-grid";
   for (const { key, label } of types) {
     const item = totals[key];
+    const ratio = item.total ? item.unlocked / item.total : 0;
     const card = document.createElement("div");
     card.className = `skin-total type-${key}`;
+    const pie = document.createElement("div");
+    pie.className = "skin-pie";
+    pie.style.setProperty("--p", ratio.toFixed(4));
+    pie.setAttribute("role", "img");
+    pie.setAttribute("aria-label", `${label}: ${item.unlocked} of ${item.total}`);
+    const copy = document.createElement("div");
+    copy.className = "skin-total-copy";
     const name = document.createElement("div");
     name.className = "skin-total-name";
     name.textContent = label;
     const count = document.createElement("div");
     count.className = "skin-total-count";
     count.textContent = `${item.unlocked} / ${item.total}`;
-    const track = document.createElement("div");
-    track.className = "skin-total-track";
-    const fill = document.createElement("div");
-    fill.className = `skin-total-fill type-${key}`;
-    fill.style.width = `${item.total ? (item.unlocked / item.total) * 100 : 0}%`;
-    track.append(fill);
-    card.append(name, count, track);
+    copy.append(name, count);
+    card.append(pie, copy);
     grid.append(card);
   }
-  box.append(heading, grid);
+  box.append(grid);
 }
 
 function paintProgressHero(character) {
@@ -544,7 +536,7 @@ function paintProgressHero(character) {
   if (!character) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Elige un personaje.";
+    empty.textContent = "Choose a character.";
     hero.append(empty);
     return;
   }
@@ -580,11 +572,11 @@ function paintProgressHero(character) {
   const runs = document.createElement("div");
   runs.className = "hero-runs";
   const runCount = Number(character.runs) || 0;
-  runs.textContent = runCount ? `${runCount} ${runCount === 1 ? "registro" : "registros"}` : "Sin registros";
+  runs.textContent = runCount ? `${runCount} ${runCount === 1 ? "record" : "records"}` : "No records";
 
   const stats = document.createElement("div");
   stats.className = "progress-stats";
-  stats.append(progressStat("Puntos de progresión", formatScore(character.points), "is-points"));
+  stats.append(progressStat("Progression points", formatScore(character.points), "is-points"));
 
   const bar = document.createElement("div");
   bar.className = "unlock-track";
@@ -596,18 +588,18 @@ function paintProgressHero(character) {
   if (!character.total_skins) {
     fill.style.width = "0%";
     bar.setAttribute("aria-valuenow", "0");
-    caption.textContent = "Este personaje no tiene skins en el catálogo.";
+    caption.textContent = "This character has no skins in the catalog.";
   } else if (!character.next) {
     fill.style.width = "100%";
     bar.setAttribute("aria-valuenow", "100");
-    caption.textContent = "Álbum completo.";
+    caption.textContent = "Album complete.";
   } else {
     const next = character.next;
     const goal = Number(next.threshold) || 0;
     const width = goal ? Math.max(0, Math.min(100, (Number(character.points) / goal) * 100)) : 0;
     fill.style.width = `${width}%`;
     bar.setAttribute("aria-valuenow", String(Math.round(width)));
-    caption.textContent = `${formatScore(character.points)} / ${formatScore(goal)} · faltan ${formatScore(next.remaining)} para ${next.skin_name} (${next.skin_type})`;
+    caption.textContent = `${formatScore(character.points)} / ${formatScore(goal)} · ${formatScore(next.remaining)} to go for ${next.skin_name} (${next.skin_type})`;
   }
   bar.setAttribute("aria-valuemin", "0");
   bar.setAttribute("aria-valuemax", "100");
@@ -618,10 +610,10 @@ function paintProgressHero(character) {
   album.className = "hero-album";
   const albumLabel = document.createElement("div");
   albumLabel.className = "stat-label";
-  albumLabel.textContent = "Álbum";
+  albumLabel.textContent = "Album";
   const albumValue = document.createElement("div");
   albumValue.className = "hero-album-value";
-  albumValue.textContent = `${character.unlocked} de ${character.total_skins}`;
+  albumValue.textContent = `${character.unlocked} of ${character.total_skins}`;
   album.append(albumLabel, albumValue);
   hero.append(portrait, copy, album);
 }
@@ -633,7 +625,7 @@ function paintAlbum(character) {
   if (!character.skins || !character.skins.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Este personaje no tiene skins en el catálogo.";
+    empty.textContent = "This character has no skins in the catalog.";
     album.append(empty);
     return;
   }
@@ -649,8 +641,8 @@ function paintAlbum(character) {
     const art = frame.querySelector("img");
     if (art) {
       art.title = skin.unlocked
-        ? `${skin.skin_name} desbloqueada`
-        : `${skin.skin_name} · ${formatScore(skin.threshold)} pts de progresión`;
+        ? `${skin.skin_name} unlocked`
+        : `${skin.skin_name} · ${formatScore(skin.threshold)} progression pts`;
     }
     const name = document.createElement("div");
     name.className = "skin-title";
@@ -660,7 +652,7 @@ function paintAlbum(character) {
     type.textContent = skin.skin_type || "null";
     const state = document.createElement("div");
     state.className = "skin-state";
-    state.textContent = skin.unlocked ? "Desbloqueada" : `${formatScore(skin.threshold)} pts`;
+    state.textContent = skin.unlocked ? "Unlocked" : `${formatScore(skin.threshold)} pts`;
     card.append(order, frame, name, type, state);
     if (skin.unlocked) {
       const mark = document.createElement("div");
@@ -683,20 +675,38 @@ function paintAlbum(character) {
   });
 }
 
-function paintProgressTotal(characters) {
-  const box = $("progress-total");
-  const total = characters.reduce((sum, row) => sum + (Number(row.points) || 0), 0);
-  box.replaceChildren();
-  const value = document.createElement("div");
-  value.className = "progress-total-value";
-  value.textContent = formatScore(total);
-  const eyebrow = document.createElement("div");
-  eyebrow.className = "eyebrow";
-  eyebrow.textContent = "Puntos totales";
-  box.append(value, eyebrow);
+function kpiCell(label, value, extra) {
+  const box = document.createElement("div");
+  box.className = "kpi";
+  const name = document.createElement("div");
+  name.className = "stat-label";
+  name.textContent = label;
+  const number = document.createElement("div");
+  number.className = "kpi-value";
+  number.append(document.createTextNode(value));
+  if (extra) {
+    const note = document.createElement("span");
+    note.className = "kpi-extra";
+    note.textContent = extra;
+    number.append(note);
+  }
+  box.append(name, number);
+  return box;
 }
 
-function paintProgress(characters, multiplier) {
+function paintProgressTotal(characters, records, unlocked, skins) {
+  const box = $("progress-total");
+  const total = characters.reduce((sum, row) => sum + (Number(row.points) || 0), 0);
+  const percent = skins ? Math.round((unlocked / skins) * 100) : 0;
+  box.replaceChildren();
+  box.append(
+    kpiCell("Total points", formatScore(total)),
+    kpiCell("Records", String(records ?? 0)),
+    kpiCell("Unlocked skins", `${unlocked} of ${skins}`, `· ${percent}%`),
+  );
+}
+
+function paintProgress(characters, multiplier, records, unlocked, skins) {
   const roster = $("progress-roster");
   const scroll = roster.scrollTop;
   const query = progressQuery.trim().toLocaleLowerCase("es");
@@ -704,7 +714,7 @@ function paintProgress(characters, multiplier) {
   const groups = [];
   for (const character of characters) {
     if (query && !(character.character || "").toLocaleLowerCase("es").includes(query)) continue;
-    const label = character.game_base || "Otros";
+    const label = character.game_base || "Other";
     let group = groups.find((item) => item.label === label);
     if (!group) {
       group = { label, characters: [] };
@@ -715,7 +725,7 @@ function paintProgress(characters, multiplier) {
   if (!groups.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = query ? "Ningún personaje coincide." : "No hay personajes en el catálogo.";
+    empty.textContent = query ? "No characters match." : "No characters in the catalog.";
     roster.append(empty);
   }
   for (const group of groups) {
@@ -724,7 +734,7 @@ function paintProgress(characters, multiplier) {
     let sectionUnlocked = 0;
     let sectionTotal = 0;
     for (const row of characters) {
-      if ((row.game_base || "Otros") !== group.label) continue;
+      if ((row.game_base || "Other") !== group.label) continue;
       sectionUnlocked += Number(row.unlocked) || 0;
       sectionTotal += Number(row.total_skins) || 0;
     }
@@ -786,14 +796,14 @@ function paintProgress(characters, multiplier) {
     progressScrolledId = progressCharacterId;
   }
   const selected = characters.find((row) => row.character_id === progressCharacterId) || null;
-  paintProgressTotal(characters);
+  paintProgressTotal(characters, records, unlocked, skins);
   paintSkinTotals(characters);
   paintGlobalMultiplier(multiplier);
   paintProgressHero(selected);
   paintAlbum(selected);
 }
 
-const SAVE_LOCK_MESSAGE = "Abre el juego para guardar un registro.";
+const SAVE_LOCK_MESSAGE = "Open the game to save a record.";
 
 function syncSaveLocks(running) {
   for (const statusId of ["status", "rally-status"]) {
@@ -808,7 +818,7 @@ function syncSaveLocks(running) {
       status.className = "status error";
     } else if (status.dataset.lock === "1") {
       status.dataset.lock = "";
-      status.textContent = "Listo";
+      status.textContent = "Ready";
       status.className = "status";
     }
   }
@@ -840,8 +850,8 @@ function impossibleTimeError(raw) {
   if (!Number.isFinite(seconds)) return "";
   const entered = inputCentis(raw);
   if (entered == null || entered > Math.round(seconds * 100)) return "";
-  const name = track.track_clean || "esta pista";
-  return `No es posible guardar ese tiempo. El límite de ${name} es ${clockFromSeconds(track.time_threshold)}.`;
+  const name = track.track_clean || "this track";
+  return `That time can't be saved. The limit for ${name} is ${clockFromSeconds(track.time_threshold)}.`;
 }
 
 function impossibleScoreError(raw) {
@@ -849,8 +859,8 @@ function impossibleScoreError(raw) {
   const limit = Number(String(track.score_threshold || "").trim());
   const score = Number(raw);
   if (!Number.isInteger(limit) || !Number.isFinite(score) || score < limit) return "";
-  const name = track.track_clean || "esta pista";
-  return `No es posible guardar ese puntaje. El límite de ${name} es ${formatScore(limit)}.`;
+  const name = track.track_clean || "this track";
+  return `That score can't be saved. The limit for ${name} is ${formatScore(limit)}.`;
 }
 
 function timeInputError(raw) {
@@ -858,15 +868,15 @@ function timeInputError(raw) {
   const triple = /^(\d+):(\d{2}):(\d{2})$/.exec(value);
   if (triple) {
     if (Number(triple[2]) > 59 || Number(triple[3]) > 99) {
-      return "segundos deben estar entre 00 y 59 y centésimas entre 00 y 99";
+      return "seconds must be 00–59 and hundredths 00–99";
     }
     return "";
   }
   const dotted = /^(?:(\d{1,2}):)?(\d{1,2})[.,](\d{1,2})$/.exec(value);
-  if (!dotted) return "usa M:SS:CC, M:SS.CC o SS.CC";
+  if (!dotted) return "use M:SS:CC, M:SS.CC, or SS.CC";
   const centiseconds = Number(dotted[3].padEnd(2, "0"));
   if (Number(dotted[2]) > 59 || centiseconds > 99) {
-    return "segundos deben estar entre 00 y 59 y centésimas entre 00 y 99";
+    return "seconds must be 00–59 and hundredths 00–99";
   }
   return "";
 }
@@ -897,8 +907,8 @@ function paintConfirmAsset(kind, snapshot) {
 function paintConfirmMetrics(draft) {
   const box = $("confirm-metrics");
   const rows = draft.mode === "rally_ring"
-    ? [["Puntaje", formatScore(draft.score)], ["Vueltas", formatScore(draft.laps)]]
-    : [["Tiempo", draft.time]];
+    ? [["Score", formatScore(draft.score)], ["Laps", formatScore(draft.laps)]]
+    : [["Time", draft.time]];
   box.classList.toggle("single", rows.length === 1);
   box.replaceChildren();
   for (const [label, value] of rows) {
@@ -924,7 +934,7 @@ function openConfirm(draft) {
   $("confirm-status").textContent = "";
   $("confirm-status").className = "status";
   $("confirm-ok").disabled = false;
-  $("confirm-ok").textContent = "Confirmar";
+  $("confirm-ok").textContent = "Confirm";
   $("confirm-modal").hidden = false;
   document.querySelector("main").inert = true;
   window.setTimeout(() => $("confirm-ok").focus(), 0);
@@ -952,11 +962,11 @@ function requestSave(mode) {
     const score = $("score").value.trim();
     const laps = $("laps").value.trim();
     if (!/^\d+$/.test(score)) {
-      setStatus("rally-status", "ingresa un puntaje entero sin decimales (ej. 100452)", true);
+      setStatus("rally-status", "enter a whole score, no decimals (e.g. 100452)", true);
       return;
     }
     if (!/^\d+$/.test(laps)) {
-      setStatus("rally-status", "ingresa el número de vueltas como entero", true);
+      setStatus("rally-status", "enter the lap count as a whole number", true);
       return;
     }
     const scoreLimit = impossibleScoreError(score);
@@ -995,13 +1005,13 @@ async function commitConfirm() {
   const draft = pendingRecord;
   if (!draft || confirmIsBusy()) return;
   if (!appState?.game_running) {
-    $("confirm-status").textContent = "El juego tiene que estar abierto para guardar un registro.";
+    $("confirm-status").textContent = "The game must be running to save a record.";
     $("confirm-status").className = "status error";
     syncSaveLocks(false);
     return;
   }
   $("confirm-ok").disabled = true;
-  $("confirm-ok").textContent = "Guardando…";
+  $("confirm-ok").textContent = "Saving…";
   $("confirm-status").textContent = "";
   try {
     const payload = draft.mode === "rally_ring"
@@ -1013,28 +1023,28 @@ async function commitConfirm() {
       body: JSON.stringify(payload),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "No se pudo guardar");
+    if (!response.ok) throw new Error(data.error || "Couldn't save");
     if (draft.mode === "rally_ring") {
       $("score").value = "";
       $("laps").value = "";
       const note = data.record.notes ? ` · ${data.record.notes}` : "";
       const savedMult = Number(data.record.multiplier);
       const detail = Number.isFinite(savedMult) && savedMult > 0
-        ? `${formatScore(data.record.score_mult)} pts de progresión (${formatFactor(savedMult)})`
+        ? `${formatScore(data.record.score_mult)} progression pts (${formatFactor(savedMult)})`
         : `${formatScore(data.record.score)} pts`;
-      setStatus("rally-status", `Guardado #${data.record.id} · ${detail}${note}`, false);
+      setStatus("rally-status", `Saved #${data.record.id} · ${detail}${note}`, false);
       const played = find(appState?.skins, "skin", (draft.skin?.raw || "").trim());
       pendingAlbumCharacterId = String(played.character_id || "").trim() || "*";
     } else {
       $("time").value = "";
-      setStatus("status", `Guardado #${data.record.id} · ${data.record.time_seconds} s`, false);
+      setStatus("status", `Saved #${data.record.id} · ${data.record.time_seconds} s`, false);
     }
     closeConfirm();
     if (draft.mode === "rally_ring" && Array.isArray(data.unlocks) && data.unlocks.length) openUnlocks(data.unlocks);
     await refresh();
   } catch (error) {
     $("confirm-ok").disabled = false;
-    $("confirm-ok").textContent = "Confirmar";
+    $("confirm-ok").textContent = "Confirm";
     $("confirm-status").textContent = error.message;
     $("confirm-status").className = "status error";
     setStatus(draft.statusId, error.message, true);
@@ -1046,11 +1056,9 @@ function showProgressState(data) {
   syncSaveLocks(Boolean(data.game_running));
   paintConnection(data);
   const characters = data.progression || [];
+  const records = data.summary?.records ?? 0;
   const unlocked = data.summary?.unlocked ?? characters.reduce((sum, row) => sum + (Number(row.unlocked) || 0), 0);
   const skins = data.summary?.skins ?? characters.reduce((sum, row) => sum + (Number(row.total_skins) || 0), 0);
-  $("kpi-records").textContent = String(data.summary?.records ?? 0);
-  $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Skins desbloqueadas";
-  $("kpi-devs").textContent = `${unlocked} de ${skins}`;
   if (pendingAlbumCharacterId) {
     const wanted = pendingAlbumCharacterId === "*" ? String(data.active_character_id || "") : pendingAlbumCharacterId;
     pendingAlbumCharacterId = "";
@@ -1070,11 +1078,14 @@ function showProgressState(data) {
     id: progressCharacterId,
     query: progressQuery,
     multiplier: data.multiplier,
+    records,
+    unlocked,
+    skins,
     characters,
   });
   if (signature === progressSignature) return;
   progressSignature = signature;
-  paintProgress(characters, data.multiplier);
+  paintProgress(characters, data.multiplier, records, unlocked, skins);
 }
 
 let trophySignature = "";
@@ -1098,7 +1109,7 @@ function formatTrophyAmount(trophy) {
 }
 
 function formatTrophyDate(value) {
-  if (!value) return "Sin desbloquear";
+  if (!value) return "Locked";
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
   if (match) return `${match[3]}/${match[2]}/${match[1]}`;
   const date = new Date(value);
@@ -1151,22 +1162,11 @@ function trophyArticle(trophy) {
   const amount = document.createElement("div");
   amount.className = "trophy-amount";
   amount.textContent = formatTrophyAmount(trophy);
-  const bar = document.createElement("div");
-  bar.className = "unlock-track";
-  bar.setAttribute("role", "progressbar");
-  bar.setAttribute("aria-valuemin", "0");
-  bar.setAttribute("aria-valuemax", "100");
-  const width = Math.max(0, Math.min(100, Number(trophy.progress) * 100));
-  bar.setAttribute("aria-valuenow", String(Math.round(width)));
-  const fill = document.createElement("div");
-  fill.className = "unlock-fill";
-  fill.style.width = `${width}%`;
-  bar.append(fill);
-  progress.append(amount, bar);
+  progress.append(amount);
   body.append(head, meta, progress);
   const date = document.createElement("div");
   date.className = "trophy-date";
-  date.textContent = trophy.unlocked ? formatTrophyDate(trophy.unlocked_at) : "Sin desbloquear";
+  date.textContent = trophy.unlocked ? formatTrophyDate(trophy.unlocked_at) : "Locked";
   row.append(icon, body, date);
   return row;
 }
@@ -1185,13 +1185,13 @@ function paintTrophies(trophies) {
     if (!rows.length) {
       const empty = document.createElement("div");
       empty.className = "empty";
-      empty.textContent = "No hay trofeos en este grupo.";
+      empty.textContent = "No trophies in this group.";
       list.append(empty);
     } else {
       for (const trophy of rows) list.append(trophyArticle(trophy));
     }
     const unlocked = rows.filter((row) => row.unlocked).length;
-    $(group.countId).textContent = `${unlocked} de ${rows.length}`;
+    $(group.countId).textContent = `${unlocked} of ${rows.length}`;
   }
 }
 
@@ -1200,11 +1200,6 @@ function showTrophyState(data) {
   syncSaveLocks(Boolean(data.game_running));
   paintConnection(data);
   const trophies = data.trophies || [];
-  const unlocked = data.summary?.unlocked ?? trophies.filter((row) => row.unlocked).length;
-  const total = data.summary?.trophies ?? trophies.length;
-  $("kpi-records").textContent = String(data.summary?.records ?? 0);
-  $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Trofeos";
-  $("kpi-devs").textContent = `${unlocked} de ${total}`;
   const signature = JSON.stringify({ multiplier: data.multiplier, trophies });
   if (signature === trophySignature) return;
   trophySignature = signature;
@@ -1271,7 +1266,7 @@ function paintTrackMenu(menu, rows, current) {
     panel.replaceChildren();
     const groups = new Map();
     for (const row of rows) {
-      const game = (row.game || "").trim() || "Otras";
+      const game = (row.game || "").trim() || "Other";
       if (!groups.has(game)) groups.set(game, []);
       groups.get(game).push(row);
     }
@@ -1304,7 +1299,7 @@ function paintTrackMenu(menu, rows, current) {
     || rows.find((row) => row.track === menu.dataset.value)
     || rows[0];
   menu.dataset.value = chosen?.track || "";
-  menu.querySelector(".track-menu-value").textContent = chosen?.name || "Elegir pista";
+  menu.querySelector(".track-menu-value").textContent = chosen?.name || "Choose a track";
   for (const option of panel.querySelectorAll(".track-menu-option")) {
     option.setAttribute("aria-selected", option.dataset.track === menu.dataset.value ? "true" : "false");
   }
@@ -1349,9 +1344,8 @@ function showState(data) {
   const devsBeaten = officialRows.some((track) => "dev_time_surpass" in track)
     ? officialRows.reduce((total, track) => total + (Number(track.dev_time_surpass) === 1 ? 1 : 0), 0)
     : (summary.devs_beaten ?? 0);
-  $("kpi-records").textContent = String(records);
-  $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Desarrolladores superados";
-  $("kpi-devs").textContent = `${devsBeaten} de ${tracks}`;
+  $("kpi-trial-records").textContent = String(records);
+  $("kpi-trial-devs").textContent = `${devsBeaten} of ${tracks}`;
 
   const board = leaderboardTimes(data.top10 || [], catalogRows, data.current_track?.track || "");
   const signature = JSON.stringify(board);
@@ -1371,9 +1365,8 @@ function showRallyState(data) {
   const track = data.current_track?.track_clean || "null";
   $("rally-leader-track").textContent = track;
   renderRallyTrackPicker(data);
-  $("kpi-records").textContent = String(data.summary?.records ?? 0);
-  $("kpi-devs").parentElement.querySelector(".stat-label").textContent = "Pistas con puntaje";
-  $("kpi-devs").textContent = `${(data.catalog || []).filter((row) => Number(row.records) > 0).length} pistas`;
+  $("kpi-rally-records").textContent = String(data.summary?.records ?? 0);
+  $("kpi-rally-tracks").textContent = String((data.catalog || []).filter((row) => Number(row.records) > 0).length);
   fillCards($("rally-cards"), data.top10 || [], { scoreMode: true });
   const last = data.last_trial;
   $("rally-last").textContent = last
@@ -1393,7 +1386,7 @@ function showRallyState(data) {
     if (String(last.pb) !== "1" || gap !== 0) {
       delta.textContent = `${gap > 0 ? "+ " : gap < 0 ? "− " : ""}${formatScore(gap)} pts`;
       delta.classList.add(gap > 0 ? "better" : gap < 0 ? "worse" : "even");
-      delta.title = "Diferencia respecto al PB anterior";
+      delta.title = "Gap to the previous PB";
     }
   }
 }
@@ -1438,7 +1431,7 @@ async function refresh() {
     const response = await fetch(url, { cache: "no-store" });
     const data = await response.json();
     if (requestId !== refreshSerial) return;
-    if (!response.ok) throw new Error(data.error || "Error al leer datos");
+    if (!response.ok) throw new Error(data.error || "Couldn't load data");
     if (currentMode === "rally_ring") showRallyState(data);
     else if (currentMode === "rally_progress") showProgressState(data);
     else if (currentMode === "rally_trophies") showTrophyState(data);
@@ -1523,12 +1516,12 @@ function unlockMode(items) {
 function unlockHeadline(items) {
   const skins = items.filter((item) => item.kind === "skin").length;
   const trophies = items.filter((item) => item.kind === "trophy").length;
-  if (unlockMode(items) === "progress") return "Así va la siguiente skin";
-  if (skins && trophies) return "Felicidades, has desbloqueado lo siguiente";
-  if (skins === 1) return "Felicidades, has desbloqueado la siguiente skin";
-  if (skins > 1) return "Felicidades, has desbloqueado las siguientes skins";
-  if (trophies === 1) return "Felicidades, has desbloqueado el siguiente trofeo";
-  return "Felicidades, has desbloqueado los siguientes trofeos";
+  if (unlockMode(items) === "progress") return "Progress toward the next skin";
+  if (skins && trophies) return "Congratulations, you unlocked the following";
+  if (skins === 1) return "Congratulations, you unlocked a skin";
+  if (skins > 1) return "Congratulations, you unlocked these skins";
+  if (trophies === 1) return "Congratulations, you unlocked a trophy";
+  return "Congratulations, you unlocked these trophies";
 }
 
 function paintUnlockItem(item) {
@@ -1575,7 +1568,7 @@ function openUnlocks(items) {
   const list = $("unlock-list");
   list.replaceChildren();
   for (const item of items) list.append(paintUnlockItem(item));
-  $("unlock-title").textContent = unlockMode(items) === "progress" ? "En progreso" : "Felicidades";
+  $("unlock-title").textContent = unlockMode(items) === "progress" ? "In progress" : "Congratulations";
   $("unlock-lead").textContent = unlockHeadline(items);
   $("unlock-modal").hidden = false;
   document.querySelector("main").inert = true;

@@ -34,14 +34,13 @@ function paintDelta(data) {
 function paintWho(data) {
   setText("track", data.track_clean || "");
   setText("character", data.character || "—");
-  setText("skin-name", data.skin_name ? ` - ${data.skin_name}` : "");
   setText("date", data.date || "");
   setImage(skinImage, data.skin_url || "");
 }
 
 function recordLabel(count) {
   const total = Number(count) || 0;
-  return total === 1 ? "1 registro" : `${total} registros`;
+  return total === 1 ? "1 record" : `${total} records`;
 }
 
 function applyOverlay(data) {

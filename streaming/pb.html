@@ -1,22 +1,26 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CTRNF · PB</title>
-  <link rel="stylesheet" href="pb.css">
+  <title>CTRNF · Time Trial PB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Russo+One&display=swap">
+  <link rel="stylesheet" href="overlay.css">
 </head>
 <body data-card="pb">
-  <!-- OBS: /streaming/pb.html · 420 × 100 · fondo transparente -->
+  <!-- OBS: /streaming/pb.html · 420 × 100 · transparent background -->
   <article id="overlay" class="card" hidden>
     <header class="head">
+      <span class="mode">Time Trial</span>
       <div id="track" class="track"></div>
       <div id="delta" class="delta"></div>
     </header>
     <div class="body">
-      <div class="portrait"><img id="skin" alt="" width="34" height="34"></div>
+      <div class="portrait"><img id="skin" alt="" width="62" height="62"></div>
       <div class="identity">
-        <div class="who"><span id="character"></span><span id="skin-name"></span></div>
+        <div class="who"><span id="character"></span></div>
         <div id="date" class="when"></div>
       </div>
       <div class="times">
@@ -24,10 +28,10 @@
           <span class="tag">PB</span>
           <span id="pb" class="clock">—</span>
           <svg id="medal" class="medal" viewBox="0 0 16 16" aria-hidden="true">
-            <path fill="#f6d56a" d="M5 1.2h1.6L8 4.8 9.4 1.2H11L8.8 5.6H7.2z"/>
-            <circle cx="8" cy="10.15" r="4.55" fill="#f3a712"/>
-            <circle cx="8" cy="10.15" r="3.15" fill="none" stroke="#6b4c09" stroke-width=".7"/>
-            <path fill="#fff4cc" d="M8 7.7 8.7 9.2l1.6.15-1.22 1.08.38 1.55L8 11.15 6.54 11.98l.38-1.55-1.22-1.08 1.6-.15z"/>
+            <path fill="#ffe66b" d="M5 1.2h1.6L8 4.8 9.4 1.2H11L8.8 5.6H7.2z"/>
+            <circle cx="8" cy="10.15" r="4.55" fill="#ffb800"/>
+            <circle cx="8" cy="10.15" r="3.15" fill="none" stroke="#7a4a00" stroke-width=".7"/>
+            <path fill="#fff6c8" d="M8 7.7 8.7 9.2l1.6.15-1.22 1.08.38 1.55L8 11.15 6.54 11.98l.38-1.55-1.22-1.08 1.6-.15z"/>
           </svg>
         </div>
         <div class="row">

@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import urllib.error
 import urllib.request
@@ -45,7 +46,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v0.9.1"
+APP_VERSION = "CTR - v1.0"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -68,19 +69,6 @@ LOG_SEARCH_SKIP = {
     ".git",
     "__pycache__",
 }
-
-
-def blend_hex(foreground: str, background: str, alpha: float) -> str:
-    """Mezcla un color con el fondo. Tk no pinta alfa real en los botones."""
-
-    def channels(value: str) -> tuple[int, int, int]:
-        raw = value.removeprefix("#")
-        return int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
-
-    fg = channels(foreground)
-    bg = channels(background)
-    mixed = tuple(round(channel * alpha + other * (1 - alpha)) for channel, other in zip(fg, bg))
-    return "#" + "".join(f"{channel:02x}" for channel in mixed)
 
 
 def version_key(value: str) -> tuple[int, int, int, int, int] | None:
@@ -295,10 +283,10 @@ DATA_FILES = {"time_trials.csv": RESULTS_CSV, "rally_ring.csv": RALLY_RESULTS_CS
 
 def export_data(path: Path) -> None:
     if path.exists():
-        raise ValueError("Ese archivo ya existe. Elige otro nombre para conservar el respaldo existente.")
+        raise ValueError("That file already exists. Choose another name so the current backup stays.")
     available = [(name, source) for name, source in DATA_FILES.items() if source.is_file()]
     if not available:
-        raise ValueError("No hay registros para exportar todavía.")
+        raise ValueError("There are no records to export yet.")
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
         for name, source in available:
             archive.write(source, arcname=name)
@@ -309,7 +297,7 @@ def import_data(path: Path) -> list[str]:
         names = set(archive.namelist())
         selected = names.intersection(DATA_FILES)
         if not selected:
-            raise ValueError("El archivo no contiene time_trials.csv ni rally_ring.csv.")
+            raise ValueError("The file does not contain time_trials.csv or rally_ring.csv.")
         staged = {}
         schemas = {
             "time_trials.csv": {"id", "track", "skin", "time_raw", "time_seconds", "captured_at"},
@@ -320,14 +308,14 @@ def import_data(path: Path) -> list[str]:
             delimiter = ";" if raw.splitlines()[0].count(";") > raw.splitlines()[0].count(",") else ","
             reader = csv.DictReader(raw.splitlines(), delimiter=delimiter)
             if not schemas[name].issubset(set(reader.fieldnames or [])):
-                raise ValueError(f"El esquema de {name} no es compatible.")
+                raise ValueError(f"The layout of {name} is not compatible.")
             rows = list(reader)
             if any(not row.get("id") for row in rows):
-                raise ValueError(f"{name} contiene filas sin ID.")
+                raise ValueError(f"{name} contains rows without an ID.")
             staged[name] = raw.encode("utf-8-sig")
         conflicts = [name for name in selected if DATA_FILES[name].exists() and DATA_FILES[name].stat().st_size > 0]
         if conflicts:
-            raise ValueError("Importación cancelada: ya hay datos en " + ", ".join(sorted(conflicts)) + ". Exporta una copia y mueve/renombra esos CSV para restaurar.")
+            raise ValueError("Import cancelled: " + ", ".join(sorted(conflicts)) + " already has data. Export a copy and move or rename those CSV files before restoring.")
         for name, content in staged.items():
             DATA_FILES[name].parent.mkdir(parents=True, exist_ok=True)
             target = DATA_FILES[name]
@@ -1085,7 +1073,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, icon.read_bytes(), ACHIEVEMENT_ICON_TYPES[suffix])
             return
 
-        if path in {"/logo.png", "/favicon.ico"}:
+        if path == "/favicon.ico":
+            try:
+                self._send(200, ICON_PATH.read_bytes(), "image/x-icon")
+            except OSError:
+                self._send(404, b"Icon not found", "text/plain; charset=utf-8")
+            return
+
+        if path == "/logo.png":
             try:
                 self._send(200, LOGO_PATH.read_bytes(), "image/png")
             except OSError:
@@ -1144,7 +1139,7 @@ class Handler(BaseHTTPRequestHandler):
             with STATE.lock:
                 game_running = STATE.game_running
             if not game_running:
-                raise ValueError("El juego tiene que estar abierto para guardar un registro.")
+                raise ValueError("The game must be running to save a record.")
             mode = str(data.get("mode") or "time_trial")
             unlocks: list = []
             if mode == "rally_ring":
@@ -1160,9 +1155,9 @@ class Handler(BaseHTTPRequestHandler):
 
 def create_dashboard_server(parser_port: int = 8899) -> DashboardServer:
     if not WEB_DIR.is_dir():
-        raise FileNotFoundError(f"No existe la carpeta de interfaz: {WEB_DIR}")
+        raise FileNotFoundError(f"Interface folder not found: {WEB_DIR}")
     if not 1 <= parser_port <= 65535:
-        raise ValueError("el puerto debe estar entre 1 y 65535")
+        raise ValueError("the port must be between 1 and 65535")
     server = None
     for port in (parser_port, *range(parser_port + 1, min(parser_port + 16, 65536))):
         try:
@@ -1171,7 +1166,7 @@ def create_dashboard_server(parser_port: int = 8899) -> DashboardServer:
         except OSError:
             continue
     if server is None:
-        raise OSError(f"No hay puertos locales disponibles desde {parser_port} hasta {min(parser_port + 15, 65535)}.")
+        raise OSError(f"No local port is available from {parser_port} to {min(parser_port + 15, 65535)}.")
     return server
 
 
@@ -1183,26 +1178,113 @@ def run_server_only(parser_port: int = 8899) -> None:
     print(f"Overlays OBS 420×100: {url}streaming/pb.html  {url}streaming/last.html  {url}streaming/rally.html")
     print(f"Time Trial CSV: {RESULTS_CSV}")
     print(f"Ring Rally CSV: {RALLY_RESULTS_CSV}")
-    print("Deja este servidor abierto; web/ se recarga automáticamente al editar la interfaz. Ctrl+C para cerrar.")
+    print("Leave this server open. web/ reloads when the interface files change. Ctrl+C to close.")
     webbrowser.open(url)
     try:
         server.serve_forever(poll_interval=0.5)
     except KeyboardInterrupt:
-        print("\nDashboard cerrado.")
+        print("\nDashboard closed.")
     finally:
         server.server_close()
 
 
+def release_executable_url(release: dict) -> str:
+    """Direct download of the CTRNF.exe asset attached to a GitHub release."""
+    for asset in release.get("assets") or []:
+        if (asset.get("name") or "").casefold() == "ctrnf.exe":
+            return (asset.get("browser_download_url") or "").strip()
+    return ""
+
+
+def download_release_executable(url: str, progress) -> Path:
+    folder = Path(tempfile.gettempdir()) / "CTRNF-update"
+    folder.mkdir(parents=True, exist_ok=True)
+    partial = folder / "CTRNF.exe.part"
+    request = urllib.request.Request(
+        url,
+        headers={"Accept": "application/octet-stream", "User-Agent": "CTRNF-Personal-Dashboard"},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response, partial.open("wb") as handle:
+        total = int(response.headers.get("Content-Length") or 0)
+        read = 0
+        while True:
+            chunk = response.read(256 * 1024)
+            if not chunk:
+                break
+            handle.write(chunk)
+            read += len(chunk)
+            if progress is not None:
+                progress(read, total)
+    with partial.open("rb") as handle:
+        signature = handle.read(2)
+    if signature != b"MZ" or partial.stat().st_size < 1_000_000:
+        partial.unlink(missing_ok=True)
+        raise ValueError("the downloaded file is not the CTRNF executable")
+    destination = folder / "CTRNF.exe"
+    partial.replace(destination)
+    return destination
+
+
+def schedule_executable_swap(source: Path, destination: Path) -> None:
+    """A detached helper replaces the running exe after this process exits, then reopens it."""
+    script = source.parent / "apply-update.ps1"
+    source_text = str(source).replace("'", "''")
+    destination_text = str(destination).replace("'", "''")
+    script.write_text(
+        "\n".join((
+            "$ErrorActionPreference = 'Stop'",
+            f"$source = '{source_text}'",
+            f"$destination = '{destination_text}'",
+            f"Wait-Process -Id {os.getpid()} -ErrorAction SilentlyContinue",
+            "$deadline = (Get-Date).AddSeconds(40)",
+            "do {",
+            "  try {",
+            "    Move-Item -LiteralPath $source -Destination $destination -Force -ErrorAction Stop",
+            "    break",
+            "  } catch {",
+            "    if ((Get-Date) -gt $deadline) { throw }",
+            "    Start-Sleep -Milliseconds 400",
+            "  }",
+            "} while ($true)",
+            "Start-Process -FilePath $destination",
+            "Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue",
+            "",
+        )),
+        encoding="utf-8",
+    )
+    command = [
+        "powershell",
+        "-NoProfile",
+        "-WindowStyle",
+        "Hidden",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(script),
+    ]
+    base = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+    try:
+        subprocess.Popen(command, creationflags=base | 0x01000000, close_fds=True)
+    except OSError:
+        subprocess.Popen(command, creationflags=base, close_fds=True)
+
+
 class DashboardLauncher:
-    BG = "#10131b"
-    PANEL = "#1a202c"
-    LINE = "#303b4e"
-    TEXT = "#f2f5fa"
-    MUTED = "#a8b2c2"
-    ACCENT = "#f3a712"
-    BLUE = "#145da0"
-    BLUE_HOVER = "#1d78c1"
-    GOOD = "#68d391"
+    BG = "#0b0712"
+    PANEL = "#150f22"
+    SIDE = "#120c1d"
+    WELL = "#0f0a19"
+    LINE = "#2e2347"
+    TEXT = "#f7f3ff"
+    MUTED = "#a99cc6"
+    DISABLED = "#221935"
+    DISABLED_TEXT = "#6a5c88"
+    SECONDARY = "#241a38"
+    SECONDARY_HOVER = "#33264f"
+    GOOD = "#49f2a1"
+    BAD = "#ff4f6d"
+    PRIMARY = "#6f5cad"
+    PRIMARY_HOVER = "#8776c4"
 
     def __init__(self, root, parser_port: int = 8899) -> None:
         import tkinter as tk
@@ -1226,55 +1308,36 @@ class DashboardLauncher:
         self.root.minsize(min(900, window_width), 680)
         self.root.geometry(f"{window_width}x{window_height}")
         self.root.protocol("WM_DELETE_WINDOW", self.close)
-        self._window_icons = []
-        if LOGO_PATH.is_file():
-            try:
-                photo = tk.PhotoImage(file=str(LOGO_PATH))
-                self._window_icons.append(photo)
-                self.root.iconphoto(True, photo)
-            except tk.TclError:
-                pass
-        if ICON_PATH.is_file():
-            try:
-                self.root.iconbitmap(default=str(ICON_PATH))
-            except tk.TclError:
-                pass
+        self._apply_window_icon()
 
         style = ttk.Style(root)
         style.theme_use("clam")
         style.configure("Launcher.TFrame", background=self.BG)
         style.configure("Panel.TFrame", background=self.PANEL)
         style.configure("Title.TLabel", background=self.BG, foreground=self.TEXT, font=("Segoe UI", 18, "bold"))
-        style.configure("Eyebrow.TLabel", background=self.BG, foreground=self.ACCENT, font=("Segoe UI", 9, "bold"))
+        style.configure("Eyebrow.TLabel", background=self.BG, foreground="#d4c6ff", font=("Segoe UI", 9, "bold"))
         style.configure("Body.TLabel", background=self.BG, foreground=self.MUTED, font=("Segoe UI", 10))
         style.configure("PanelTitle.TLabel", background=self.PANEL, foreground=self.TEXT, font=("Segoe UI", 15, "bold"))
         style.configure("Status.TLabel", background=self.PANEL, foreground=self.MUTED, font=("Segoe UI", 10))
-        style.configure("Accent.TButton", font=("Segoe UI", 13, "bold"), padding=(16, 15), background=self.BLUE, foreground=self.TEXT)
-        style.map("Accent.TButton", background=[("active", self.BLUE_HOVER), ("disabled", "#35465b")])
-        danger = blend_hex("#e23d3d", self.PANEL, 0.82)
-        danger_hover = blend_hex("#ff5c5c", self.PANEL, 0.92)
-        style.configure("Danger.TButton", font=("Segoe UI", 13, "bold"), padding=(16, 15), background=danger, foreground=self.TEXT)
-        style.map("Danger.TButton", background=[("active", danger_hover), ("disabled", "#35465b")])
-        style.configure("Secondary.TButton", font=("Segoe UI", 10), padding=(12, 8), background="#202838", foreground=self.TEXT)
-        style.map("Secondary.TButton", background=[("active", "#303b4e")])
-        style.configure("Side.TFrame", background="#151b26")
-        style.configure("SideTitle.TLabel", background="#151b26", foreground=self.MUTED, font=("Segoe UI", 9, "bold"))
-        style.configure("SideActive.TLabel", background=self.BLUE, foreground=self.TEXT, font=("Segoe UI", 10, "bold"), padding=(12, 11))
-        style.configure("SideLabel.TLabel", background="#151b26", foreground=self.MUTED, font=("Segoe UI", 8, "bold"))
-        style.configure("SideValue.TLabel", background="#151b26", foreground=self.TEXT, font=("Segoe UI", 9), wraplength=185)
+        self._style_button(style, "Accent.TButton", self.PRIMARY, self.TEXT, self.PRIMARY_HOVER, font=("Segoe UI", 13, "bold"), padding=(16, 15))
+        self._style_button(style, "Danger.TButton", "#c4243f", self.TEXT, "#e23d55", font=("Segoe UI", 13, "bold"), padding=(16, 15))
+        self._style_button(style, "Secondary.TButton", self.SECONDARY, self.TEXT, self.SECONDARY_HOVER, font=("Segoe UI", 10), padding=(12, 8))
+        style.configure("Side.TFrame", background=self.SIDE)
+        style.configure("SideTitle.TLabel", background=self.SIDE, foreground=self.MUTED, font=("Segoe UI", 9, "bold"))
+        style.configure("SideActive.TLabel", background=self.PRIMARY, foreground=self.TEXT, font=("Segoe UI", 10, "bold"), padding=(12, 11))
+        style.configure("SideLabel.TLabel", background=self.SIDE, foreground=self.MUTED, font=("Segoe UI", 8, "bold"))
+        style.configure("SideValue.TLabel", background=self.SIDE, foreground=self.TEXT, font=("Segoe UI", 9), wraplength=185)
         style.configure("Footer.TLabel", background=self.BG, foreground=self.MUTED, font=("Segoe UI", 9))
-        style.configure("Nav.TButton", font=("Segoe UI", 10), padding=(12, 10), background="#151b26", foreground=self.TEXT, anchor="w")
-        style.map("Nav.TButton", background=[("active", "#202838")])
-        style.configure("NavActive.TButton", font=("Segoe UI", 10, "bold"), padding=(12, 10), background=self.BLUE, foreground=self.TEXT, anchor="w")
-        style.map("NavActive.TButton", background=[("active", self.BLUE_HOVER)])
-        style.configure("Settings.TButton", font=("Segoe UI", 10, "bold"), padding=(12, 9), background=self.BLUE, foreground=self.TEXT)
-        style.map("Settings.TButton", background=[("active", self.BLUE_HOVER)])
-        style.configure("Update.TFrame", background="#142b46")
-        style.configure("Update.TLabel", background="#142b46", foreground=self.TEXT, font=("Segoe UI", 9))
-        style.configure("UpdateLink.TButton", font=("Segoe UI", 9, "bold"), padding=(9, 5), background=self.BLUE, foreground=self.TEXT)
-        style.map("UpdateLink.TButton", background=[("active", self.BLUE_HOVER)])
-        style.configure("UpdateQuiet.TButton", font=("Segoe UI", 9), padding=(8, 5), background="#202838", foreground=self.TEXT)
-        style.map("UpdateQuiet.TButton", background=[("active", "#303b4e")])
+        self._style_button(style, "Nav.TButton", self.SIDE, self.TEXT, "#251a3a", font=("Segoe UI", 10), padding=(12, 10), anchor="w")
+        self._style_button(style, "NavActive.TButton", self.PRIMARY, self.TEXT, self.PRIMARY_HOVER, font=("Segoe UI", 10, "bold"), padding=(12, 10), anchor="w")
+        self._style_button(style, "Settings.TButton", self.PRIMARY, self.TEXT, self.PRIMARY_HOVER, font=("Segoe UI", 10, "bold"), padding=(12, 9))
+        style.configure("Update.TFrame", background="#2a2148")
+        style.configure("Update.TLabel", background="#2a2148", foreground=self.TEXT, font=("Segoe UI", 9))
+        self._style_button(style, "UpdateLink.TButton", self.PRIMARY, self.TEXT, self.PRIMARY_HOVER, font=("Segoe UI", 9, "bold"), padding=(9, 5))
+        self._style_button(style, "UpdateQuiet.TButton", self.SECONDARY, self.TEXT, self.SECONDARY_HOVER, font=("Segoe UI", 9), padding=(8, 5))
+        style.configure("TSeparator", background=self.LINE)
+        style.configure("TScrollbar", background=self.LINE, troughcolor=self.WELL, bordercolor=self.WELL, arrowcolor=self.MUTED)
+        style.map("TScrollbar", background=[("active", self.PRIMARY_HOVER)])
 
         shell = ttk.Frame(root, style="Launcher.TFrame", padding=(18, 14))
         shell.pack(fill="both", expand=True)
@@ -1288,20 +1351,22 @@ class DashboardLauncher:
             except tk.TclError:
                 self.cover = None
 
+        self.pending_release = None
+        self.updating = False
         self.release_url = GITHUB_RELEASES_URL
         self.dismissed_update = False
         self.update_banner = ttk.Frame(shell, style="Update.TFrame", padding=(12, 8))
-        self.update_status_var = tk.StringVar(value="Comprobando actualizaciones…")
+        self.update_status_var = tk.StringVar(value="Checking for updates…")
         ttk.Label(self.update_banner, textvariable=self.update_status_var, style="Update.TLabel", wraplength=520).pack(side="left", fill="x", expand=True, padx=(2, 12))
         update_actions = ttk.Frame(self.update_banner, style="Update.TFrame")
         update_actions.pack(side="right")
-        self.update_button = ttk.Button(update_actions, text="Actualizar ahora", style="UpdateLink.TButton", command=self.open_latest_release, state="disabled")
+        self.update_button = ttk.Button(update_actions, text="Update now", style="UpdateLink.TButton", command=self.start_update, state="disabled")
         self.update_button.pack(side="left")
-        self.news_button = ttk.Button(update_actions, text="Ver Releases", style="UpdateQuiet.TButton", command=self.open_latest_release)
+        self.news_button = ttk.Button(update_actions, text="Release notes", style="UpdateQuiet.TButton", command=self.open_latest_release)
         self.news_button.pack(side="left", padx=(6, 0))
-        self.dismiss_button = ttk.Button(update_actions, text="Ahora no", style="UpdateQuiet.TButton", command=self.dismiss_update, state="disabled")
+        self.dismiss_button = ttk.Button(update_actions, text="Not now", style="UpdateQuiet.TButton", command=self.dismiss_update, state="disabled")
         self.dismiss_button.pack(side="left", padx=(6, 0))
-        self.review_button = ttk.Button(update_actions, text="Revisar", style="UpdateQuiet.TButton", command=self.check_updates)
+        self.review_button = ttk.Button(update_actions, text="Check again", style="UpdateQuiet.TButton", command=self.check_updates)
         self.review_button.pack(side="left", padx=(6, 0))
         self.update_button.pack_forget()
         self.dismiss_button.pack_forget()
@@ -1312,19 +1377,19 @@ class DashboardLauncher:
         sidebar = ttk.Frame(content, style="Side.TFrame", width=220, padding=(12, 16))
         sidebar.pack(side="left", fill="y", padx=(0, 14))
         sidebar.pack_propagate(False)
-        ttk.Label(sidebar, text="NAVEGACIÓN", style="SideTitle.TLabel").pack(anchor="w", padx=8, pady=(4, 13))
-        self.server_nav_button = ttk.Button(sidebar, text="▰   Servidor", style="NavActive.TButton", command=self.show_server_page)
+        ttk.Label(sidebar, text="NAVIGATION", style="SideTitle.TLabel").pack(anchor="w", padx=8, pady=(4, 13))
+        self.server_nav_button = ttk.Button(sidebar, text="▰   Server", style="NavActive.TButton", command=self.show_server_page)
         self.server_nav_button.pack(fill="x")
         self.streaming_nav_button = ttk.Button(sidebar, text="▶   Streaming", style="Nav.TButton", command=self.show_streaming_page)
         self.streaming_nav_button.pack(fill="x", pady=(5, 0))
-        self.settings_nav_button = ttk.Button(sidebar, text="⚙   Configuración", style="Nav.TButton", command=self.show_settings_page)
+        self.settings_nav_button = ttk.Button(sidebar, text="⚙   Settings", style="Nav.TButton", command=self.show_settings_page)
         self.settings_nav_button.pack(fill="x", pady=(5, 0))
-        ttk.Label(sidebar, text="ESTADO", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(27, 6))
-        self.side_state_var = tk.StringVar(value="Detenido")
+        ttk.Label(sidebar, text="STATUS", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(27, 6))
+        self.side_state_var = tk.StringVar(value="Stopped")
         ttk.Label(sidebar, textvariable=self.side_state_var, style="SideValue.TLabel").pack(anchor="w", padx=8)
-        ttk.Label(sidebar, text="CONEXIÓN", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(20, 6))
-        ttk.Label(sidebar, text="Solo en este equipo", style="SideValue.TLabel").pack(anchor="w", padx=8)
-        ttk.Label(sidebar, text="DATOS PERSONALES", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(20, 6))
+        ttk.Label(sidebar, text="CONNECTION", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(20, 6))
+        ttk.Label(sidebar, text="This computer only", style="SideValue.TLabel").pack(anchor="w", padx=8)
+        ttk.Label(sidebar, text="PERSONAL DATA", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(20, 6))
         ttk.Label(sidebar, text="%LOCALAPPDATA%\\CTRNF\\\ndata", style="SideValue.TLabel").pack(anchor="w", padx=8)
 
         self.workspace = ttk.Frame(content, style="Launcher.TFrame")
@@ -1332,48 +1397,48 @@ class DashboardLauncher:
         self.root.bind_all("<MouseWheel>", self._on_mousewheel)
         self.server_page, card = self._scroll_page((26, 24))
         self.server_page.pack(fill="both", expand=True)
-        ttk.Label(card, text="JUEGO  /  SERVIDOR LOCAL", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
-        ttk.Label(card, text="Conecta tu dashboard", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
-        ttk.Label(card, text="Arranca el servidor para registrar partidas y consultar tu progreso.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 18))
-        self.status_var = tk.StringVar(value="Servidor detenido")
+        ttk.Label(card, text="GAME  /  LOCAL SERVER", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
+        ttk.Label(card, text="Connect your dashboard", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
+        ttk.Label(card, text="Start the server to log races and review your progress.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 18))
+        self.status_var = tk.StringVar(value="Server stopped")
         self.status_label = ttk.Label(card, textvariable=self.status_var, style="Status.TLabel", wraplength=600)
         self.status_label.pack(anchor="w", pady=(0, 18))
-        self.start_button = ttk.Button(card, text="INICIAR SERVIDOR", style="Accent.TButton", command=self.start)
+        self.start_button = ttk.Button(card, text="START SERVER", style="Accent.TButton", command=self.start)
         self.start_button.pack(fill="x")
         actions = ttk.Frame(card, style="Panel.TFrame")
         actions.pack(fill="x", pady=(12, 0))
-        self.open_button = ttk.Button(actions, text="Abrir dashboard", style="Secondary.TButton", command=self.open_dashboard, state="disabled")
+        self.open_button = ttk.Button(actions, text="Open dashboard", style="Secondary.TButton", command=self.open_dashboard, state="disabled")
         self.open_button.pack(side="left")
         ttk.Separator(card, orient="horizontal").pack(fill="x", pady=(25, 14))
-        ttk.Label(card, text="La interfaz se abrirá en tu navegador predeterminado. El servidor permanece activo mientras esta ventana esté abierta.", style="Status.TLabel", wraplength=600).pack(anchor="w")
+        ttk.Label(card, text="The interface opens in your default browser. The server stays on while this window is open.", style="Status.TLabel", wraplength=600).pack(anchor="w")
 
         self._build_streaming_page()
 
         self.settings_page, settings_body = self._scroll_page((20, 16))
-        ttk.Label(settings_body, text="CONFIGURACIÓN  /  PREFERENCIAS LOCALES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
-        ttk.Label(settings_body, text="Configuración", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
+        ttk.Label(settings_body, text="SETTINGS  /  LOCAL PREFERENCES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
+        ttk.Label(settings_body, text="Settings", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
 
         log_panel = ttk.Frame(settings_body, style="Panel.TFrame")
         log_panel.pack(fill="x", pady=(14, 0))
-        ttk.Label(log_panel, text="Archivo de registro del juego", style="PanelTitle.TLabel").pack(anchor="w")
-        ttk.Label(log_panel, text="Al abrir se intenta encontrar el log. Si no aparece, lo eliges una vez y queda guardado en este equipo. Puedes cambiarlo si mueves el juego.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
-        self.log_path_var = tk.StringVar(value="Buscando el log del juego…")
+        ttk.Label(log_panel, text="Game log file", style="PanelTitle.TLabel").pack(anchor="w")
+        ttk.Label(log_panel, text="On startup the app tries to find the log. If it does not appear, choose it once and it stays on this computer. You can change it if you move the game.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
+        self.log_path_var = tk.StringVar(value="Looking for the game log…")
         ttk.Label(log_panel, textvariable=self.log_path_var, style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(0, 10))
-        self.choose_log_button = ttk.Button(log_panel, text="Elegir archivo .log…", style="Secondary.TButton", command=self.choose_log)
+        self.choose_log_button = ttk.Button(log_panel, text="Choose .log file…", style="Secondary.TButton", command=self.choose_log)
         self.choose_log_button.pack(anchor="w")
         self.searching_log = False
         self.log_dialog_open = False
 
         backup_panel = ttk.Frame(settings_body, style="Panel.TFrame")
         backup_panel.pack(fill="x", pady=(20, 0))
-        ttk.Label(backup_panel, text="Importar y exportar datos", style="PanelTitle.TLabel").pack(anchor="w")
-        ttk.Label(backup_panel, text="Exporta los CSV personales en un respaldo ZIP. La importación solo restaura datasets vacíos; no reemplaza registros existentes.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
+        ttk.Label(backup_panel, text="Import and export data", style="PanelTitle.TLabel").pack(anchor="w")
+        ttk.Label(backup_panel, text="Export your personal CSV files as a ZIP backup. Import only fills empty datasets; it does not replace records you already have.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
         self.data_count_var = tk.StringVar(value="")
         ttk.Label(backup_panel, textvariable=self.data_count_var, style="Status.TLabel").pack(anchor="w", pady=(0, 12))
         backup_actions = ttk.Frame(backup_panel, style="Panel.TFrame")
         backup_actions.pack(fill="x")
-        ttk.Button(backup_actions, text="Exportar respaldo…", style="Settings.TButton", command=self.export_backup).pack(side="left")
-        ttk.Button(backup_actions, text="Importar respaldo…", style="Secondary.TButton", command=self.import_backup).pack(side="left", padx=(10, 0))
+        ttk.Button(backup_actions, text="Export backup…", style="Settings.TButton", command=self.export_backup).pack(side="left")
+        ttk.Button(backup_actions, text="Import backup…", style="Secondary.TButton", command=self.import_backup).pack(side="left", padx=(10, 0))
 
         self.settings_status_var = tk.StringVar(value="")
         self.settings_status_label = ttk.Label(settings_body, textvariable=self.settings_status_var, style="Status.TLabel", wraplength=600)
@@ -1387,8 +1452,41 @@ class DashboardLauncher:
         footer = ttk.Frame(shell, style="Launcher.TFrame")
         footer.pack(side="bottom", fill="x", pady=(12, 0))
         ttk.Label(footer, text=APP_VERSION, style="Footer.TLabel").pack(side="left", anchor="w")
-        ttk.Label(footer, text="Desarrollado por Julián Gómez", style="Footer.TLabel").pack(side="right", anchor="e")
+        ttk.Label(footer, text="Developed by Julián Gómez", style="Footer.TLabel").pack(side="right", anchor="e")
         self.check_updates()
+
+    def _apply_window_icon(self) -> None:
+        """Tk on Windows only paints a title-bar icon from a BMP .ico, not from PNG-in-ICO."""
+        if not ICON_PATH.is_file():
+            return
+        path = str(ICON_PATH.resolve())
+        try:
+            self.root.iconbitmap(default=path)
+        except self.tk.TclError:
+            try:
+                self.root.iconbitmap(path)
+            except self.tk.TclError:
+                pass
+
+    def _style_button(self, style, name: str, background: str, foreground: str, hover: str, **options) -> None:
+        style.configure(
+            name,
+            background=background,
+            foreground=foreground,
+            bordercolor=background,
+            lightcolor=background,
+            darkcolor=background,
+            focuscolor=background,
+            **options,
+        )
+        style.map(
+            name,
+            background=[("active", hover), ("disabled", self.DISABLED)],
+            foreground=[("disabled", self.DISABLED_TEXT)],
+            bordercolor=[("active", hover), ("disabled", self.DISABLED)],
+            lightcolor=[("active", hover), ("disabled", self.DISABLED)],
+            darkcolor=[("active", hover), ("disabled", self.DISABLED)],
+        )
 
     def _scroll_page(self, padding: tuple[int, int]):
         from tkinter import ttk
@@ -1434,30 +1532,30 @@ class DashboardLauncher:
         self.streaming_page = page
         self.stream_rows = {}
         ttk.Label(body, text="STREAMING  /  OBS", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
-        ttk.Label(body, text="Overlays para OBS", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
+        ttk.Label(body, text="OBS overlays", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
         ttk.Label(
             body,
-            text="Tres fuentes de navegador. En OBS usa ancho 420 y alto 100, y deja el CSS personalizado vacío: el fondo ya es transparente. Las direcciones aparecen al iniciar el servidor.",
+            text="Three browser sources. In OBS use width 420 and height 100, and leave custom CSS empty: the background is already transparent. The addresses appear when the server starts.",
             style="Status.TLabel",
             wraplength=600,
         ).pack(anchor="w", pady=(6, 4))
         cards = (
             (
                 "pb",
-                "PB de Contrarreloj",
-                "La pista en curso, tu mejor tiempo, la fecha de ese PB y el tiempo del desarrollador.",
+                "Time Trial PB",
+                "The current track, your best time, the date of that PB, and the developer time.",
                 "/streaming/pb.html",
             ),
             (
                 "last",
-                "Último registro",
-                "El último tiempo guardado en esa pista, su fecha, cuántos registros lleva y la diferencia con tu PB.",
+                "Latest record",
+                "The last time saved on that track, its date, how many records it has, and the gap to your PB.",
                 "/streaming/last.html",
             ),
             (
                 "rally",
-                "PB de Ring Rally",
-                "El mejor puntaje de la pista en curso y la fecha en que lo conseguiste.",
+                "Ring Rally PB",
+                "The best score on the current track and the date you set it.",
                 "/streaming/rally.html",
             ),
         )
@@ -1472,22 +1570,22 @@ class DashboardLauncher:
             entry = self.tk.Entry(
                 row,
                 textvariable=var,
-                readonlybackground="#111722",
+                readonlybackground=self.WELL,
                 fg=self.TEXT,
                 disabledforeground=self.MUTED,
-                bg="#111722",
+                bg=self.WELL,
                 relief="flat",
                 font=("Segoe UI", 10),
                 state="readonly",
                 borderwidth=0,
                 highlightthickness=1,
                 highlightbackground=self.LINE,
-                highlightcolor=self.BLUE,
+                highlightcolor=self.PRIMARY,
             )
             entry.pack(side="left", fill="x", expand=True, ipady=6, padx=(0, 8))
             button = ttk.Button(
                 row,
-                text="Copiar",
+                text="Copy",
                 style="Secondary.TButton",
                 state="disabled",
                 command=lambda key=key: self.copy_stream_url(key),
@@ -1499,10 +1597,10 @@ class DashboardLauncher:
         for row in self.stream_rows.values():
             if port:
                 row["var"].set(f"http://127.0.0.1:{port}{row['path']}")
-                row["button"].configure(state="normal", text="Copiar")
+                row["button"].configure(state="normal", text="Copy")
             else:
                 row["var"].set("")
-                row["button"].configure(state="disabled", text="Copiar")
+                row["button"].configure(state="disabled", text="Copy")
 
     def copy_stream_url(self, key: str) -> None:
         row = self.stream_rows.get(key)
@@ -1513,8 +1611,8 @@ class DashboardLauncher:
             return
         self.root.clipboard_clear()
         self.root.clipboard_append(url)
-        row["button"].configure(text="Copiado")
-        self.root.after(1200, lambda button=row["button"]: button.configure(text="Copiar"))
+        row["button"].configure(text="Copied")
+        self.root.after(1200, lambda button=row["button"]: button.configure(text="Copy"))
 
     def _on_mousewheel(self, event) -> None:
         widget = self.root.winfo_containing(event.x_root, event.y_root)
@@ -1545,12 +1643,12 @@ class DashboardLauncher:
 
     def start(self) -> None:
         self.start_button.configure(state="disabled")
-        self.status_var.set("Iniciando servidor…")
+        self.status_var.set("Starting server…")
         threading.Thread(target=self._start_server, daemon=True).start()
 
     def check_updates(self) -> None:
         self.review_button.configure(state="disabled")
-        self.update_status_var.set("Comprobando actualizaciones de GitHub…")
+        self.update_status_var.set("Checking GitHub for updates…")
         threading.Thread(target=self._fetch_releases, daemon=True).start()
 
     def _fetch_releases(self) -> None:
@@ -1589,26 +1687,80 @@ class DashboardLauncher:
             pass
 
     def _show_release_state(self, state: str, release: dict | None) -> None:
+        self.pending_release = release if state == "update" else None
         self.review_button.configure(state="normal")
         self.update_button.pack_forget()
         self.dismiss_button.pack_forget()
-        self.update_button.configure(state="disabled")
+        self.update_button.configure(state="disabled", text="Update now")
         self.dismiss_button.configure(state="disabled")
         self.release_url = GITHUB_RELEASES_URL
         self.update_banner.pack_forget()
         if state == "update" and release and not self.dismissed_update:
-            tag = release.get("tag_name", "Nueva versión")
+            tag = release.get("tag_name", "New version")
             self.release_url = release.get("html_url") or GITHUB_RELEASES_URL
-            self.update_status_var.set(f"Nueva actualización disponible: {tag}  ·  instalada {APP_VERSION_TAG}")
+            self.update_status_var.set(f"Update available: {tag}  ·  installed {APP_VERSION_TAG}")
             self.update_button.configure(state="normal")
             self.dismiss_button.configure(state="normal")
             self.update_button.pack(side="left", before=self.news_button)
             self.dismiss_button.pack(side="left", before=self.review_button, padx=(6, 0))
-            self.news_button.configure(text="Novedades")
+            self.news_button.configure(text="Release notes")
             self.update_banner.pack(fill="x", pady=(8, 0), before=self.page_row)
 
     def open_latest_release(self) -> None:
         webbrowser.open(self.release_url)
+
+    def start_update(self) -> None:
+        if self.updating or not self.pending_release:
+            return
+        if not getattr(sys, "frozen", False):
+            self.update_status_var.set("In-app update replaces CTRNF.exe. Opening the release so you can download it.")
+            self.open_latest_release()
+            return
+        url = release_executable_url(self.pending_release)
+        if not url:
+            self.update_status_var.set("This release has no CTRNF.exe attached. Opening the release page.")
+            self.open_latest_release()
+            return
+        self.updating = True
+        self.update_button.configure(state="disabled", text="Downloading…")
+        self.dismiss_button.configure(state="disabled")
+        self.update_status_var.set("Downloading the new version…")
+        threading.Thread(target=self._download_update, args=(url,), daemon=True).start()
+
+    def _download_update(self, url: str) -> None:
+        try:
+            def progress(read: int, total: int) -> None:
+                if total:
+                    text = f"Downloading the new version… {min(100, int(read * 100 / total))}%"
+                else:
+                    text = f"Downloading the new version… {read // (1024 * 1024)} MB"
+                try:
+                    self.root.after(0, lambda value=text: self.update_status_var.set(value))
+                except self.tk.TclError:
+                    pass
+
+            staged = download_release_executable(url, progress)
+            self.root.after(0, lambda: self._apply_downloaded_update(staged))
+        except (OSError, urllib.error.URLError, ValueError) as exc:
+            try:
+                self.root.after(0, lambda message=str(exc): self._update_failed(message))
+            except self.tk.TclError:
+                pass
+
+    def _apply_downloaded_update(self, staged: Path) -> None:
+        self.update_status_var.set("Installing the update. The app will reopen.")
+        try:
+            schedule_executable_swap(staged, Path(sys.executable))
+        except OSError as exc:
+            self._update_failed(str(exc))
+            return
+        self.close()
+
+    def _update_failed(self, message: str) -> None:
+        self.updating = False
+        self.update_button.configure(state="normal", text="Update now")
+        self.dismiss_button.configure(state="normal")
+        self.update_status_var.set(f"The update could not be downloaded. {message}")
 
     def dismiss_update(self) -> None:
         self.dismissed_update = True
@@ -1644,7 +1796,7 @@ class DashboardLauncher:
             return
         if found is not None:
             STATE.update_log(found)
-            self.settings_status_var.set("Se encontró el log y quedó guardado en este equipo.")
+            self.settings_status_var.set("The log was found and saved on this computer.")
             self.settings_status_label.configure(foreground=self.GOOD)
             self.refresh_settings()
             return
@@ -1657,19 +1809,19 @@ class DashboardLauncher:
         ready = saved is not None and saved.is_file()
         if ready:
             self.log_path_var.set(f"{saved.parent}\n{saved.name}")
-            self.choose_log_button.configure(text="Cambiar archivo .log…")
+            self.choose_log_button.configure(text="Change .log file…")
         elif self.searching_log:
-            self.log_path_var.set("Buscando el log del juego…")
-            self.choose_log_button.configure(text="Elegir archivo .log…")
+            self.log_path_var.set("Looking for the game log…")
+            self.choose_log_button.configure(text="Choose .log file…")
         elif saved is not None:
-            self.log_path_var.set(f"La ruta guardada ya no está:\n{saved}\nElige el log en la nueva ubicación del juego.")
-            self.choose_log_button.configure(text="Elegir archivo .log…")
+            self.log_path_var.set(f"The saved path is no longer there:\n{saved}\nChoose the log in the game's new location.")
+            self.choose_log_button.configure(text="Choose .log file…")
         else:
-            self.log_path_var.set("No se encontró el log. Elige el archivo last_run de tu juego. La ruta se guarda en este equipo.")
-            self.choose_log_button.configure(text="Elegir archivo .log…")
+            self.log_path_var.set("The log was not found. Choose the last_run file from your game. The path stays on this computer.")
+            self.choose_log_button.configure(text="Choose .log file…")
         tt_count = len(read_csv(RESULTS_CSV))
         rally_count = len(read_csv(RALLY_RESULTS_CSV))
-        self.data_count_var.set(f"Time Trial: {tt_count} registros     ·     Ring Rally: {rally_count} registros")
+        self.data_count_var.set(f"Time Trial: {tt_count} records     ·     Ring Rally: {rally_count} records")
 
     def choose_log(self) -> None:
         if self.log_dialog_open:
@@ -1678,8 +1830,8 @@ class DashboardLauncher:
         saved = saved_log_path()
         dialog_args = {
             "parent": self.root,
-            "title": "Seleccionar el log del juego",
-            "filetypes": (("Archivo de registro", "*.log"), ("Todos los archivos", "*.*")),
+            "title": "Select the game log",
+            "filetypes": (("Log file", "*.log"), ("All files", "*.*")),
         }
         if saved is not None and saved.parent.is_dir():
             dialog_args["initialdir"] = str(saved.parent)
@@ -1692,47 +1844,47 @@ class DashboardLauncher:
             return
         try:
             STATE.update_log(Path(chosen))
-            self.settings_status_var.set("Ruta guardada. Se usará en los próximos inicios hasta que la cambies.")
+            self.settings_status_var.set("Path saved. It will be used on the next launches until you change it.")
             self.settings_status_label.configure(foreground=self.GOOD)
             self.refresh_settings()
         except (OSError, ValueError) as exc:
             self.settings_status_var.set(str(exc))
-            self.settings_status_label.configure(foreground="#ff8585")
+            self.settings_status_label.configure(foreground=self.BAD)
 
     def export_backup(self) -> None:
         chosen = self.filedialog.asksaveasfilename(
             parent=self.root,
-            title="Exportar respaldo CTRNF",
-            initialfile="CTRNF-respaldo.zip",
+            title="Export CTRNF backup",
+            initialfile="CTRNF-backup.zip",
             defaultextension=".zip",
-            filetypes=(("Respaldo CTRNF", "*.zip"),),
+            filetypes=(("CTRNF backup", "*.zip"),),
         )
         if not chosen:
             return
         try:
             export_data(Path(chosen))
-            self.settings_status_var.set("Respaldo exportado correctamente.")
+            self.settings_status_var.set("Backup exported.")
             self.settings_status_label.configure(foreground=self.GOOD)
         except (OSError, ValueError, zipfile.BadZipFile) as exc:
             self.settings_status_var.set(str(exc))
-            self.settings_status_label.configure(foreground="#ff8585")
+            self.settings_status_label.configure(foreground=self.BAD)
 
     def import_backup(self) -> None:
         chosen = self.filedialog.askopenfilename(
             parent=self.root,
-            title="Importar respaldo CTRNF",
-            filetypes=(("Respaldo CTRNF", "*.zip"),),
+            title="Import CTRNF backup",
+            filetypes=(("CTRNF backup", "*.zip"),),
         )
         if not chosen:
             return
         try:
             imported = import_data(Path(chosen))
-            self.settings_status_var.set("Importados: " + ", ".join(imported))
+            self.settings_status_var.set("Imported: " + ", ".join(imported))
             self.settings_status_label.configure(foreground=self.GOOD)
             self.refresh_settings()
         except (OSError, ValueError, zipfile.BadZipFile, UnicodeDecodeError, csv.Error) as exc:
             self.settings_status_var.set(str(exc))
-            self.settings_status_label.configure(foreground="#ff8585")
+            self.settings_status_label.configure(foreground=self.BAD)
 
     def _start_server(self) -> None:
         try:
@@ -1755,19 +1907,19 @@ class DashboardLauncher:
 
     def _server_started(self) -> None:
         port = self.server.server_address[1]
-        self.status_var.set(f"Servidor activo en el puerto {port}")
+        self.status_var.set(f"Server running on port {port}")
         self._set_stream_urls(port)
-        self.side_state_var.set("● Activo")
+        self.side_state_var.set("● Running")
         self.status_label.configure(foreground=self.GOOD)
         self.open_button.configure(state="normal")
-        self.start_button.configure(state="normal", text="DETENER SERVIDOR", style="Danger.TButton", command=self.stop)
+        self.start_button.configure(state="normal", text="STOP SERVER", style="Danger.TButton", command=self.stop)
         self.open_dashboard()
 
     def _server_failed(self, message: str) -> None:
-        self.status_var.set(f"No se pudo iniciar el servidor: {message}")
+        self.status_var.set(f"The server could not start: {message}")
         self._set_stream_urls(None)
-        self.side_state_var.set("No disponible")
-        self.status_label.configure(foreground="#ff8585")
+        self.side_state_var.set("Unavailable")
+        self.status_label.configure(foreground=self.BAD)
         self._show_start_button()
 
     def open_dashboard(self) -> None:
@@ -1783,13 +1935,13 @@ class DashboardLauncher:
         self._set_stream_urls(None)
         self.open_button.configure(state="disabled")
         self._show_start_button()
-        self.status_var.set("Servidor detenido")
-        self.side_state_var.set("Detenido")
+        self.status_var.set("Server stopped")
+        self.side_state_var.set("Stopped")
         self.status_label.configure(foreground=self.MUTED)
         threading.Thread(target=lambda: (server.shutdown(), server.server_close()), daemon=True).start()
 
     def _show_start_button(self) -> None:
-        self.start_button.configure(state="normal", text="INICIAR SERVIDOR", style="Accent.TButton", command=self.start)
+        self.start_button.configure(state="normal", text="START SERVER", style="Accent.TButton", command=self.start)
 
     def close(self) -> None:
         self.closing = True
@@ -1812,8 +1964,8 @@ def run_launcher(parser_port: int = 8899) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", type=int, default=8899, help="puerto local del dashboard (por defecto: 8899)")
-    parser.add_argument("--server-only", action="store_true", help="inicia el servidor sin la ventana lanzadora")
+    parser.add_argument("--port", type=int, default=8899, help="local dashboard port (default: 8899)")
+    parser.add_argument("--server-only", action="store_true", help="start the server without the launcher window")
     args = parser.parse_args()
     if args.server_only:
         run_server_only(args.port)

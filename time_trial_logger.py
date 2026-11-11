@@ -46,7 +46,6 @@ CATALOG_IMAGE_DIR = PROJECT_ROOT / "web" / "catalog"
 _CATALOG_IMAGE_EXTENSIONS = (".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif")
 _CATALOG_IMAGE_FIELDS = ("url", "url_mask", "url_character", "dev_url")
 MASK_CLUBS = ("Aku Aku", "Uka Uka", "Velo", "Sparx")
-TIER_LABEL = {"bronze": "Bronce", "silver": "Plata", "gold": "Oro", "platinum": "Platino"}
 # Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000, Ultra 20,000,000.
 UNLOCK_COST = {"basic": 500_000, "exotic": 2_000_000, "legendary": 5_000_000, "beenox": 10_000_000, "ultra": 20_000_000}
 # Added to the global multiplier. 1 milli = 0.001, so the next score is ×1.001.
@@ -83,20 +82,20 @@ def parse_time(raw: str) -> float:
     if len(parts) == 3:
         minutes_s, seconds_s, centiseconds_s = parts
         if not (minutes_s.isdigit() and seconds_s.isdigit() and centiseconds_s.isdigit()):
-            raise ValueError("usa M:SS:CC, M:SS.CC o SS.CC")
+            raise ValueError("use M:SS:CC, M:SS.CC, or SS.CC")
         minutes, seconds, centiseconds = map(int, (minutes_s, seconds_s, centiseconds_s))
     else:
         match = TIME_RE.fullmatch(value)
         if not match:
-            raise ValueError("usa M:SS:CC, M:SS.CC o SS.CC")
+            raise ValueError("use M:SS:CC, M:SS.CC, or SS.CC")
         minutes_s, seconds_s, fraction_s = match.groups()
         minutes = int(minutes_s or 0)
         seconds = int(seconds_s)
         if fraction_s is None:
-            raise ValueError("falta la fracción de centésimas (por ejemplo 1:20.99)")
+            raise ValueError("missing the hundredths (for example 1:20.99)")
         centiseconds = int(fraction_s.ljust(2, "0"))
     if seconds > 59 or centiseconds > 99:
-        raise ValueError("segundos deben estar entre 00 y 59 y centésimas entre 00 y 99")
+        raise ValueError("seconds must be 00–59 and hundredths 00–99")
     return minutes * 60 + seconds + centiseconds / 100
 
 
@@ -136,7 +135,7 @@ def entity_ids(path: Path, field: str) -> dict[str, int]:
         reader = csv.DictReader(csv_file, delimiter=delimiter)
         if not reader.fieldnames or field not in reader.fieldnames:
             raise ValueError(
-                "el CSV existente usa un esquema anterior; elimínalo o renómbralo antes de guardar"
+                "this CSV uses an older layout; delete or rename it before saving"
             )
         id_field = f"{field}_id"
         for row in reader:
@@ -326,14 +325,14 @@ RALLY_FIELDS = (
 def parse_score(raw: str) -> int:
     value = raw.strip()
     if not re.fullmatch(r"\d+", value):
-        raise ValueError("ingresa un puntaje entero sin decimales (ej. 100452)")
+        raise ValueError("enter a whole score, no decimals (e.g. 100452)")
     return int(value)
 
 
 def parse_laps(raw: str) -> int:
     value = raw.strip()
     if not re.fullmatch(r"\d+", value):
-        raise ValueError("ingresa el número de vueltas como entero")
+        raise ValueError("enter the lap count as a whole number")
     return int(value)
 
 
@@ -394,8 +393,8 @@ def ensure_possible_time(track: str, seconds: float) -> None:
     limit = _csv_centis(row.get("time_threshold") or "")
     if limit is None or _centis_from_seconds(seconds) > limit:
         return
-    name = (row.get("track_clean") or "").strip() or "esta pista"
-    raise ValueError(f"No es posible guardar ese tiempo. El límite de {name} es {_clock_from_centis(limit)}.")
+    name = (row.get("track_clean") or "").strip() or "this track"
+    raise ValueError(f"That time can't be saved. The limit for {name} is {_clock_from_centis(limit)}.")
 
 
 def ensure_possible_score(track: str, score: int) -> None:
@@ -404,8 +403,8 @@ def ensure_possible_score(track: str, score: int) -> None:
     limit = _csv_int(row.get("score_threshold") or "")
     if limit is None or score < limit:
         return
-    name = (row.get("track_clean") or "").strip() or "esta pista"
-    raise ValueError(f"No es posible guardar ese puntaje. El límite de {name} es {limit:,}.")
+    name = (row.get("track_clean") or "").strip() or "this track"
+    raise ValueError(f"That score can't be saved. The limit for {name} is {limit:,}.")
 
 
 def _read_table(path: Path) -> list[dict[str, str]]:
@@ -534,8 +533,8 @@ def _unlock_notes(steps: list[dict]) -> str:
         return ""
     parts = [f"{step['skin_name']} ({step['skin_type']})" for step in steps]
     if len(parts) == 1:
-        return f"Desbloqueo: {parts[0]}"
-    return "Desbloqueo: " + ", ".join(parts)
+        return f"Unlock: {parts[0]}"
+    return "Unlock: " + ", ".join(parts)
 
 
 def _progress_notes(steps: list[dict], trophies: list[dict]) -> str:
@@ -545,7 +544,7 @@ def _progress_notes(steps: list[dict], trophies: list[dict]) -> str:
         parts.append(skin_note)
     if trophies:
         names = [item["name"] for item in trophies]
-        label = "Trofeo" if len(names) == 1 else "Trofeos"
+        label = "Trophy" if len(names) == 1 else "Trophies"
         parts.append(f"{label}: " + ", ".join(names))
     return " · ".join(parts)
 
@@ -745,10 +744,10 @@ def _load_achievements(path: Path) -> list[dict]:
                 "id": (row.get("id") or "").strip(),
                 "name": name,
                 "notes": notes,
-                "description": (row.get("description") or "").strip(),
+                "description": (row.get("description_en") or row.get("description") or "").strip(),
                 "game_mode": game_mode,
                 "type": tier,
-                "tier": TIER_LABEL.get(tier.casefold(), tier) if tier else "",
+                "tier": tier,
                 "milli": _parse_milli(row.get("mult") or ""),
                 "url": achievement_icon_url((row.get("id") or "").strip(), (row.get("url") or "").strip()),
                 **kind,
@@ -1065,7 +1064,7 @@ def _trophy_card(ach: dict, state: dict[str, dict], status: str) -> dict:
     return {
         "kind": "trophy",
         "status": status,
-        "label": "Trofeo",
+        "label": "Trophy",
         "name": ach["name"],
         "detail": ach.get("description", ""),
         "tier": ach.get("tier") or "",
@@ -1294,7 +1293,7 @@ def save_rally_record(
     track: str, skin: str, raw_score: str, raw_laps: str, csv_path: Path
 ) -> tuple[dict[str, str], list[dict]]:
     if is_mod_track(_track_catalog_row(track)):
-        raise ValueError("Las pistas mod solo se registran en Contrarreloj.")
+        raise ValueError("Mod tracks can only be logged in Time Trial.")
     score = parse_score(raw_score)
     laps = parse_laps(raw_laps)
     ensure_possible_score(track, score)

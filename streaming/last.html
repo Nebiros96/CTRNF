@@ -1,27 +1,31 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CTRNF · Último registro</title>
-  <link rel="stylesheet" href="pb.css">
+  <title>CTRNF · Latest Time Trial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Russo+One&display=swap">
+  <link rel="stylesheet" href="overlay.css">
 </head>
 <body data-card="last">
-  <!-- OBS: /streaming/last.html · 420 × 100 · fondo transparente -->
+  <!-- OBS: /streaming/last.html · 420 × 100 · transparent background -->
   <article id="overlay" class="card" hidden>
     <header class="head">
+      <span class="mode">Latest</span>
       <div id="track" class="track"></div>
       <div id="delta" class="delta"></div>
     </header>
     <div class="body">
-      <div class="portrait"><img id="skin" alt="" width="34" height="34"></div>
+      <div class="portrait"><img id="skin" alt="" width="62" height="62"></div>
       <div class="identity">
-        <div class="who"><span id="character"></span><span id="skin-name"></span></div>
+        <div class="who"><span id="character"></span></div>
         <div id="date" class="when"></div>
       </div>
       <div class="times">
         <div class="row">
-          <span class="tag">ÚLT</span>
+          <span class="tag">LAST</span>
           <span id="time" class="clock">—</span>
         </div>
         <div id="count" class="count"></div>
