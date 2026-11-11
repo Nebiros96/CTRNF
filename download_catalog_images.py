@@ -51,6 +51,7 @@ def collect_urls() -> list[str]:
         (core.CHARACTERS_CSV_PATH, ("url_mask", "url_character")),
         (core.TRACKS_CSV_PATH, ("url", "dev_url")),
         (core.ACHIEVEMENTS_CSV_PATH, ("url",)),
+        (core.STORE_CATALOG_PATH, ("item_url",)),
     )
     for path, fields in tables:
         for row in read_table(path):

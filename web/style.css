@@ -547,7 +547,28 @@ body {
 }
 
 /* Header */
-.header { padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.header { position: relative; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.brand { padding-right: 132px; }
+.header-coins {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid #5a4314;
+  background: linear-gradient(135deg, #3a2a08, #150f22 70%);
+}
+.header-coins img { width: 26px; height: 26px; object-fit: contain; }
+.header-coins strong {
+  font-family: var(--display);
+  font-size: 26px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--nitro);
+}
 .brand-logo { filter: drop-shadow(0 0 18px #ff8a0055); }
 .title {
   display: inline-block;
@@ -705,6 +726,7 @@ body {
   border-color: #5a4314;
 }
 .progress-global .hero-rule { margin: 6px 0 0; color: #ddd4ee; line-height: 1.45; }
+.progress-global .store-mult-note { color: var(--nitro); }
 .progress-total-value, .global-mult-value, .hero-album-value, .progress-stat-value, .trophy-count, .skin-total-count {
   font-family: var(--display); font-weight: 400; font-style: italic;
 }
@@ -755,6 +777,39 @@ body {
 .confirm-metric strong { font-family: var(--display); font-weight: 400; font-size: 18px; }
 .unlock-item { border-radius: 0; background: var(--well); }
 .unlock-icon img { border-radius: 0; }
+.unlock-resume {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #5a4314;
+  background: linear-gradient(135deg, #3a2a08, #150f22 72%);
+}
+.unlock-resume-track {
+  font-family: var(--display);
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.1;
+}
+.unlock-resume-who,
+.unlock-resume-result { color: #ddd4ee; font-size: 13px; }
+.unlock-coins {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--nitro);
+}
+.unlock-coins img { width: 22px; height: 22px; object-fit: contain; }
+.unlock-coins strong {
+  font-family: var(--display);
+  font-size: 28px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1;
+}
+.unlock-coins span { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 
 /* Footer */
 .site-footer { padding-top: 18px; border-top: 1px solid var(--line); }
@@ -764,3 +819,142 @@ body {
 ::-webkit-scrollbar-track { background: #0b0712; }
 ::-webkit-scrollbar-thumb { background: #3a2c58; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+.nav { flex-wrap: wrap; }
+.store-wallet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid #5a4314;
+  background: linear-gradient(135deg, #3a2a08, #150f22 70%);
+  clip-path: var(--cut);
+}
+.store-coin { width: 28px; height: 28px; flex: none; object-fit: contain; }
+.store-wallet-copy { min-width: 0; }
+.store-wallet .eyebrow { font-size: 10px; letter-spacing: .14em; }
+.store-balance {
+  font-family: var(--display);
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--nitro);
+}
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.store-card {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  background: var(--well);
+  text-align: center;
+}
+.store-frame { display: grid; place-items: center; width: 75px; height: 75px; margin: 0 auto; }
+.store-art, .store-fallback { width: 75px; height: 75px; object-fit: contain; }
+.store-fallback { display: grid; place-items: center; color: #5d4f7c; font-size: 11px; }
+.store-name {
+  margin: 0;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  text-transform: none;
+}
+.store-price { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 22px; }
+.store-price img { width: 14px; height: 14px; object-fit: contain; }
+.store-price span {
+  font-family: var(--ui);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+.store-help {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+}
+.store-help-button {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #120c1ccc;
+  color: #f5cf62;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  box-shadow: 0 0 0 1px #876d2c;
+}
+.store-help-button:hover,
+.store-help-button:focus-visible,
+.store-help-button[aria-expanded="true"] {
+  background: #3b301a;
+  color: #ffe08a;
+  outline: none;
+}
+.store-help-popover {
+  position: fixed;
+  z-index: 40;
+  width: 190px;
+  padding: 8px 10px;
+  border: 1px solid #5a4314;
+  background: #1a1229;
+  color: var(--text);
+  text-align: left;
+  box-shadow: 0 12px 30px #0009;
+}
+.store-help-popover p { margin: 0; font-size: 11px; line-height: 1.4; }
+.store-help-popover p + p { margin-top: 4px; }
+.store-card .store-buy {
+  width: 100%;
+  margin-top: 2px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.store-owned { margin-top: 14px; }
+.store-owned summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: #1a1229;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.store-owned summary::-webkit-details-marker { display: none; }
+.store-owned summary::before { content: "▸ "; color: var(--nitro); }
+.store-owned[open] summary::before { content: "▾ "; }
+.store-owned .store-grid { margin-top: 10px; }
+#store-status { min-height: 1.2em; margin-top: 10px; font-size: 13px; }
+.store-grid .empty { grid-column: 1 / -1; }
+
+@media (max-width: 1100px) {
+  .store-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 800px) {
+  .store-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .nav-btn { padding: 10px 16px; }
+}
+@media (max-width: 560px) {
+  .store-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nav-btn { padding: 10px 12px; font-size: 13px; }
+}

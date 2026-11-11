@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.0)
+# Crash™ Team Racing NF - Dashboard (v1.1)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -40,13 +40,19 @@ Each trophy shows your progress, its tier, and how much it adds to the multiplie
 
 ![Trophy list with progress, tier, and unlock date](utils/Trophies.JPG)
 
+## Store
+
+The store opens with 5,000 Wumpacoins. That amount is the first row of a new wallet and is not added again. Races you already saved stay as they are and do not pay coins. From this version on, each saved Time Trial or Ring Rally pays the amount set for that track. Ring Rally pays more. Friday, Saturday, and Sunday pay double.
+
+Purchased items add their flat bonus to the Skin Album multiplier. A conditional bonus applies only on the next Ring Rally when the race matches it: a Crash Team Racing character, a mask, or that exact track.
+
 ## OBS overlays
 
 ![Streaming overlay](utils/overlayTT.jpg)
 
 ## Backup
 
-In Settings you can export a ZIP with your Time Trial times and your Ring Rally scores. On startup the program tries to find the game log. If it does not appear, you choose it once and that path stays on the computer; you can change it if you move the game. Importing a backup only fills a record that is still empty.
+In Settings you can export a ZIP with your Time Trial times, your Ring Rally scores, and your Wumpacoin wallet. On startup the program tries to find the game log. If it does not appear, you choose it once and that path stays on the computer; you can change it if you move the game. Importing a backup only fills a record that is still empty.
 
 Every track has a limit so an impossible time or an out-of-range score is not saved. Those limits come from the glitchless world records published on [crashteamranking.com](https://crashteamranking.com/), with a 5% margin. They were updated on October 31, 2026.
 

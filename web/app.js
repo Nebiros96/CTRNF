@@ -445,9 +445,11 @@ function progressStat(label, value, extraClass) {
   return box;
 }
 
-function paintGlobalMultiplier(raw) {
+function paintGlobalMultiplier(raw, storeBonus) {
   const box = $("progress-global");
   box.replaceChildren();
+  const always = Number(storeBonus?.always) || 0;
+  const shown = (Number(raw) || 0) + always;
   const copy = document.createElement("div");
   copy.className = "global-mult-copy";
   const eyebrow = document.createElement("div");
@@ -476,7 +478,7 @@ function paintGlobalMultiplier(raw) {
   titleRow.append(eyebrow, help);
   const value = document.createElement("div");
   value.className = "global-mult-value";
-  value.textContent = formatFactor(raw).slice(1);
+  value.textContent = formatFactor(shown).slice(1);
   const note = document.createElement("p");
   note.className = "hero-rule";
   note.textContent = "Your next race uses this value, with any character.";
@@ -706,7 +708,7 @@ function paintProgressTotal(characters, records, unlocked, skins) {
   );
 }
 
-function paintProgress(characters, multiplier, records, unlocked, skins) {
+function paintProgress(characters, multiplier, records, unlocked, skins, storeBonus) {
   const roster = $("progress-roster");
   const scroll = roster.scrollTop;
   const query = progressQuery.trim().toLocaleLowerCase("es");
@@ -798,7 +800,7 @@ function paintProgress(characters, multiplier, records, unlocked, skins) {
   const selected = characters.find((row) => row.character_id === progressCharacterId) || null;
   paintProgressTotal(characters, records, unlocked, skins);
   paintSkinTotals(characters);
-  paintGlobalMultiplier(multiplier);
+  paintGlobalMultiplier(multiplier, storeBonus);
   paintProgressHero(selected);
   paintAlbum(selected);
 }
@@ -1040,7 +1042,7 @@ async function commitConfirm() {
       setStatus("status", `Saved #${data.record.id} · ${data.record.time_seconds} s`, false);
     }
     closeConfirm();
-    if (draft.mode === "rally_ring" && Array.isArray(data.unlocks) && data.unlocks.length) openUnlocks(data.unlocks);
+    openResume(draft, data.record || {}, Array.isArray(data.unlocks) ? data.unlocks : []);
     await refresh();
   } catch (error) {
     $("confirm-ok").disabled = false;
@@ -1078,6 +1080,7 @@ function showProgressState(data) {
     id: progressCharacterId,
     query: progressQuery,
     multiplier: data.multiplier,
+    store: data.store_bonus,
     records,
     unlocked,
     skins,
@@ -1085,7 +1088,7 @@ function showProgressState(data) {
   });
   if (signature === progressSignature) return;
   progressSignature = signature;
-  paintProgress(characters, data.multiplier, records, unlocked, skins);
+  paintProgress(characters, data.multiplier, records, unlocked, skins, data.store_bonus);
 }
 
 let trophySignature = "";
@@ -1206,12 +1209,177 @@ function showTrophyState(data) {
   paintTrophies(trophies);
 }
 
+let storeSignature = "";
+let pendingStoreBuy = "";
+
+function formatCoins(value) {
+  return Number(value || 0).toLocaleString("en-US");
+}
+
+function closeStoreHelp() {
+  for (const popover of document.querySelectorAll(".store-help-popover")) popover.hidden = true;
+  for (const button of document.querySelectorAll(".store-help-button")) button.setAttribute("aria-expanded", "false");
+}
+
+function storeHelpButton(item) {
+  const lines = Array.isArray(item.help) ? item.help.filter(Boolean) : [];
+  if (!lines.length) return null;
+  const wrap = document.createElement("div");
+  wrap.className = "store-help";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "store-help-button";
+  button.innerHTML = '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>';
+  button.title = "Bonus";
+  button.setAttribute("aria-label", `Bonus for ${item.name}`);
+  button.setAttribute("aria-expanded", "false");
+  const popover = document.createElement("div");
+  popover.className = "store-help-popover";
+  popover.hidden = true;
+  for (const line of lines) {
+    const row = document.createElement("p");
+    row.textContent = line;
+    popover.append(row);
+  }
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const willOpen = popover.hidden;
+    closeStoreHelp();
+    if (!willOpen) return;
+    popover.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    const rect = button.getBoundingClientRect();
+    const width = 190;
+    let left = rect.right - width;
+    if (left < 8) left = Math.min(rect.left, window.innerWidth - width - 8);
+    left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+    popover.style.top = `${Math.round(rect.bottom + 8)}px`;
+    popover.style.left = `${Math.round(left)}px`;
+    popover.style.width = `${width}px`;
+  });
+  wrap.append(button, popover);
+  return wrap;
+}
+
+function storeCard(item, coinIcon) {
+  const card = document.createElement("article");
+  card.className = "store-card";
+  const frame = document.createElement("div");
+  frame.className = "store-frame";
+  imageBox(frame, item.url, item.name, { imageClass: "store-art", fallbackClass: "store-fallback" });
+  card.append(frame);
+  const help = storeHelpButton(item);
+  if (help) card.append(help);
+
+  const name = document.createElement("h3");
+  name.className = "store-name";
+  name.textContent = item.name;
+  card.append(name);
+
+  const price = document.createElement("div");
+  price.className = "store-price";
+  const coin = document.createElement("img");
+  coin.src = coinIcon || "/wumpacoin.webp";
+  coin.alt = "";
+  const amount = document.createElement("span");
+  amount.textContent = formatCoins(item.price);
+  price.append(coin, amount);
+  card.append(price);
+
+  if (!item.purchased) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button store-buy";
+    if (!item.affordable) {
+      button.disabled = true;
+      button.textContent = "Not enough";
+    } else if (pendingStoreBuy === item.id) {
+      button.textContent = "Confirm";
+      button.addEventListener("click", () => buyStoreItem(item.id, true));
+    } else {
+      button.textContent = "Buy";
+      button.addEventListener("click", () => buyStoreItem(item.id, false));
+    }
+    card.append(button);
+  }
+  return card;
+}
+
+function paintStore(data) {
+  const items = data.items || [];
+  const signature = JSON.stringify({ balance: data.balance, pending: pendingStoreBuy, items });
+  $("store-balance").textContent = formatCoins(data.balance);
+  if (signature === storeSignature) return;
+  storeSignature = signature;
+  closeStoreHelp();
+  const pending = items.filter((item) => !item.purchased);
+  const purchased = items.filter((item) => item.purchased);
+  const grid = $("store-grid");
+  grid.replaceChildren();
+  if (!pending.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = purchased.length ? "Everything here is already purchased." : "The store is empty.";
+    grid.append(empty);
+  } else {
+    for (const item of pending) grid.append(storeCard(item, data.coin_icon));
+  }
+  const owned = $("store-owned");
+  const ownedGrid = $("store-owned-grid");
+  owned.hidden = purchased.length === 0;
+  $("store-owned-summary").textContent = `Purchased · ${purchased.length}`;
+  ownedGrid.replaceChildren();
+  for (const item of purchased) ownedGrid.append(storeCard(item, data.coin_icon));
+}
+
+function showStoreState(data) {
+  appState = data;
+  syncSaveLocks(Boolean(data.game_running));
+  paintConnection(data);
+  paintStore(data);
+}
+
+async function buyStoreItem(itemId, confirmed) {
+  const status = $("store-status");
+  if (!confirmed) {
+    pendingStoreBuy = itemId;
+    storeSignature = "";
+    if (appState && appState.mode === "store") paintStore(appState);
+    status.textContent = "Confirm the purchase. It applies on the next Ring Rally.";
+    status.className = "status";
+    return;
+  }
+  pendingStoreBuy = "";
+  status.textContent = "Buying…";
+  status.className = "status";
+  try {
+    const response = await fetch("/api/store/buy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_id: itemId }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Couldn't buy that item");
+    storeSignature = "";
+    status.textContent = "Purchased. The bonus applies on the next Ring Rally.";
+    status.className = "status";
+    await refresh();
+  } catch (error) {
+    storeSignature = "";
+    status.textContent = error.message;
+    status.className = "status error";
+    await refresh();
+  }
+}
+
 function setView(name) {
   $("view-register").hidden = name !== "register";
   $("view-rally").hidden = name !== "rally";
   $("view-progress").hidden = name !== "progress";
   $("view-trophies").hidden = name !== "trophies";
-  currentMode = name === "rally" ? "rally_ring" : name === "progress" ? "rally_progress" : name === "trophies" ? "rally_trophies" : "time_trial";
+  $("view-store").hidden = name !== "store";
+  pendingStoreBuy = "";
+  currentMode = name === "rally" ? "rally_ring" : name === "progress" ? "rally_progress" : name === "trophies" ? "rally_trophies" : name === "store" ? "store" : "time_trial";
   for (const button of document.querySelectorAll(".nav-btn")) {
     const active = button.dataset.view === name;
     button.classList.toggle("active", active);
@@ -1421,6 +1589,11 @@ function renderRallyTrackPicker(data) {
   paintTrackMenu(picker, rows, data.current_track?.track || data.selected?.track || "");
 }
 
+function paintHeaderCoins(data) {
+  if (data.balance == null || data.balance === "") return;
+  $("header-coin-balance").textContent = formatCoins(data.balance);
+}
+
 async function refresh() {
   const requestId = ++refreshSerial;
   const track = browsedTrackByMode[currentMode];
@@ -1432,9 +1605,11 @@ async function refresh() {
     const data = await response.json();
     if (requestId !== refreshSerial) return;
     if (!response.ok) throw new Error(data.error || "Couldn't load data");
+    paintHeaderCoins(data);
     if (currentMode === "rally_ring") showRallyState(data);
     else if (currentMode === "rally_progress") showProgressState(data);
     else if (currentMode === "rally_trophies") showTrophyState(data);
+    else if (currentMode === "store") showStoreState(data);
     else showState(data);
   } catch (error) {
     if (requestId !== refreshSerial) return;
@@ -1476,11 +1651,15 @@ for (const menu of document.querySelectorAll(".track-menu")) {
   });
 }
 document.addEventListener("click", (event) => {
+  if (!event.target.closest(".store-help")) closeStoreHelp();
   if (event.target.closest(".track-menu")) return;
   closeTrackMenus();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeTrackMenus();
+  if (event.key === "Escape") {
+    closeTrackMenus();
+    closeStoreHelp();
+  }
 });
 $("progress-search").addEventListener("input", () => {
   progressQuery = $("progress-search").value;
@@ -1564,12 +1743,54 @@ function paintUnlockItem(item) {
   return card;
 }
 
-function openUnlocks(items) {
+function paintResume(draft, record) {
+  const box = $("unlock-resume");
+  box.replaceChildren();
+  const track = document.createElement("div");
+  track.className = "unlock-resume-track";
+  track.textContent = draft.track?.name || "null";
+  const who = document.createElement("div");
+  who.className = "unlock-resume-who";
+  const skinName = draft.skin?.name || "null";
+  const skinDetail = draft.skin?.detail && draft.skin.detail !== "null" ? ` · ${draft.skin.detail}` : "";
+  who.textContent = `${skinName}${skinDetail}`;
+  const result = document.createElement("div");
+  result.className = "unlock-resume-result";
+  if (draft.mode === "rally_ring") {
+    const laps = Number(record.laps);
+    const lapText = Number.isFinite(laps) ? ` · ${formatScore(laps)} ${laps === 1 ? "lap" : "laps"}` : "";
+    result.textContent = `${formatScore(record.score)} pts${lapText}`;
+  } else {
+    result.textContent = record.time_raw || draft.time || "null";
+  }
+  const coins = document.createElement("div");
+  coins.className = "unlock-coins";
+  const icon = document.createElement("img");
+  icon.src = "/wumpacoin.webp";
+  icon.alt = "";
+  const amount = document.createElement("strong");
+  amount.textContent = `+${formatCoins(record.wumpas)}`;
+  const label = document.createElement("span");
+  label.textContent = "Wumpacoins";
+  coins.append(icon, amount, label);
+  box.append(track, who, result, coins);
+}
+
+let resumeFocus = "score";
+
+function openResume(draft, record, items) {
+  paintResume(draft, record);
   const list = $("unlock-list");
   list.replaceChildren();
-  for (const item of items) list.append(paintUnlockItem(item));
-  $("unlock-title").textContent = unlockMode(items) === "progress" ? "In progress" : "Congratulations";
-  $("unlock-lead").textContent = unlockHeadline(items);
+  const cards = Array.isArray(items) ? items : [];
+  for (const item of cards) list.append(paintUnlockItem(item));
+  const hasCards = cards.length > 0;
+  resumeFocus = draft.focusId || (draft.mode === "rally_ring" ? "score" : "time");
+  $("unlock-eyebrow").textContent = draft.mode === "rally_ring" ? "Ring Rally" : "Time Trial";
+  $("unlock-title").textContent = "Resume";
+  $("unlock-lead").hidden = !hasCards;
+  $("unlock-lead").textContent = hasCards ? unlockHeadline(cards) : "";
+  list.hidden = !hasCards;
   $("unlock-modal").hidden = false;
   document.querySelector("main").inert = true;
   window.setTimeout(() => $("unlock-ok").focus(), 0);
@@ -1578,8 +1799,8 @@ function openUnlocks(items) {
 function closeUnlocks() {
   $("unlock-modal").hidden = true;
   document.querySelector("main").inert = false;
-  const score = $("score");
-  if (score) score.focus();
+  const field = $(resumeFocus);
+  if (field) field.focus();
 }
 
 $("confirm-ok").addEventListener("click", () => { commitConfirm(); });

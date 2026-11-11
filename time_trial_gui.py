@@ -37,6 +37,7 @@ LOGO_PATH = ROOT / "utils" / "logo_by_LexiLoo826.png"
 COVER_PATH = ROOT / "utils" / "fondo_launcher.png"
 ICON_PATH = ROOT / "utils" / "ctrnf.ico"
 ACHIEVEMENT_ICON_DIR = ROOT / "utils" / "achievements"
+WUMPACOIN_PATH = ROOT / "utils" / "store" / "CTRNF-Wumpa_Coin.webp"
 ACHIEVEMENT_ICON_TYPES = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -46,7 +47,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.0"
+APP_VERSION = "CTR - v1.1"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -278,7 +279,11 @@ def set_log_file(path: Path | None) -> None:
     SETTINGS_PATH.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-DATA_FILES = {"time_trials.csv": RESULTS_CSV, "rally_ring.csv": RALLY_RESULTS_CSV}
+DATA_FILES = {
+    "time_trials.csv": RESULTS_CSV,
+    "rally_ring.csv": RALLY_RESULTS_CSV,
+    "wallet.csv": core.STORE_WALLET_PATH,
+}
 
 
 def export_data(path: Path) -> None:
@@ -297,11 +302,12 @@ def import_data(path: Path) -> list[str]:
         names = set(archive.namelist())
         selected = names.intersection(DATA_FILES)
         if not selected:
-            raise ValueError("The file does not contain time_trials.csv or rally_ring.csv.")
+            raise ValueError("The file does not contain time_trials.csv, rally_ring.csv, or wallet.csv.")
         staged = {}
         schemas = {
             "time_trials.csv": {"id", "track", "skin", "time_raw", "time_seconds", "captured_at"},
             "rally_ring.csv": {"id", "track", "skin", "score", "laps", "captured_at"},
+            "wallet.csv": {"id", "kind", "coins", "captured_at"},
         }
         for name in selected:
             raw = archive.read(name).decode("utf-8-sig")
@@ -350,6 +356,7 @@ def trophies_payload(running: bool) -> dict:
             "unlocked": built["unlocked"],
             "trophies": built["total"],
         },
+        "balance": core.wallet_balance(),
     }
 
 
@@ -364,11 +371,13 @@ def progress_payload(running: bool) -> dict:
         "progression": built["characters"],
         "active_character_id": built["active_character_id"],
         "multiplier": built["multiplier"],
+        "store_bonus": built["store_bonus"],
         "summary": {
             "records": len(results),
             "unlocked": built["unlocked"],
             "skins": built["total_skins"],
         },
+        "balance": core.wallet_balance(),
     }
 
 
@@ -677,6 +686,13 @@ class DashboardState:
     def get_payload(self, browse_track: str = "", mode: str = "time_trial") -> dict:
         self.refresh_game_status()
         self.poll_log()
+        if mode == "store":
+            with self.lock:
+                running = self.game_running
+            payload = core.store_payload()
+            payload["game_running"] = running
+            payload["log_found"] = core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file()
+            return payload
         if mode == "rally_progress":
             with self.lock:
                 running = self.game_running
@@ -822,6 +838,7 @@ class DashboardState:
                 "tracks": len(catalog) if rally_mode else len(official),
             },
             "mode": "rally_ring" if rally_mode else "time_trial",
+            "balance": core.wallet_balance(),
             "indicators": None if rally_mode else track_indicators(
                 [row for row in results if (row.get("track") or "").strip() == selected_track]
             ),
@@ -992,7 +1009,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.0"
+    server_version = "CTRTimeTrialDashboard/1.1"
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -1073,6 +1090,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, icon.read_bytes(), ACHIEVEMENT_ICON_TYPES[suffix])
             return
 
+        if path == "/wumpacoin.webp":
+            try:
+                self._send(200, WUMPACOIN_PATH.read_bytes(), "image/webp")
+            except OSError:
+                self._send(404, b"Not found", "text/plain; charset=utf-8")
+            return
+
         if path == "/favicon.ico":
             try:
                 self._send(200, ICON_PATH.read_bytes(), "image/x-icon")
@@ -1129,6 +1153,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         route = urlparse(self.path).path
+        if route == "/api/store/buy":
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                data = json.loads(self.rfile.read(size).decode("utf-8") or "{}")
+                payload = core.buy_store_item(str(data.get("item_id") or ""))
+                body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+                self._send(200, body, "application/json; charset=utf-8")
+            except (ValueError, OSError, csv.Error, json.JSONDecodeError) as exc:
+                body = json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8")
+                self._send(400, body, "application/json; charset=utf-8")
+            return
         if route != "/api/record":
             self._send(404, b"Not found", "text/plain; charset=utf-8")
             return
@@ -1167,6 +1202,7 @@ def create_dashboard_server(parser_port: int = 8899) -> DashboardServer:
             continue
     if server is None:
         raise OSError(f"No local port is available from {parser_port} to {min(parser_port + 15, 65535)}.")
+    core.ensure_wallet()
     return server
 
 
