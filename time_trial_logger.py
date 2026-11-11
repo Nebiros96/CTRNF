@@ -47,10 +47,10 @@ _CATALOG_IMAGE_EXTENSIONS = (".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif")
 _CATALOG_IMAGE_FIELDS = ("url", "url_mask", "url_character", "dev_url")
 MASK_CLUBS = ("Aku Aku", "Uka Uka", "Velo", "Sparx")
 TIER_LABEL = {"bronze": "Bronce", "silver": "Plata", "gold": "Oro", "platinum": "Platino"}
-# Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000.
-UNLOCK_COST = {"basic": 500_000, "exotic": 2_000_000, "legendary": 5_000_000, "beenox": 10_000_000}
+# Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000, Ultra 20,000,000.
+UNLOCK_COST = {"basic": 500_000, "exotic": 2_000_000, "legendary": 5_000_000, "beenox": 10_000_000, "ultra": 20_000_000}
 # Added to the global multiplier. 1 milli = 0.001, so the next score is ×1.001.
-BONUS_MILLI = {"basic": 1, "exotic": 2, "legendary": 3, "beenox": 5}
+BONUS_MILLI = {"basic": 1, "exotic": 2, "legendary": 3, "beenox": 5, "ultra": 10}
 _rally_lock = threading.Lock()
 CSV_FIELDS = (
     "id",
@@ -661,7 +661,7 @@ def _classify_achievement(name: str, notes: str, goal_raw: str, game_mode: str =
         return {"kind": "skin_count", "goal": _parse_goal_int(goal_raw)}
     if notes_cf == "all skins":
         return {"kind": "all_skins"}
-    if notes_cf in {"basic", "exotic", "legendary", "beenox"}:
+    if notes_cf in {"basic", "exotic", "legendary", "beenox", "ultra"}:
         return {"kind": "skin_type", "skin_type": notes.strip()}
     if "base points" in notes_cf and "race" in name_cf:
         return {"kind": "single_race", "goal": _parse_goal_int(goal_raw)}

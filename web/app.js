@@ -467,7 +467,7 @@ function paintGlobalMultiplier(raw) {
   const details = document.createElement("div");
   details.className = "multiplier-help-popover";
   details.hidden = true;
-  details.textContent = "Cada skin desbloqueada suma: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005. Cada trofeo desbloqueado suma su bonus.";
+  details.textContent = "Cada skin desbloqueada suma: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005 · Ultra 0.01. Cada trofeo desbloqueado suma su bonus.";
   helpButton.addEventListener("click", () => {
     details.hidden = !details.hidden;
     helpButton.setAttribute("aria-expanded", String(!details.hidden));
@@ -491,6 +491,7 @@ function paintSkinTotals(characters) {
     { key: "exotic", label: "Exotic" },
     { key: "legendary", label: "Legendary" },
     { key: "beenox", label: "Beenox" },
+    { key: "ultra", label: "Ultra" },
   ];
   const totals = Object.fromEntries(types.map(({ key }) => [key, { unlocked: 0, total: 0 }]));
   for (const character of characters) {

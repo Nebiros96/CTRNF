@@ -34,7 +34,7 @@ Cuando una skin llega a los puntos que le faltaban, el tablero te lo dice antes 
 
 ## Álbum de skins
 
-El álbum junta las skins por personaje y por rareza: Basic, Exotic, Legendary y Beenox. Arriba ves cuántas llevas desbloqueadas y el multiplicador global que usa la siguiente carrera, con cualquier personaje.
+El álbum junta las skins por personaje y por rareza: Basic, Exotic, Legendary, Beenox y Ultra. Arriba ves cuántas llevas desbloqueadas y el multiplicador global que usa la siguiente carrera, con cualquier personaje.
 
 ![Álbum de skins de Dr. N. Gin, con el progreso por rareza y el multiplicador global](utils/SkinsAlbum.JPG)
 

@@ -349,6 +349,8 @@ body {
 .skin-total-fill.type-legendary { background: #f3a712; }
 .skin-total.type-beenox { color: #7cc4ff; }
 .skin-total-fill.type-beenox { background: #7cc4ff; }
+.skin-total.type-ultra { color: #ff6fb1; }
+.skin-total-fill.type-ultra { background: #ff6fb1; }
 .progress-global {
   display: flex;
   align-items: center;
@@ -411,6 +413,7 @@ body {
 .type-exotic { color: #c9a6ff; }
 .type-legendary { color: #f3a712; }
 .type-beenox { color: #7cc4ff; }
+.type-ultra { color: #ff6fb1; }
 .skin-state { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .skin-check { position: absolute; top: 8px; right: 10px; color: var(--good); font-weight: 900; }
 
