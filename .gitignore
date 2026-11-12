@@ -35,3 +35,7 @@ README_desarrollo.md
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Demo autocontenida: solo se publica su HTML
+/demo/*
+!/demo/index.html

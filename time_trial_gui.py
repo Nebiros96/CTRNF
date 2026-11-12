@@ -47,7 +47,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.1"
+APP_VERSION = "CTR - v1.2"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -686,6 +686,60 @@ class DashboardState:
     def get_payload(self, browse_track: str = "", mode: str = "time_trial") -> dict:
         self.refresh_game_status()
         self.poll_log()
+        if mode == "profile":
+            with self.lock:
+                running = self.game_running
+            tracks = read_csv(TRACKS_CSV)
+            skins = read_csv(SKINS_CSV)
+            trials = read_csv(RESULTS_CSV)
+            rallies = read_csv(RALLY_RESULTS_CSV)
+            skin_by_raw = {row.get("skin", ""): row for row in skins}
+            counts = {}
+            for row in [*trials, *rallies]:
+                skin = (row.get("skin") or "").strip()
+                if skin in skin_by_raw:
+                    counts[skin] = counts.get(skin, 0) + 1
+            favorite = max(counts, key=counts.get) if counts else ""
+            catalog = track_catalog(tracks, trials, skin_by_raw)
+            for track in catalog:
+                track["trial_history"] = []
+                track["rally_history"] = []
+                for row in trials:
+                    if (row.get("track") or "").strip() == track["track"]:
+                        try:
+                            value = float((row.get("time_seconds") or "").replace(",", "."))
+                            if value > 0:
+                                track["trial_history"].append({"value": value, "label": row.get("time_raw", ""), "date": row.get("captured_at", "")})
+                        except ValueError:
+                            pass
+                for row in rallies:
+                    if (row.get("track") or "").strip() == track["track"]:
+                        try:
+                            value = int(row.get("score", ""))
+                            if value >= 0:
+                                track["rally_history"].append({"value": value, "date": row.get("captured_at", "")})
+                        except ValueError:
+                            pass
+                scores = []
+                for row in rallies:
+                    if (row.get("track") or "").strip() == track["track"]:
+                        try:
+                            scores.append(int(row.get("score", "")))
+                        except (TypeError, ValueError):
+                            pass
+                track["rally_records"] = len(scores)
+                track["rally_pb"] = max(scores) if scores else None
+                track["rally_available"] = not core.is_mod_track(track)
+            core.ensure_rally_progression(RALLY_RESULTS_CSV)
+            progress = core.build_rally_progression(rallies)
+            trophies = core.build_trophies(rallies)
+            return {"mode": "profile", "game_running": running,
+                    "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
+                    "balance": core.wallet_balance(), "catalog": catalog,
+                    "favorite": skin_by_raw.get(favorite), "favorite_runs": counts.get(favorite, 0),
+                    "trial_records": len(trials), "rally_records": len(rallies),
+                    "skins_unlocked": progress["unlocked"], "skins_total": progress["total_skins"],
+                    "trophies_unlocked": trophies["unlocked"], "trophies_total": trophies["total"]}
         if mode == "store":
             with self.lock:
                 running = self.game_running
@@ -1009,7 +1063,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.1"
+    server_version = "CTRTimeTrialDashboard/1.2"
 
     def log_message(self, format: str, *args) -> None:
         return

@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.1)
+# Crash™ Team Racing NF - Dashboard (v1.2)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -45,6 +45,16 @@ Each trophy shows your progress, its tier, and how much it adds to the multiplie
 The store opens with 5,000 Wumpacoins. That amount is the first row of a new wallet and is not added again. Races you already saved stay as they are and do not pay coins. From this version on, each saved Time Trial or Ring Rally pays the amount set for that track. Ring Rally pays more. Friday, Saturday, and Sunday pay double.
 
 Purchased items add their flat bonus to the Skin Album multiplier. A conditional bonus applies only on the next Ring Rally when the race matches it: a Crash Team Racing character, a mask, or that exact track.
+
+![Store](utils/stor.JPG)
+
+## Profile
+
+The profile brings your progress together: your most-used skin across both game modes, recorded runs, developers beaten, unlocked skins, and trophies. The track overview shows your Time Trial and Ring Rally personal bests and run counts, plus the absolute and percentage difference between your Time Trial best and the developer time. The Beenox icon marks tracks where you have beaten the developer, and the percentage colors show how the differences compare across your tracks. Click a column heading to sort the list.
+
+![Player profile with progress totals and a sortable track overview](utils/profile.JPG)
+
+Select a track to expand its Time Trial and Ring Rally progress charts. The Time Trial chart also highlights the area faster than the developer time.
 
 ## OBS overlays
 
