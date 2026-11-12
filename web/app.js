@@ -14,6 +14,10 @@ let progressQuery = "";
 let progressSignature = "";
 let progressScrolledId = "";
 let pendingAlbumCharacterId = "";
+let profileTrack = "";
+let profileSignature = "";
+let profileBestRelative = 0;
+let profileSort = { key: "track", direction: 1 };
 
 function imageBox(container, url, alt, options = {}) {
   const imageClass = options.imageClass || "thumb";
@@ -1372,14 +1376,237 @@ async function buyStoreItem(itemId, confirmed) {
   }
 }
 
+function showProfileState(data) {
+  paintConnection(data);
+  const signature = JSON.stringify(data);
+  if (signature === profileSignature) return;
+  profileSignature = signature;
+  const root = $("profile-content");
+  const tracks = data.catalog || [];
+  profileBestRelative = Math.min(0, ...tracks.map((track) => profileDevDifference(track).relativeValue).filter((value) => value != null));
+  const official = tracks.filter((track) => track.rally_available);
+  const favorite = data.favorite;
+  const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[char]);
+  const sortValue = (track) => {
+    const difference = profileDevDifference(track);
+    switch (profileSort.key) {
+      case "trial": { const value = clockCentis(track.pb); return Number.isFinite(value) ? value : null; }
+      case "absolute": return difference.absoluteValue;
+      case "relative": return difference.relativeValue;
+      case "trialRuns": return track.records;
+      case "rally": return track.rally_pb;
+      case "rallyRuns": return track.rally_available ? track.rally_records : null;
+      default: return track.track_clean || "";
+    }
+  };
+  const sortedTracks = [...tracks].sort((a, b) => {
+    const left = sortValue(a), right = sortValue(b);
+    if (left == null || right == null) return left == null ? (right == null ? 0 : 1) : -1;
+    const comparison = typeof left === "string" ? left.localeCompare(right) : left - right;
+    return comparison * profileSort.direction || (a.track_clean || "").localeCompare(b.track_clean || "");
+  });
+  const columns = [["track", "Track"], ["trial", "Time Trial PB"], ["absolute", "PB vs developer"], ["relative", "Difference"], ["trialRuns", "TT runs"], ["rally", "Ring Rally PB"], ["rallyRuns", "RR runs"]];
+  const devs = official.filter((track) => track.dev_time_surpass).length;
+  root.innerHTML = `
+    <section class="panel profile-hero">
+      <div class="profile-avatar">${favorite?.url ? `<img src="${escape(favorite.url)}" alt="${escape(favorite.character || "Favorite character")}">` : '<span>?</span>'}</div>
+      <div><div class="eyebrow">Player profile</div><h2>${escape(favorite?.character || "Your racing journey")}</h2>
+      <p>${favorite ? `${escape(favorite.skin_name || "Default skin")} · Most used skin across both modes (${data.favorite_runs} records)` : "Log a race to reveal your most used skin."}</p></div>
+    </section>
+    <div class="profile-stats">
+      ${[["Time Trial", data.trial_records], ["Ring Rally", data.rally_records], ["Developers beaten", `${devs} / ${official.length}`], ["Skins unlocked", `${data.skins_unlocked} / ${data.skins_total}`], ["Trophies unlocked", `${data.trophies_unlocked} / ${data.trophies_total}`]].map(([label, value]) => `<div class="panel profile-stat"><div class="stat-label">${label}</div><div class="kpi-value">${value}</div></div>`).join("")}
+    </div>
+    <section class="panel profile-tracks"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Track overview</h2></div></div>
+      <div class="profile-table-wrap"><table><thead><tr>${columns.map(([key, label]) => `<th scope="col"${profileSort.key === key ? ` aria-sort="${profileSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-sort="${key}">${label} <span aria-hidden="true">${profileSort.key === key ? (profileSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${sortedTracks.map((track) => `<tr><td><button type="button" class="profile-track-button" data-track="${escape(track.track)}">${escape(track.track_clean)}</button>${track.dev_time_surpass ? ` <img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt="Developer beaten" title="Developer beaten">` : ''}</td><td>${track.pb === "null" ? '—' : escape(track.pb)}</td><td>${profileDevDifference(track).absolute}</td><td><span style="color:${profileRelativeColor(profileDevDifference(track).relativeValue)}">${profileDevDifference(track).relative}</span></td><td>${track.records}</td><td>${track.rally_available ? (track.rally_pb == null ? '—' : formatScore(track.rally_pb)) : 'N/A'}</td><td>${track.rally_available ? track.rally_records : '—'}</td></tr>`).join("")}</tbody></table></div>
+      <p class="profile-legend"><img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt=""> Developer time beaten · N/A: Ring Rally unavailable for mod tracks</p>
+    </section>`;
+  root.querySelectorAll(".profile-sort").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.sort;
+      profileSort = { key, direction: profileSort.key === key ? -profileSort.direction : (key === "rally" || key === "trialRuns" || key === "rallyRuns" ? -1 : 1) };
+      profileSignature = "";
+      showProfileState(data);
+      root.querySelector(`.profile-sort[data-sort="${key}"]`)?.focus({ preventScroll: true });
+    });
+  });
+  root.querySelectorAll(".profile-track-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      profileTrack = button.dataset.track;
+      renderProfileDetail(data, true);
+    });
+  });
+  if (profileTrack) renderProfileDetail(data);
+}
+
+function renderProfileDetail(data, focus = false) {
+  const track = data.catalog.find((item) => item.track === profileTrack);
+  const button = [...document.querySelectorAll(".profile-track-button")].find((item) => item.dataset.track === profileTrack);
+  if (!track || !button) return;
+  $("profile-detail-row")?.remove();
+  const row = document.createElement("tr");
+  row.id = "profile-detail-row";
+  row.className = "profile-detail-row";
+  const cell = document.createElement("td");
+  cell.colSpan = 7;
+  const detail = document.createElement("div");
+  detail.className = "profile-detail";
+  cell.append(detail);
+  row.append(cell);
+  button.closest("tr").after(row);
+  button.setAttribute("aria-expanded", "true");
+  document.querySelectorAll(".profile-track-button").forEach((item) => {
+    if (item !== button) item.setAttribute("aria-expanded", "false");
+  });
+  const heading = document.createElement("div");
+  heading.className = "profile-detail-heading";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "refresh";
+  close.textContent = "Close";
+  close.addEventListener("click", () => {
+    profileTrack = "";
+    row.remove();
+    button.setAttribute("aria-expanded", "false");
+    document.querySelectorAll(".profile-track-button").forEach((button) => {
+      if (button.dataset.track === track.track) button.focus();
+    });
+  });
+  heading.append(profileDevIndicators(track), close);
+  const charts = document.createElement("div");
+  charts.className = "profile-charts";
+  charts.append(profileChart("Time Trial", track.trial_history, true, track.dev_time), profileChart("Ring Rally", track.rally_history, false));
+  detail.append(heading, charts);
+  if (focus) close.focus({ preventScroll: true });
+}
+
+function profileDevDifference(track) {
+  const devCentis = clockCentis(track.dev_time);
+  const values = (track.trial_history || []).map((item) => item.value);
+  if (!Number.isFinite(devCentis) || devCentis <= 0 || !values.length) return { absolute: "—", relative: "—", absoluteValue: null, relativeValue: null };
+  const deltaCentis = Math.round(Math.min(...values) * 100) - devCentis;
+  const sign = deltaCentis < 0 ? "−" : deltaCentis > 0 ? "+" : "";
+  const absolute = Math.abs(deltaCentis);
+  return {
+    absolute: `${sign}${String(Math.floor(absolute / 100)).padStart(2, "0")}:${String(absolute % 100).padStart(2, "0")}`,
+    relative: `${sign}${Math.abs(deltaCentis / devCentis * 100).toFixed(2)}%`,
+    absoluteValue: deltaCentis,
+    relativeValue: deltaCentis / devCentis * 100,
+  };
+}
+
+function profileRelativeColor(value) {
+  if (value == null) return "var(--muted)";
+  const ratio = profileBestRelative < 0 ? Math.max(0, Math.min(1, value / profileBestRelative)) : 0;
+  return `hsl(${Math.round(ratio * 120)} 75% 68%)`;
+}
+
+function profileDevIndicators(track) {
+  const difference = profileDevDifference(track);
+  const indicators = document.createElement("div");
+  indicators.className = "profile-dev-indicators";
+  const entries = [["PB vs developer", difference.absolute], ["Relative difference", difference.relative]];
+  for (const [label, value] of entries) {
+    const item = document.createElement("div");
+    const caption = document.createElement("span");
+    const number = document.createElement("strong");
+    caption.textContent = label;
+    number.textContent = value;
+    if (label === "Relative difference") number.style.color = profileRelativeColor(difference.relativeValue);
+    item.append(caption, number);
+    indicators.append(item);
+  }
+  return indicators;
+}
+
+function profileChart(name, history, isTime, devTime) {
+  const card = document.createElement("section");
+  card.className = "profile-chart";
+  const title = document.createElement("h4");
+  title.textContent = name;
+  card.append(title);
+  if (!history?.length) {
+    const empty = document.createElement("p");
+    empty.className = "profile-chart-empty";
+    empty.textContent = "No records for this track yet.";
+    card.append(empty);
+    return card;
+  }
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 500 205");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `${name}: ${history.length} records in recorded order. ${isTime ? "Lower is better." : "Higher is better."}`);
+  const values = history.map((item) => item.value);
+  const devCentis = isTime ? clockCentis(devTime) : Infinity;
+  const reference = Number.isFinite(devCentis) && devCentis > 0 ? devCentis / 100 : null;
+  const rangeValues = reference == null ? values : [...values, reference];
+  const min = Math.min(...rangeValues), max = Math.max(...rangeValues);
+  const padding = Math.max((max - min) * 0.12, isTime ? 0.5 : Math.max(max * 0.05, 1));
+  const low = min - padding, high = max + padding;
+  const x = (i) => history.length === 1 ? 275 : 64 + i * 420 / (history.length - 1);
+  const y = (v) => 15 + (high - v) * 155 / (high - low);
+  const format = (v) => isTime ? `${Math.floor(v / 60)}:${(v % 60).toFixed(2).padStart(5, "0")}` : Math.round(v).toLocaleString("en-US");
+  for (let i = 0; i < 3; i++) {
+    const v = high - (high - low) * i / 2;
+    const line = document.createElementNS(ns, "line");
+    line.setAttribute("x1", "64"); line.setAttribute("x2", "484"); line.setAttribute("y1", y(v)); line.setAttribute("y2", y(v)); line.setAttribute("class", "chart-grid");
+    const label = document.createElementNS(ns, "text");
+    label.setAttribute("x", "57"); label.setAttribute("y", y(v) + 4); label.setAttribute("text-anchor", "end"); label.textContent = format(v);
+    svg.append(line, label);
+  }
+  if (reference != null) {
+    const area = document.createElementNS(ns, "rect");
+    area.setAttribute("x", "64"); area.setAttribute("width", "420");
+    area.setAttribute("y", y(reference)); area.setAttribute("height", 170 - y(reference));
+    area.setAttribute("class", "chart-reference-area");
+    const tip = document.createElementNS(ns, "title");
+    tip.textContent = `Faster than developer: ${devTime}`;
+    area.append(tip); svg.append(area);
+  }
+  const rawStep = Math.max(1, (history.length - 1) / 4);
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const step = [1, 2, 5, 10].map((factor) => factor * magnitude).find((value) => value >= rawStep);
+  for (let race = 1; race <= history.length; race += step) {
+    const label = document.createElementNS(ns, "text");
+    label.setAttribute("x", x(race - 1)); label.setAttribute("y", "188");
+    label.setAttribute("text-anchor", "middle"); label.textContent = String(race);
+    svg.append(label);
+  }
+  const axisLabel = document.createElementNS(ns, "text");
+  axisLabel.setAttribute("x", "274"); axisLabel.setAttribute("y", "203");
+  axisLabel.setAttribute("text-anchor", "middle"); axisLabel.textContent = "Race number";
+  svg.append(axisLabel);
+  const polyline = document.createElementNS(ns, "polyline");
+  polyline.setAttribute("points", history.map((item, i) => `${x(i)},${y(item.value)}`).join(" "));
+  polyline.setAttribute("class", isTime ? "chart-line trial" : "chart-line rally");
+  svg.append(polyline);
+  history.forEach((item, i) => {
+    const dot = document.createElementNS(ns, "circle");
+    dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(item.value)); dot.setAttribute("r", "3.5"); dot.setAttribute("class", isTime ? "chart-dot trial" : "chart-dot rally");
+    const tip = document.createElementNS(ns, "title");
+    tip.textContent = `#${i + 1} · ${item.label || format(item.value)} · ${item.date || "Date unavailable"}`;
+    dot.append(tip); svg.append(dot);
+  });
+  const caption = document.createElement("p");
+  caption.textContent = `${history.length} ${history.length === 1 ? "record" : "records"} · oldest to newest · ${isTime ? "lower" : "higher"} is better`;
+  if (reference != null) {
+    const legend = document.createElement("p");
+    legend.className = "chart-reference-legend";
+    legend.textContent = `Shaded area: faster than developer (${devTime})`;
+    card.append(svg, legend, caption);
+  } else card.append(svg, caption);
+  return card;
+}
+
 function setView(name) {
+  $("view-profile").hidden = name !== "profile";
   $("view-register").hidden = name !== "register";
   $("view-rally").hidden = name !== "rally";
   $("view-progress").hidden = name !== "progress";
   $("view-trophies").hidden = name !== "trophies";
   $("view-store").hidden = name !== "store";
   pendingStoreBuy = "";
-  currentMode = name === "rally" ? "rally_ring" : name === "progress" ? "rally_progress" : name === "trophies" ? "rally_trophies" : name === "store" ? "store" : "time_trial";
+  currentMode = name === "profile" ? "profile" : name === "rally" ? "rally_ring" : name === "progress" ? "rally_progress" : name === "trophies" ? "rally_trophies" : name === "store" ? "store" : "time_trial";
   for (const button of document.querySelectorAll(".nav-btn")) {
     const active = button.dataset.view === name;
     button.classList.toggle("active", active);
@@ -1606,7 +1833,8 @@ async function refresh() {
     if (requestId !== refreshSerial) return;
     if (!response.ok) throw new Error(data.error || "Couldn't load data");
     paintHeaderCoins(data);
-    if (currentMode === "rally_ring") showRallyState(data);
+    if (currentMode === "profile") showProfileState(data);
+    else if (currentMode === "rally_ring") showRallyState(data);
     else if (currentMode === "rally_progress") showProgressState(data);
     else if (currentMode === "rally_trophies") showTrophyState(data);
     else if (currentMode === "store") showStoreState(data);

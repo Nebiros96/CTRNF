@@ -16,6 +16,7 @@ venv/
 # Registros personales. Editarlos a mano cambia tiempos y puntajes.
 data/time_trials.csv
 data/rally_ring.csv
+data/store/wallet.csv
 data/settings.json
 
 # Catálogos que definen la esencia: fantasmas, skins, personajes y trofeos.
@@ -34,3 +35,7 @@ README_desarrollo.md
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Demo autocontenida: solo se publica su HTML
+/demo/*
+!/demo/index.html
