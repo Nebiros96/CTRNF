@@ -18,6 +18,7 @@ let profileTrack = "";
 let profileSignature = "";
 let profileBestRelative = 0;
 let profileSort = { key: "track", direction: 1 };
+let profileMode = "time_trial";
 
 function imageBox(container, url, alt, options = {}) {
   const imageClass = options.imageClass || "thumb";
@@ -129,7 +130,10 @@ function byTime(a, b) {
 function leaderboardTimes(rows, catalog, trackKey) {
   const track = (catalog || []).find((item) => item.track === trackKey);
   const developer = (track?.references || []).find((item) => item.kind === "dev");
-  return [...(rows || []), ...(developer ? [developer] : [])].sort(byTime);
+  const ranked = [...(rows || []), ...(developer ? [developer] : [])].sort(byTime);
+  const top = ranked.slice(0, 10);
+  if (developer && !top.includes(developer)) top.push({ ...developer, separated: true });
+  return top;
 }
 
 function formatDelta(centis) {
@@ -185,12 +189,14 @@ function renderIndicators(data) {
   const stats = data.indicators;
   if (!stats) {
     paintIndicator("ind-records", "null");
+    paintIndicator("ind-average", "null");
     paintIndicator("ind-absolute", "null");
     paintIndicator("ind-relative", "null");
     paintIndicator("ind-stdev", "null");
     return;
   }
   paintIndicator("ind-records", String(stats.records ?? 0));
+  paintIndicator("ind-average", stats.average == null ? "null" : clockFromSeconds(stats.average));
   const absolute = Number(stats.absolute);
   const relative = Number(stats.relative);
   paintIndicator(
@@ -334,6 +340,13 @@ function fillCards(box, records, options = {}) {
   let playerRank = 0;
   let listRank = 0;
   for (const record of records) {
+    if (record.separated) {
+      const separator = document.createElement("div");
+      separator.className = "leaderboard-separator";
+      separator.setAttribute("role", "separator");
+      separator.setAttribute("aria-label", "Developer outside the top 10");
+      box.append(separator);
+    }
     const reference = Boolean(record.reference);
     const numbered = !reference || options.numberReferences;
     if (!reference) playerRank += 1;
@@ -347,8 +360,10 @@ function fillCards(box, records, options = {}) {
     rank.className = numbered ? "rank" : "rank is-ref";
     const realRank = Number(record.rank);
     const shownRank = reference && Number.isInteger(realRank) ? realRank : (options.numberReferences ? listRank : playerRank);
+    const cappedDeveloperRank = reference && record.kind === "dev" && shownRank > 99;
+    if (cappedDeveloperRank) rank.classList.add("rank-compact");
     rank.textContent = numbered
-      ? String(shownRank).padStart(2, "0")
+      ? (cappedDeveloperRank ? "99+" : String(shownRank).padStart(2, "0"))
       : (record.kind === "velo" ? "VEL" : "DEV");
 
     const imageWrap = document.createElement("div");
@@ -473,7 +488,7 @@ function paintGlobalMultiplier(raw, storeBonus) {
   const details = document.createElement("div");
   details.className = "multiplier-help-popover";
   details.hidden = true;
-  details.textContent = "Each unlocked skin adds: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005 · Ultra 0.01. Each unlocked trophy adds its bonus.";
+  details.textContent = "Each unlocked skin adds: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005 · Ultra 0.01. Each unlocked trophy and purchased store item adds its unconditional bonus. Conditional store bonuses are added only when their requirements are met.";
   helpButton.addEventListener("click", () => {
     details.hidden = !details.hidden;
     helpButton.setAttribute("aria-expanded", String(!details.hidden));
@@ -485,7 +500,7 @@ function paintGlobalMultiplier(raw, storeBonus) {
   value.textContent = formatFactor(shown).slice(1);
   const note = document.createElement("p");
   note.className = "hero-rule";
-  note.textContent = "Your next race uses this value, with any character.";
+  note.textContent = "Your next Ring Rally uses this value with any character. Matching store conditions add extra bonuses.";
   copy.append(titleRow, note);
   box.append(value, copy);
 }
@@ -1313,6 +1328,8 @@ function paintStore(data) {
   const items = data.items || [];
   const signature = JSON.stringify({ balance: data.balance, pending: pendingStoreBuy, items });
   $("store-balance").textContent = formatCoins(data.balance);
+  const purchasedBonusMilli = items.reduce((sum, item) => sum + (item.purchased ? Math.round((Number(item.bonus_all) || 0) * 1000) : 0), 0);
+  $("store-bonus").textContent = `+${(purchasedBonusMilli / 1000).toFixed(3)}`;
   if (signature === storeSignature) return;
   storeSignature = signature;
   closeStoreHelp();
@@ -1396,16 +1413,32 @@ function showProfileState(data) {
       case "trialRuns": return track.records;
       case "rally": return track.rally_pb;
       case "rallyRuns": return track.rally_available ? track.rally_records : null;
+      case "average": return track.rally_available ? track.rally_average : null;
+      case "laps": return track.rally_available ? track.rally_laps : null;
       default: return track.track_clean || "";
     }
   };
-  const sortedTracks = [...tracks].sort((a, b) => {
+  const visibleTracks = profileMode === "rally_ring" ? tracks.filter((track) => track.rally_available) : tracks;
+  const sortedTracks = [...visibleTracks].sort((a, b) => {
     const left = sortValue(a), right = sortValue(b);
     if (left == null || right == null) return left == null ? (right == null ? 0 : 1) : -1;
     const comparison = typeof left === "string" ? left.localeCompare(right) : left - right;
     return comparison * profileSort.direction || (a.track_clean || "").localeCompare(b.track_clean || "");
   });
-  const columns = [["track", "Track"], ["trial", "Time Trial PB"], ["absolute", "PB vs developer"], ["relative", "Difference"], ["trialRuns", "TT runs"], ["rally", "Ring Rally PB"], ["rallyRuns", "RR runs"]];
+  const columns = profileMode === "time_trial"
+    ? [["track", "Track"], ["trial", "Personal best"], ["absolute", "PB vs dev (abs)"], ["relative", "PB vs dev (rel)"], ["trialRuns", "Runs"], ["reference", "Reference"]]
+    : [["track", "Track"], ["rally", "Personal best"], ["rallyRuns", "Runs"], ["average", "Average"], ["laps", "Laps"]];
+  const tableRow = (track) => {
+    const name = `<td><button type="button" class="profile-track-button" data-track="${escape(track.track)}">${escape(track.track_clean)}</button></td>`;
+    if (profileMode === "time_trial") {
+      const best = track.top5?.[0];
+      const icons = `${best?.beat_velo ? `<img class="profile-beat-icon" src="${VELO_BEAT_ICON}" alt="Velo beaten" title="Velo beaten">` : ""}${best?.beat_dev ? `<img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt="Developer beaten" title="Developer beaten">` : ""}`;
+      const difference = profileDevDifference(track);
+      return `<tr>${name}<td>${track.pb === "null" ? "—" : escape(track.pb)}</td><td>${difference.absolute}</td><td><span style="color:${profileRelativeColor(difference.relativeValue)}">${difference.relative}</span></td><td>${track.records}</td><td>${icons || "—"}</td></tr>`;
+    }
+    if (!track.rally_available) return `<tr>${name}<td>N/A</td><td>—</td><td>—</td><td>—</td></tr>`;
+    return `<tr>${name}<td>${track.rally_pb == null ? "—" : formatScore(track.rally_pb)}</td><td>${track.rally_records}</td><td>${track.rally_average == null ? "—" : formatScore(Math.round(track.rally_average))}</td><td>${formatScore(track.rally_laps ?? 0)}</td></tr>`;
+  };
   const devs = official.filter((track) => track.dev_time_surpass).length;
   root.innerHTML = `
     <section class="panel profile-hero">
@@ -1416,14 +1449,22 @@ function showProfileState(data) {
     <div class="profile-stats">
       ${[["Time Trial", data.trial_records], ["Ring Rally", data.rally_records], ["Developers beaten", `${devs} / ${official.length}`], ["Skins unlocked", `${data.skins_unlocked} / ${data.skins_total}`], ["Trophies unlocked", `${data.trophies_unlocked} / ${data.trophies_total}`]].map(([label, value]) => `<div class="panel profile-stat"><div class="stat-label">${label}</div><div class="kpi-value">${value}</div></div>`).join("")}
     </div>
-    <section class="panel profile-tracks"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Track overview</h2></div></div>
-      <div class="profile-table-wrap"><table><thead><tr>${columns.map(([key, label]) => `<th scope="col"${profileSort.key === key ? ` aria-sort="${profileSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-sort="${key}">${label} <span aria-hidden="true">${profileSort.key === key ? (profileSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${sortedTracks.map((track) => `<tr><td><button type="button" class="profile-track-button" data-track="${escape(track.track)}">${escape(track.track_clean)}</button>${track.dev_time_surpass ? ` <img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt="Developer beaten" title="Developer beaten">` : ''}</td><td>${track.pb === "null" ? '—' : escape(track.pb)}</td><td>${profileDevDifference(track).absolute}</td><td><span style="color:${profileRelativeColor(profileDevDifference(track).relativeValue)}">${profileDevDifference(track).relative}</span></td><td>${track.records}</td><td>${track.rally_available ? (track.rally_pb == null ? '—' : formatScore(track.rally_pb)) : 'N/A'}</td><td>${track.rally_available ? track.rally_records : '—'}</td></tr>`).join("")}</tbody></table></div>
-      <p class="profile-legend"><img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt=""> Developer time beaten · N/A: Ring Rally unavailable for mod tracks</p>
+    <section class="panel profile-tracks"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Track overview</h2></div><div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Track overview mode">${[["time_trial", "Time Trial"], ["rally_ring", "Ring Rally"]].map(([mode, label]) => `<button type="button" class="profile-mode-button${profileMode === mode ? " active" : ""}" data-mode="${mode}" aria-pressed="${profileMode === mode}">${label}</button>`).join("")}</div></div></div>
+      <div class="profile-table-wrap"><table><thead><tr>${columns.map(([key, label]) => key === "reference" ? `<th scope="col">${label}</th>` : `<th scope="col"${profileSort.key === key ? ` aria-sort="${profileSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-sort="${key}">${label} <span aria-hidden="true">${profileSort.key === key ? (profileSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${sortedTracks.map(tableRow).join("")}</tbody></table></div>
+      ${profileMode === "time_trial" ? `<p class="profile-legend"><img class="profile-beat-icon" src="${VELO_BEAT_ICON}" alt=""> Velo beaten · <img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt=""> Developer beaten</p>` : ""}
     </section>`;
+  root.querySelectorAll(".profile-mode-button").forEach((button) => button.addEventListener("click", () => {
+    if (profileMode === button.dataset.mode) return;
+    profileMode = button.dataset.mode;
+    profileSort = { key: "track", direction: 1 };
+    profileSignature = "";
+    showProfileState(data);
+    root.querySelector(`.profile-mode-button[data-mode="${profileMode}"]`)?.focus({ preventScroll: true });
+  }));
   root.querySelectorAll(".profile-sort").forEach((button) => {
     button.addEventListener("click", () => {
       const key = button.dataset.sort;
-      profileSort = { key, direction: profileSort.key === key ? -profileSort.direction : (key === "rally" || key === "trialRuns" || key === "rallyRuns" ? -1 : 1) };
+      profileSort = { key, direction: profileSort.key === key ? -profileSort.direction : (["rally", "trialRuns", "rallyRuns", "average", "laps"].includes(key) ? -1 : 1) };
       profileSignature = "";
       showProfileState(data);
       root.querySelector(`.profile-sort[data-sort="${key}"]`)?.focus({ preventScroll: true });
@@ -1431,6 +1472,12 @@ function showProfileState(data) {
   });
   root.querySelectorAll(".profile-track-button").forEach((button) => {
     button.addEventListener("click", () => {
+      if (profileTrack === button.dataset.track) {
+        profileTrack = "";
+        $("profile-detail-row")?.remove();
+        button.setAttribute("aria-expanded", "false");
+        return;
+      }
       profileTrack = button.dataset.track;
       renderProfileDetail(data, true);
     });
@@ -1447,7 +1494,7 @@ function renderProfileDetail(data, focus = false) {
   row.id = "profile-detail-row";
   row.className = "profile-detail-row";
   const cell = document.createElement("td");
-  cell.colSpan = 7;
+  cell.colSpan = profileMode === "time_trial" ? 6 : 5;
   const detail = document.createElement("div");
   detail.className = "profile-detail";
   cell.append(detail);
@@ -1762,6 +1809,10 @@ function showRallyState(data) {
   renderRallyTrackPicker(data);
   $("kpi-rally-records").textContent = String(data.summary?.records ?? 0);
   $("kpi-rally-tracks").textContent = String((data.catalog || []).filter((row) => Number(row.records) > 0).length);
+  const stats = data.indicators;
+  paintIndicator("rally-ind-records", String(stats?.records ?? 0));
+  paintIndicator("rally-ind-laps", formatScore(stats?.total_laps ?? 0));
+  paintIndicator("rally-ind-average", stats?.average_score == null ? "null" : formatScore(Math.round(stats.average_score)));
   fillCards($("rally-cards"), data.top10 || [], { scoreMode: true });
   const last = data.last_trial;
   $("rally-last").textContent = last

@@ -40,7 +40,7 @@ SKINS_CSV_PATH = PROJECT_ROOT / "data" / "game_skins.csv"
 CHARACTERS_CSV_PATH = PROJECT_ROOT / "data" / "game_characters.csv"
 TRACKS_CSV_PATH = PROJECT_ROOT / "data" / "game_tracks.csv"
 ACHIEVEMENTS_CSV_PATH = PROJECT_ROOT / "data" / "achievements.csv"
-STORE_CATALOG_PATH = PROJECT_ROOT / "data" / "store" / "store.csv"
+STORE_CATALOG_PATH = PROJECT_ROOT / "data" / "store" / "store.json"
 STORE_WALLET_PATH = USER_DATA_DIR / "store" / "wallet.csv"
 WEEKEND_WUMPA_MULTIPLIER = 2
 BASE_WUMPAS = 5000
@@ -1173,57 +1173,13 @@ def _purchased_ids(rows: list[dict[str, str]]) -> set[str]:
     }
 
 
-def _condition_parts(condition: str) -> tuple[str, str]:
-    prefix, separator, value = (condition or "").strip().partition(":")
-    if not separator:
-        return "", ""
-    return prefix.strip().casefold(), value.strip()
-
-
-def _track_condition_name(condition: str) -> str:
-    text = (condition or "").strip()
-    if text.casefold().endswith(" log"):
-        return text[: -len(" log")].strip()
-    return ""
-
-
-def _mask_named_in(value: str) -> str:
-    folded = (value or "").casefold()
-    for club in sorted(MASK_CLUBS, key=len, reverse=True):
-        if club.casefold() in folded:
-            return club
-    return ""
-
-
-def _is_known_game(value: str) -> bool:
-    return (value or "").strip().casefold() in {"crash team racing", "crash nitro kart", "ctr nitro fueled"}
-
-
-def _condition_label(condition: str) -> str:
-    track = _track_condition_name(condition)
-    if track:
-        return track
-    kind, value = _condition_parts(condition)
-    if kind == "game_base" and value:
-        club = _mask_named_in(value)
-        if club and not _is_known_game(value):
-            return f"{club} characters"
-        return f"{value} characters"
-    return (condition or "").strip()
-
-
-def _condition_matches_race(condition: str, game_base: str, mask: str, track_clean: str) -> bool:
-    """Track items need that course. Game and mask items need that character."""
-    track_name = _track_condition_name(condition)
-    if track_name:
-        return track_name.casefold() == (track_clean or "").strip().casefold()
-    kind, value = _condition_parts(condition)
-    if kind != "game_base" or not value:
-        return False
-    club = _mask_named_in(value)
-    if club and not _is_known_game(value):
-        return club in _mask_clubs(mask)
-    return (game_base or "").strip().casefold() == value.casefold()
+def _condition_matches_race(condition: dict, character_id: str, track_id: str) -> bool:
+    """Match dimension IDs, never the independently assigned race record IDs."""
+    if condition["type"] == "track":
+        return bool(track_id) and str(condition["track_id"]) == track_id
+    if condition["type"] == "characters":
+        return bool(character_id) and character_id in {str(value) for value in condition["character_ids"]}
+    raise ValueError(f"Unknown store condition type: {condition['type']}")
 
 
 def _store_help_lines(item: dict) -> list[str]:
@@ -1232,7 +1188,7 @@ def _store_help_lines(item: dict) -> list[str]:
         lines.append(f"+{item['bonus_all_milli'] / 1000:.3f} on every Ring Rally")
     if item["bonus_condition_milli"] and item["condition_label"]:
         bonus = f"+{item['bonus_condition_milli'] / 1000:.3f}"
-        if _track_condition_name(item["condition"]):
+        if item["condition"]["type"] == "track":
             lines.append(f"{bonus} on {item['condition_label']}")
         else:
             lines.append(f"{bonus} with {item['condition_label']}")
@@ -1244,22 +1200,22 @@ def _load_store_items() -> list[dict]:
     if not path.exists() or path.stat().st_size == 0:
         return []
     items = []
-    for row in _read_table(path):
-        item_id = (row.get("item_id") or "").strip()
-        name = (row.get("item_name") or "").strip()
+    for row in json.loads(path.read_text(encoding="utf-8"))["items"]:
+        item_id = str(row.get("item_id") or "").strip()
+        name = (row.get("name") or "").strip()
         if not item_id or not name:
             continue
-        url = (row.get("item_url") or "").strip()
-        condition = (row.get("condition") or "").strip()
+        url = (row.get("image_url") or "").strip()
+        condition = row["condition"]
         items.append(
             {
                 "id": item_id,
                 "name": name,
-                "price": _csv_int(row.get("price") or "") or 0,
-                "bonus_all_milli": _parse_milli(row.get("bonus_all") or ""),
-                "bonus_condition_milli": _parse_milli(row.get("bonus_condition") or ""),
+                "price": int(row["price"]),
+                "bonus_all_milli": int(row["bonus_all_milli"]),
+                "bonus_condition_milli": int(row["bonus_condition_milli"]),
                 "condition": condition,
-                "condition_label": _condition_label(condition),
+                "condition_label": condition["label"],
                 "url": catalog_image_url(url) if url else "",
             }
         )
@@ -1273,17 +1229,14 @@ def _store_milli_for_skin(skin: str, catalog: dict, track: str = "") -> int:
     if not owned:
         return 0
     character_id = _character_id(skin, catalog)
-    profile = (catalog.get("characters") or {}).get(character_id, {})
-    game = (profile.get("game_base") or "").strip()
-    mask = (profile.get("mask") or "").strip()
     track_row = (catalog.get("tracks") or {}).get((track or "").strip(), {})
-    track_clean = (track_row.get("track_clean") or "").strip()
+    track_id = (track_row.get("track_id") or "").strip()
     total = 0
     for item in _load_store_items():
         if item["id"] not in owned:
             continue
         total += item["bonus_all_milli"]
-        if _condition_matches_race(item["condition"], game, mask, track_clean):
+        if _condition_matches_race(item["condition"], character_id, track_id):
             total += item["bonus_condition_milli"]
     return total
 

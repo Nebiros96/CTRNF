@@ -146,6 +146,8 @@ body {
 .pb-flag { display: inline-flex; flex-shrink: 0; padding: 2px 7px; border: 1px solid #d5a82f; border-radius: 6px; color: #f5cf62; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .beat-icons { display: flex; gap: 4px; }
 .beat-icons img { width: 22px; height: 22px; border-radius: 6px; background: #202938; object-fit: cover; }
+#view-register .beat-icons img,
+#view-register .ghost-icon[src="/catalog/e48c99fa6e3ef42a.webp"] { background: transparent; }
 .card.has-pb .trackname { padding-right: 44px; }
 .card.beats-one .trackname { padding-right: 30px; }
 .card.beats-two .trackname { padding-right: 56px; }
@@ -556,9 +558,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border: 1px solid #5a4314;
-  background: linear-gradient(135deg, #3a2a08, #150f22 70%);
+  padding: 6px 0;
 }
 .header-coins img { width: 26px; height: 26px; object-fit: contain; }
 .header-coins strong {
@@ -636,6 +636,14 @@ body {
 .track-menu.open { z-index: 40; }
 .panel:has(.track-menu.open) { z-index: 6; }
 .null-image { background: #1f1630; color: #5d4f7c; }
+#view-register #skin-image, #view-register #skin-image img,
+#view-register #cards .thumb, #view-register #cards .null-image { background: transparent; }
+#rally-skin-image, #rally-skin-image img,
+#rally-cards .thumb, #rally-cards .null-image,
+#confirm-skin-image, #confirm-skin-image img,
+.skin-frame, .skin-frame .null-image,
+.roster-photo-img, .roster-photo .null-image,
+.hero-photo, .hero-fallback, .unlock-icon img, .unlock-icon .null-image { background: transparent; }
 .asset .name { font-family: var(--display); font-weight: 400; font-size: 16px; letter-spacing: .02em; }
 .asset .meta { letter-spacing: .1em; }
 .track-menu-button { border-radius: 0; background: #1a1229; border-color: var(--line); font-weight: 600; }
@@ -679,6 +687,7 @@ body {
 /* Top 10 */
 .tophead span { font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .cards { gap: 8px; }
+.leaderboard-separator { border-top: 1px solid var(--line); margin: 7px 0; }
 .card {
   min-height: 100px; border-radius: 0; border: 0; border-left: 4px solid #3a2c58;
   background: linear-gradient(90deg, #1f1631, #150f22 70%);
@@ -687,6 +696,7 @@ body {
 .card:hover { transform: translateX(4px); border-color: var(--accent); }
 .cards .card:first-child { border-left-color: var(--nitro); background: linear-gradient(90deg, #3a2a08, #1a1226 70%); }
 .rank { font-family: var(--display); font-size: 30px; font-weight: 400; font-style: italic; color: var(--accent); }
+.rank.rank-compact { font-size: 20px; }
 .cards .card:first-child .rank { color: var(--nitro); text-shadow: 0 0 16px #ffd40066; }
 .rank.is-ref { font-family: var(--ui); font-size: 11px; font-style: normal; font-weight: 700; color: var(--blue); }
 .card .thumb, .card .null-image { clip-path: var(--cut); }
@@ -821,11 +831,12 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
 .nav { flex-wrap: wrap; }
+.store-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
 .store-wallet {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   padding: 8px 12px;
   border: 1px solid #5a4314;
   background: linear-gradient(135deg, #3a2a08, #150f22 70%);
@@ -980,6 +991,12 @@ body {
 .profile-stat .kpi-value { margin-top:8px; font-size:clamp(20px,2vw,28px); }
 .profile-heading { display:flex; justify-content:space-between; align-items:end; gap:15px; margin-bottom:16px; }
 .profile-heading h2 { margin:4px 0 0; }
+.profile-mode-label { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+.profile-mode { display:flex; padding:4px; border:1px solid #4a3870; background:#100b1b; }
+.profile-mode-button { border:0; padding:9px 16px; background:transparent; color:var(--muted); font:600 13px var(--ui); cursor:pointer; transition:background .15s, color .15s; }
+.profile-mode-button:hover { color:var(--text); background:#2a1d42; }
+.profile-mode-button.active { color:#1a0d00; background:linear-gradient(100deg,var(--nitro),var(--accent)); }
+.profile-mode-button:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
 .profile-table-wrap { overflow-x:auto; }
 .profile-tracks table { width:100%; border-collapse:collapse; text-align:left; font-variant-numeric:tabular-nums; }
 .profile-tracks th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Descarga las imágenes del catálogo a web/catalog para empaquetarlas en el ejecutable.
 
-Vuelve a ejecutarlo cuando agregues URLs en los CSV. Las que ya existen se omiten.
+Vuelve a ejecutarlo cuando agregues URLs en los catálogos. Las que ya existen se omiten.
 """
 
 from __future__ import annotations
 
 import csv
+import json
 import shutil
 import subprocess
 import threading
@@ -51,7 +52,6 @@ def collect_urls() -> list[str]:
         (core.CHARACTERS_CSV_PATH, ("url_mask", "url_character")),
         (core.TRACKS_CSV_PATH, ("url", "dev_url")),
         (core.ACHIEVEMENTS_CSV_PATH, ("url",)),
-        (core.STORE_CATALOG_PATH, ("item_url",)),
     )
     for path, fields in tables:
         for row in read_table(path):
@@ -59,6 +59,11 @@ def collect_urls() -> list[str]:
                 value = (row.get(field) or "").strip()
                 if value.startswith(("http://", "https://")):
                     found.add(value)
+    if core.STORE_CATALOG_PATH.is_file():
+        for item in json.loads(core.STORE_CATALOG_PATH.read_text(encoding="utf-8"))["items"]:
+            value = (item.get("image_url") or "").strip()
+            if value.startswith(("http://", "https://")):
+                found.add(value)
     return sorted(found)
 
 

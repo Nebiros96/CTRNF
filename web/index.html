@@ -103,6 +103,7 @@
         <section class="panel" aria-label="Track stats">
           <h2>Track stats</h2>
           <div class="indicator-row"><div class="indicator-label">Records</div><div id="ind-records" class="indicator-value">null</div></div>
+          <div class="indicator-row"><div class="indicator-label">Average time</div><div id="ind-average" class="indicator-value">null</div></div>
           <div class="indicator-row"><div class="indicator-label">Absolute gain</div><div id="ind-absolute" class="indicator-value">null</div></div>
           <div class="indicator-row"><div class="indicator-label">Relative gain</div><div id="ind-relative" class="indicator-value">null</div></div>
           <div class="indicator-row"><div class="indicator-label">Standard deviation</div><div id="ind-stdev" class="indicator-value">null</div></div>
@@ -157,6 +158,12 @@
                 <div id="kpi-rally-tracks" class="kpi-value">0</div>
               </div>
             </div>
+          </section>
+          <section class="panel" aria-label="Track stats">
+            <h2>Track stats</h2>
+            <div class="indicator-row"><div class="indicator-label">Records</div><div id="rally-ind-records" class="indicator-value">0</div></div>
+            <div class="indicator-row"><div class="indicator-label">Total laps</div><div id="rally-ind-laps" class="indicator-value">0</div></div>
+            <div class="indicator-row"><div class="indicator-label">Average score</div><div id="rally-ind-average" class="indicator-value">null</div></div>
           </section>
         </div>
         <section class="panel">
@@ -216,6 +223,7 @@
     </section>
 
     <section id="view-store" hidden>
+      <div class="store-summary">
       <section class="store-wallet" aria-label="Wumpacoins">
         <img class="store-coin" src="/wumpacoin.webp" alt="">
         <div class="store-wallet-copy">
@@ -223,6 +231,13 @@
           <div id="store-balance" class="store-balance">0</div>
         </div>
       </section>
+      <section class="store-wallet store-bonus" aria-label="Purchased global bonus">
+        <div class="store-wallet-copy">
+          <div class="eyebrow">Purchased global bonus</div>
+          <div id="store-bonus" class="store-balance">+0.000</div>
+        </div>
+      </section>
+      </div>
       <div id="store-grid" class="store-grid"></div>
       <details id="store-owned" class="store-owned" hidden>
         <summary id="store-owned-summary">Purchased</summary>

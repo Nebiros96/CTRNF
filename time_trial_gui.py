@@ -47,7 +47,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.2"
+APP_VERSION = "CTR - v1.2.1"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -479,6 +479,21 @@ def reference_entry(kind: str, character: str, skin_url: str, raw_time: str) -> 
     }
 
 
+def rally_track_indicators(rows: list[dict[str, str]]) -> dict:
+    scores = []
+    laps = 0
+    for row in rows:
+        try:
+            scores.append(int(row.get("score", "")))
+        except (TypeError, ValueError):
+            pass
+        try:
+            laps += int(row.get("laps", ""))
+        except (TypeError, ValueError):
+            pass
+    return {"records": len(rows), "total_laps": laps, "average_score": sum(scores) / len(scores) if scores else None}
+
+
 def track_indicators(rows: list[dict[str, str]]) -> dict:
     ordered: list[tuple[int, float]] = []
     for row in rows:
@@ -492,7 +507,7 @@ def track_indicators(rows: list[dict[str, str]]) -> dict:
             row_id = 10**12
         ordered.append((row_id, seconds))
     if not ordered:
-        return {"records": len(rows), "absolute": None, "relative": None, "stdev": None}
+        return {"records": len(rows), "absolute": None, "relative": None, "stdev": None, "average": None}
     ordered.sort(key=lambda item: item[0])
     values = [seconds for _, seconds in ordered]
     first = values[0]
@@ -504,6 +519,7 @@ def track_indicators(rows: list[dict[str, str]]) -> dict:
         "absolute": round(delta, 2),
         "relative": round(delta / first * 100, 1) if first else None,
         "stdev": round(variance ** 0.5, 2),
+        "average": mean,
     }
 
 
@@ -720,15 +736,13 @@ class DashboardState:
                                 track["rally_history"].append({"value": value, "date": row.get("captured_at", "")})
                         except ValueError:
                             pass
-                scores = []
-                for row in rallies:
-                    if (row.get("track") or "").strip() == track["track"]:
-                        try:
-                            scores.append(int(row.get("score", "")))
-                        except (TypeError, ValueError):
-                            pass
-                track["rally_records"] = len(scores)
+                track_rallies = [row for row in rallies if (row.get("track") or "").strip() == track["track"]]
+                rally_stats = rally_track_indicators(track_rallies)
+                scores = [entry["value"] for entry in track["rally_history"]]
+                track["rally_records"] = rally_stats["records"]
                 track["rally_pb"] = max(scores) if scores else None
+                track["rally_average"] = rally_stats["average_score"]
+                track["rally_laps"] = rally_stats["total_laps"]
                 track["rally_available"] = not core.is_mod_track(track)
             core.ensure_rally_progression(RALLY_RESULTS_CSV)
             progress = core.build_rally_progression(rallies)
@@ -893,7 +907,7 @@ class DashboardState:
             },
             "mode": "rally_ring" if rally_mode else "time_trial",
             "balance": core.wallet_balance(),
-            "indicators": None if rally_mode else track_indicators(
+            "indicators": (rally_track_indicators if rally_mode else track_indicators)(
                 [row for row in results if (row.get("track") or "").strip() == selected_track]
             ),
         }
@@ -1063,7 +1077,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.2"
+    server_version = "CTRTimeTrialDashboard/1.2.1"
 
     def log_message(self, format: str, *args) -> None:
         return

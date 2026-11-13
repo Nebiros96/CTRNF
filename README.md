@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.2)
+# Crash™ Team Racing NF - Dashboard (v1.2.1)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -14,17 +14,19 @@ A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native po
 
 Choose the track you just ran, enter the time, and save it. The format is minutes, seconds, and hundredths, for example `1:25:03`.
 
-The top 10 for that track sits on the right: rank, skin, time, date, and the gap to your best. First place has a gold edge. Below that, in the same view, are the game's ghost times so you can compare them with the run you just saved.
+The top 10 for that track sits on the right: rank, skin, time, date, and the gap to your best. The developer time occupies a position in the top 10 when it qualifies; otherwise it appears separately below it. First place has a gold edge. The game's ghost times are also shown for comparison.
 
 ![Time Trial at Retro Stadium, with the record form and the track top 10](utils/TimeTrial.JPG)
 
-For the current track you also see how many times you logged it, how much you improved since the first time, and how close your attempts are to each other.
+For the current track you also see your number of records, average time, improvement since the first time, and how close your attempts are to each other.
 
 ![Track stats: records, absolute gain, relative gain, and standard deviation](utils/TTStats.JPG)
 
 ## Ring Rally
 
 The same action, now with a score. Enter the points and the lap count. The track top 10 sorts from highest to lowest and marks when that attempt was your best, or how many points it fell short.
+
+Track stats show the number of records, total laps, and average base score for the selected track.
 
 ![Ring Rally at Jungle Boogie, with the score form and the track top 10](utils/RingRally.JPG)
 
@@ -44,17 +46,17 @@ Each trophy shows your progress, its tier, and how much it adds to the multiplie
 
 The store opens with 5,000 Wumpacoins. That amount is the first row of a new wallet and is not added again. Races you already saved stay as they are and do not pay coins. From this version on, each saved Time Trial or Ring Rally pays the amount set for that track. Ring Rally pays more. Friday, Saturday, and Sunday pay double.
 
-Purchased items add their flat bonus to the Skin Album multiplier. A conditional bonus applies only on the next Ring Rally when the race matches it: a Crash Team Racing character, a mask, or that exact track.
+Purchased items add their flat bonus to the Skin Album multiplier and the store's purchased bonus total. A conditional bonus applies only on the next Ring Rally when the race matches it: a Crash Team Racing character, a mask, or that exact track. The store catalog is maintained in `data/store/store.json` and preserves item IDs used by the wallet.
 
 ![Store](utils/stor.JPG)
 
 ## Profile
 
-The profile brings your progress together: your most-used skin across both game modes, recorded runs, developers beaten, unlocked skins, and trophies. The track overview shows your Time Trial and Ring Rally personal bests and run counts, plus the absolute and percentage difference between your Time Trial best and the developer time. The Beenox icon marks tracks where you have beaten the developer, and the percentage colors show how the differences compare across your tracks. Click a column heading to sort the list.
+The profile brings your progress together: your most-used skin across both game modes, recorded runs, developers beaten, unlocked skins, and trophies. Switch the track overview between Time Trial and Ring Rally. Time Trial shows your personal best, absolute and relative differences against the developer, runs, and icons for beaten Velo and developer times. Ring Rally shows your personal best, runs, average base score, and total laps; mod tracks are hidden. Click a column heading to sort the list.
 
 ![Player profile with progress totals and a sortable track overview](utils/profile.JPG)
 
-Select a track to expand its Time Trial and Ring Rally progress charts. The Time Trial chart also highlights the area faster than the developer time.
+Select a track to expand its Time Trial and Ring Rally progress charts; select it again or use Close to collapse them. The Time Trial chart also highlights the area faster than the developer time.
 
 ## OBS overlays
 
