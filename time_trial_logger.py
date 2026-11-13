@@ -309,7 +309,9 @@ def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[st
         if needs_header:
             writer.writeheader()
         writer.writerow(record)
-    record["wumpas"] = str(credit_race_coins("time_trial", record["id"], record["track"], record["captured_at"]))
+    coin_breakdown = {}
+    record["wumpas"] = str(credit_race_coins("time_trial", record["id"], record["track"], record["captured_at"], coin_breakdown))
+    record["wumpa_breakdown"] = coin_breakdown
     return record
 
 
@@ -1192,6 +1194,14 @@ def _store_help_lines(item: dict) -> list[str]:
             lines.append(f"{bonus} on {item['condition_label']}")
         else:
             lines.append(f"{bonus} with {item['condition_label']}")
+    for extra in item["additional_conditions"]:
+        lines.append(f"+{extra['bonus_milli'] / 1000:.3f} with {extra['condition']['label']}")
+    if item["bonus_coins_flat"]:
+        lines.append(f"+{item['bonus_coins_flat']} Wumpacoins per new race")
+    if item["bonus_coins"] != Decimal("1"):
+        lines.append(f"×{item['bonus_coins']} Wumpacoins from every new race")
+    for override in item["conditional_overrides"]:
+        lines.append(f"+{override['bonus_milli'] / 1000:.3f} if {override['condition']['label']}")
     return lines
 
 
@@ -1207,18 +1217,35 @@ def _load_store_items() -> list[dict]:
             continue
         url = (row.get("image_url") or "").strip()
         condition = row["condition"]
+        required = row.get("unlock_condition") or []
+        required = required if isinstance(required, list) else [required]
         items.append(
             {
                 "id": item_id,
                 "name": name,
+                "item_category": row["item_category"],
+                "character_id": row.get("character_id"),
+                "track_id": row.get("track_id"),
                 "price": int(row["price"]),
                 "bonus_all_milli": int(row["bonus_all_milli"]),
                 "bonus_condition_milli": int(row["bonus_condition_milli"]),
                 "condition": condition,
+                "conditional_overrides": row.get("conditional_overrides", []),
+                "additional_conditions": row.get("additional_conditions", []),
+                "unlock_condition": [str(value) for value in required],
+                "unlock_label": row.get("unlock_label", ""),
+                "bonus_coins_flat": int(row.get("bonus_coins_flat", 0)),
+                "bonus_coins": Decimal(str(row.get("bonus_coins", 1))),
                 "condition_label": condition["label"],
                 "url": catalog_image_url(url) if url else "",
             }
         )
+    for item in items:
+        if item["item_category"] in ("skin", "Avatar") and item["character_id"] is not None:
+            prices = sorted({other["price"] for other in items if other["item_category"] == item["item_category"] and other["character_id"] == item["character_id"]})
+            item["level"] = prices.index(item["price"]) + 1
+        else:
+            item["level"] = None
     return items
 
 
@@ -1236,8 +1263,15 @@ def _store_milli_for_skin(skin: str, catalog: dict, track: str = "") -> int:
         if item["id"] not in owned:
             continue
         total += item["bonus_all_milli"]
-        if _condition_matches_race(item["condition"], character_id, track_id):
-            total += item["bonus_condition_milli"]
+        conditional = item["bonus_condition_milli"] if _condition_matches_race(item["condition"], character_id, track_id) else 0
+        for override in item["conditional_overrides"]:
+            if _condition_matches_race(override["condition"], character_id, track_id):
+                conditional = int(override["bonus_milli"])
+                break
+        total += conditional
+        for extra in item["additional_conditions"]:
+            if _condition_matches_race(extra["condition"], character_id, track_id):
+                total += int(extra["bonus_milli"])
     return total
 
 
@@ -1270,8 +1304,17 @@ def store_bonus_summary() -> dict:
         if item["id"] not in owned:
             continue
         always += item["bonus_all_milli"]
+        for additional in item["additional_conditions"]:
+            additional_label = additional["condition"]["label"]
+            grouped[additional_label] = grouped.get(additional_label, 0) + int(additional["bonus_milli"])
         extra = item["bonus_condition_milli"]
         label = item["condition_label"]
+        overrides = item["conditional_overrides"]
+        if overrides:
+            label += " except " + ", ".join(o["condition"]["label"] for o in overrides)
+            for override in overrides:
+                override_label = override["condition"]["label"] + " (instead of " + item["condition_label"] + ")"
+                grouped[override_label] = grouped.get(override_label, 0) + int(override["bonus_milli"])
         if extra and label:
             grouped[label] = grouped.get(label, 0) + extra
     return {
@@ -1283,12 +1326,11 @@ def store_bonus_summary() -> dict:
     }
 
 
-def credit_race_coins(mode: str, race_id: str, track: str, captured_at: str) -> int:
+def credit_race_coins(mode: str, race_id: str, track: str, captured_at: str, breakdown: dict | None = None) -> int:
     """Grant this race's track payout once. The amount is frozen on the wallet row."""
     race_id = str(race_id or "").strip()
     if not race_id:
         return 0
-    amount = race_wumpas(track, mode, captured_at)
     with _store_lock:
         rows = _read_wallet()
         for row in rows:
@@ -1301,6 +1343,20 @@ def credit_race_coins(mode: str, race_id: str, track: str, captured_at: str) -> 
                     return int((row.get("coins") or "0").strip() or "0")
                 except ValueError:
                     return 0
+        owned = _purchased_ids(rows)
+        purchased = [item for item in _load_store_items() if item["id"] in owned]
+        multiplier = max((item["bonus_coins"] for item in purchased), default=Decimal("1"))
+        flat = sum(item["bonus_coins_flat"] for item in purchased)
+        weekend = _weekend_wumpa_multiplier(captured_at)
+        track_row = _track_catalog_row(track)
+        field = "rr_wumpas" if mode == "rally_ring" else "tt_wumpas"
+        base = _csv_int(track_row.get(field) or "") or 0
+        weekend_amount = base * weekend
+        multiplied = int((Decimal(weekend_amount) * multiplier).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        amount = multiplied + flat
+        if breakdown is not None:
+            breakdown.update({"base": base, "weekend_multiplier": weekend, "coin_multiplier": str(multiplier),
+                              "multiplier_bonus": multiplied - weekend_amount, "flat_bonus": flat, "total": amount})
         rows.append(
             {
                 "id": "",
@@ -1322,20 +1378,33 @@ def store_payload() -> dict:
         balance = _wallet_balance(rows)
         owned = _purchased_ids(rows)
     items = []
-    for item in _load_store_items():
+    catalog = _load_store_items()
+    names = {item["id"]: item["name"] for item in catalog}
+    for item in catalog:
         purchased = item["id"] in owned
+        required = item["unlock_condition"]
+        missing = [identifier for identifier in required if identifier not in owned]
+        locked = bool(missing)
         items.append(
             {
                 "id": item["id"],
                 "name": item["name"],
+                "item_category": item["item_category"],
+                "character_id": item["character_id"],
+                "track_id": item["track_id"],
+                "level": item["level"],
                 "price": item["price"],
                 "bonus_all": f"{item['bonus_all_milli'] / 1000:.3f}",
                 "bonus_condition": f"{item['bonus_condition_milli'] / 1000:.3f}",
+                "bonus_coins": str(item["bonus_coins"]),
                 "condition_label": item["condition_label"],
                 "help": _store_help_lines(item),
                 "url": item["url"],
                 "purchased": purchased,
-                "affordable": purchased or balance >= item["price"],
+                "locked": locked and not purchased,
+                "unlock_condition": required,
+                "unlock_name": item["unlock_label"] or ", ".join(names.get(identifier, identifier) for identifier in missing),
+                "affordable": purchased or (not locked and balance >= item["price"]),
             }
         )
     return {
@@ -1357,6 +1426,11 @@ def buy_store_item(item_id: str) -> dict:
         rows = _read_wallet()
         if item_id in _purchased_ids(rows):
             raise ValueError("Already purchased.")
+        required = item["unlock_condition"]
+        missing = [identifier for identifier in required if identifier not in _purchased_ids(rows)]
+        if missing:
+            labels = [catalog[identifier]["name"] if identifier in catalog else identifier for identifier in missing]
+            raise ValueError(f"Buy {', '.join(labels)} first to unlock {item['name']}.")
         balance = _wallet_balance(rows)
         if balance < item["price"]:
             raise ValueError(f"Not enough Wumpacoins. {item['name']} costs {item['price']:,}.")
@@ -1589,7 +1663,9 @@ def save_rally_record(
             _append_rally(csv_path, record)
         else:
             _write_rally(csv_path, [*rows, record])
-        record["wumpas"] = str(credit_race_coins("rally_ring", record["id"], record["track"], record["captured_at"]))
+        coin_breakdown = {}
+        record["wumpas"] = str(credit_race_coins("rally_ring", record["id"], record["track"], record["captured_at"], coin_breakdown))
+        record["wumpa_breakdown"] = coin_breakdown
         return record, unlocks
 
 

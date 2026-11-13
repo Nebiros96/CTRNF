@@ -1229,6 +1229,7 @@ function showTrophyState(data) {
 }
 
 let storeSignature = "";
+let storeCategory = "skin";
 let pendingStoreBuy = "";
 
 function formatCoins(value) {
@@ -1287,8 +1288,12 @@ function storeCard(item, coinIcon) {
   frame.className = "store-frame";
   imageBox(frame, item.url, item.name, { imageClass: "store-art", fallbackClass: "store-fallback" });
   card.append(frame);
-  const help = storeHelpButton(item);
-  if (help) card.append(help);
+  if (item.level != null) {
+    const level = document.createElement("span");
+    level.className = "store-level";
+    level.textContent = `LV ${item.level}`;
+    card.append(level);
+  }
 
   const name = document.createElement("h3");
   name.className = "store-name";
@@ -1305,11 +1310,45 @@ function storeCard(item, coinIcon) {
   price.append(coin, amount);
   card.append(price);
 
+  {
+    const details = document.createElement("div");
+    details.className = "avatar-bonuses";
+    const heading = document.createElement("div");
+    heading.className = "avatar-bonuses-title";
+    heading.textContent = "Bonuses";
+    details.append(heading);
+    for (const line of Array.isArray(item.help) ? item.help : []) {
+      if (line.startsWith("×") && line.includes("Wumpacoins")) continue;
+      const row = document.createElement("p");
+      row.textContent = line;
+      details.append(row);
+    }
+    if (Number(item.bonus_coins) !== 1 && Number(item.bonus_coins) > 0) {
+      const row = document.createElement("p");
+      row.className = "avatar-coins-bonus";
+      const icon = document.createElement("img");
+      icon.src = coinIcon || "/wumpacoin.webp";
+      icon.alt = "";
+      const text = document.createElement("span");
+      text.textContent = `×${item.bonus_coins} Wumpacoins from every new race`;
+      row.append(icon, text);
+      details.append(row);
+    }
+    card.append(details);
+  }
+
   if (!item.purchased) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "button store-buy";
-    if (!item.affordable) {
+    if (item.locked) {
+      button.disabled = true;
+      button.textContent = "Locked";
+      const requirement = document.createElement("p");
+      requirement.className = "store-requirement";
+      requirement.textContent = `Requires: ${item.unlock_name}`;
+      card.append(requirement);
+    } else if (!item.affordable) {
       button.disabled = true;
       button.textContent = "Not enough";
     } else if (pendingStoreBuy === item.id) {
@@ -1326,32 +1365,49 @@ function storeCard(item, coinIcon) {
 
 function paintStore(data) {
   const items = data.items || [];
-  const signature = JSON.stringify({ balance: data.balance, pending: pendingStoreBuy, items });
+  const signature = JSON.stringify({ balance: data.balance, pending: pendingStoreBuy, category: storeCategory, items });
   $("store-balance").textContent = formatCoins(data.balance);
   const purchasedBonusMilli = items.reduce((sum, item) => sum + (item.purchased ? Math.round((Number(item.bonus_all) || 0) * 1000) : 0), 0);
   $("store-bonus").textContent = `+${(purchasedBonusMilli / 1000).toFixed(3)}`;
   if (signature === storeSignature) return;
   storeSignature = signature;
   closeStoreHelp();
-  const pending = items.filter((item) => !item.purchased);
-  const purchased = items.filter((item) => item.purchased);
+  const categoryItems = items.filter((item) => item.item_category === storeCategory);
+  const pending = categoryItems.filter((item) => !item.purchased);
+  const purchased = categoryItems.filter((item) => item.purchased);
   const grid = $("store-grid");
+  grid.classList.toggle("store-grid-avatars", storeCategory === "Avatar");
   grid.replaceChildren();
   if (!pending.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = purchased.length ? "Everything here is already purchased." : "The store is empty.";
+    empty.textContent = purchased.length ? "Everything in this category is already purchased." : "No items in this category.";
     grid.append(empty);
   } else {
     for (const item of pending) grid.append(storeCard(item, data.coin_icon));
   }
   const owned = $("store-owned");
   const ownedGrid = $("store-owned-grid");
+  ownedGrid.classList.toggle("store-grid-avatars", storeCategory === "Avatar");
   owned.hidden = purchased.length === 0;
   $("store-owned-summary").textContent = `Purchased · ${purchased.length}`;
   ownedGrid.replaceChildren();
   for (const item of purchased) ownedGrid.append(storeCard(item, data.coin_icon));
 }
+
+document.querySelectorAll(".store-category").forEach((button) => {
+  button.addEventListener("click", () => {
+    storeCategory = button.dataset.category;
+    pendingStoreBuy = "";
+    document.querySelectorAll(".store-category").forEach((tab) => {
+      const active = tab === button;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-pressed", String(active));
+    });
+    $("store-status").textContent = "";
+    if (appState && appState.mode === "store") paintStore(appState);
+  });
+});
 
 function showStoreState(data) {
   appState = data;
@@ -1443,7 +1499,7 @@ function showProfileState(data) {
   root.innerHTML = `
     <section class="panel profile-hero">
       <div class="profile-avatar">${favorite?.url ? `<img src="${escape(favorite.url)}" alt="${escape(favorite.character || "Favorite character")}">` : '<span>?</span>'}</div>
-      <div><div class="eyebrow">Player profile</div><h2>${escape(favorite?.character || "Your racing journey")}</h2>
+      <div><div class="eyebrow">Player profile</div><h2>${escape(data.user_name || "Your racing journey")}</h2>
       <p>${favorite ? `${escape(favorite.skin_name || "Default skin")} · Most used skin across both modes (${data.favorite_runs} records)` : "Log a race to reveal your most used skin."}</p></div>
     </section>
     <div class="profile-stats">
@@ -2052,7 +2108,31 @@ function paintResume(draft, record) {
   const label = document.createElement("span");
   label.textContent = "Wumpacoins";
   coins.append(icon, amount, label);
-  box.append(track, who, result, coins);
+  box.append(track, who, result);
+  const breakdown = document.createElement("div");
+  breakdown.className = "resume-breakdown";
+  const addRow = (label, value) => {
+    const row = document.createElement("div");
+    const title = document.createElement("span");
+    const amount = document.createElement("strong");
+    title.textContent = label;
+    amount.textContent = value;
+    row.append(title, amount);
+    breakdown.append(row);
+  };
+  if (draft.mode === "rally_ring" && record.multiplier != null) {
+    addRow("Global score bonus", `+${Number(record.multiplier).toFixed(3)}`);
+    addRow("Progression points", formatScore(record.score_mult));
+  }
+  const detail = record.wumpa_breakdown;
+  if (detail && Object.hasOwn(detail, "base")) {
+    addRow("Track Wumpacoins", formatCoins(detail.base));
+    if (detail.weekend_multiplier > 1) addRow("Weekend bonus", `×${detail.weekend_multiplier}`);
+    if (Number(detail.coin_multiplier) > 1) addRow(`Wumpacoin bonus ×${detail.coin_multiplier}`, `+${formatCoins(detail.multiplier_bonus)}`);
+    if (detail.flat_bonus) addRow("Extra Wumpacoins", `+${formatCoins(detail.flat_bonus)}`);
+  }
+  if (breakdown.childElementCount) box.append(breakdown);
+  box.append(coins);
 }
 
 let resumeFocus = "score";

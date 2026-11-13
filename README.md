@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.2.1)
+# Crash™ Team Racing NF - Dashboard (v1.2.5)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -9,6 +9,14 @@ A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native po
 * Open `CTRNF.exe`. The launcher starts the app and the dashboard opens in the browser. Your records stay on the computer, in `%LOCALAPPDATA%\CTRNF\data`, and they remain there when you update. If a newer release exists, the launcher offers to download it and replace `CTRNF.exe` for you. Your records are not touched.
 
 ![Version 1.0 of the executable](utils/ejecutable.JPG)
+
+## Users and backups
+
+Open **Users** in the launcher to create or select a local user before starting the server. Each user has a separate race history and Store wallet. Stop the server before switching users.
+
+When upgrading from a version without users, create or select an empty user and choose **Assign existing data to selected user**. Confirm the assignment to copy and verify the existing race and wallet files. The original files remain in `%LOCALAPPDATA%\CTRNF\data` as a backup; the selected user's working files are under `profiles/<user ID>` in that folder.
+
+Stop the server, then in Settings export the active user's data to a ZIP containing a folder named for that user. On another computer, use **Users → Import user from backup** to restore a current ZIP with the same user ID. Older ZIP backups without a user ID can be imported into a selected user through Settings. Imports protect existing records; stop the server first.
 
 ## Time Trial
 

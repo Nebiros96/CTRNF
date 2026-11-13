@@ -28,7 +28,9 @@
           16
         ],
         "label": "Crash Team Racing characters"
-      }
+      },
+      "item_category": "skin",
+      "character_id": 1
     },
     {
       "item_id": 2,
@@ -58,7 +60,9 @@
           16
         ],
         "label": "Crash Team Racing characters"
-      }
+      },
+      "item_category": "skin",
+      "character_id": 4
     },
     {
       "item_id": 3,
@@ -88,7 +92,9 @@
           16
         ],
         "label": "Crash Team Racing characters"
-      }
+      },
+      "item_category": "skin",
+      "character_id": 1
     },
     {
       "item_id": 4,
@@ -125,7 +131,8 @@
           56
         ],
         "label": "Uka Uka characters"
-      }
+      },
+      "item_category": "mask"
     },
     {
       "item_id": 5,
@@ -161,7 +168,8 @@
           56
         ],
         "label": "Aku Aku characters"
-      }
+      },
+      "item_category": "mask"
     },
     {
       "item_id": 6,
@@ -188,7 +196,8 @@
           56
         ],
         "label": "Velo characters"
-      }
+      },
+      "item_category": "mask"
     },
     {
       "item_id": 7,
@@ -207,7 +216,8 @@
           56
         ],
         "label": "Sparx characters"
-      }
+      },
+      "item_category": "mask"
     },
     {
       "item_id": 8,
@@ -220,7 +230,9 @@
         "type": "track",
         "track_id": 1,
         "label": "Crash Cove"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 1
     },
     {
       "item_id": 9,
@@ -233,7 +245,9 @@
         "type": "track",
         "track_id": 2,
         "label": "Mystery Caves"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 2
     },
     {
       "item_id": 10,
@@ -246,7 +260,9 @@
         "type": "track",
         "track_id": 3,
         "label": "Sewer Speedway"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 3
     },
     {
       "item_id": 11,
@@ -259,7 +275,9 @@
         "type": "track",
         "track_id": 4,
         "label": "Roo's Tubes"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 4
     },
     {
       "item_id": 12,
@@ -272,7 +290,9 @@
         "type": "track",
         "track_id": 5,
         "label": "Slide Coliseum"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 5
     },
     {
       "item_id": 13,
@@ -285,7 +305,9 @@
         "type": "track",
         "track_id": 6,
         "label": "Turbo Track"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 6
     },
     {
       "item_id": 14,
@@ -298,7 +320,9 @@
         "type": "track",
         "track_id": 7,
         "label": "Coco Park"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 7
     },
     {
       "item_id": 15,
@@ -311,7 +335,9 @@
         "type": "track",
         "track_id": 8,
         "label": "Tiger Temple"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 8
     },
     {
       "item_id": 16,
@@ -324,7 +350,9 @@
         "type": "track",
         "track_id": 9,
         "label": "Papus Pyramid"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 9
     },
     {
       "item_id": 17,
@@ -337,7 +365,9 @@
         "type": "track",
         "track_id": 10,
         "label": "Dingo Canyon"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 10
     },
     {
       "item_id": 18,
@@ -350,7 +380,9 @@
         "type": "track",
         "track_id": 11,
         "label": "Polar Pass"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 11
     },
     {
       "item_id": 19,
@@ -363,7 +395,9 @@
         "type": "track",
         "track_id": 12,
         "label": "Tiny Arena"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 12
     },
     {
       "item_id": 20,
@@ -376,7 +410,9 @@
         "type": "track",
         "track_id": 13,
         "label": "Dragon Mines"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 13
     },
     {
       "item_id": 21,
@@ -389,7 +425,9 @@
         "type": "track",
         "track_id": 14,
         "label": "Blizzard Bluff"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 14
     },
     {
       "item_id": 22,
@@ -402,7 +440,9 @@
         "type": "track",
         "track_id": 15,
         "label": "Hot Air Skyway"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 15
     },
     {
       "item_id": 23,
@@ -415,7 +455,9 @@
         "type": "track",
         "track_id": 16,
         "label": "Cortex Castle"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 16
     },
     {
       "item_id": 24,
@@ -428,7 +470,9 @@
         "type": "track",
         "track_id": 17,
         "label": "N. Gin Labs"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 17
     },
     {
       "item_id": 25,
@@ -441,7 +485,9 @@
         "type": "track",
         "track_id": 18,
         "label": "Oxide Station"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 18
     },
     {
       "item_id": 26,
@@ -454,7 +500,9 @@
         "type": "track",
         "track_id": 19,
         "label": "Inferno Island"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 19
     },
     {
       "item_id": 27,
@@ -467,7 +515,9 @@
         "type": "track",
         "track_id": 20,
         "label": "Jungle Boogie"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 20
     },
     {
       "item_id": 28,
@@ -480,7 +530,9 @@
         "type": "track",
         "track_id": 21,
         "label": "Clockwork Wumpa"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 21
     },
     {
       "item_id": 29,
@@ -493,7 +545,9 @@
         "type": "track",
         "track_id": 22,
         "label": "Android Alley"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 22
     },
     {
       "item_id": 30,
@@ -506,7 +560,9 @@
         "type": "track",
         "track_id": 23,
         "label": "Electron Avenue"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 23
     },
     {
       "item_id": 31,
@@ -519,7 +575,9 @@
         "type": "track",
         "track_id": 24,
         "label": "Deep Sea Driving"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 24
     },
     {
       "item_id": 32,
@@ -532,7 +590,9 @@
         "type": "track",
         "track_id": 25,
         "label": "Thunder Struck"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 25
     },
     {
       "item_id": 33,
@@ -545,7 +605,9 @@
         "type": "track",
         "track_id": 26,
         "label": "Tiny Temple"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 26
     },
     {
       "item_id": 34,
@@ -558,7 +620,9 @@
         "type": "track",
         "track_id": 27,
         "label": "Meteor Gorge"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 27
     },
     {
       "item_id": 35,
@@ -571,7 +635,9 @@
         "type": "track",
         "track_id": 28,
         "label": "Barin Ruins"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 28
     },
     {
       "item_id": 36,
@@ -584,7 +650,9 @@
         "type": "track",
         "track_id": 29,
         "label": "Out Of Time"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 29
     },
     {
       "item_id": 37,
@@ -597,7 +665,9 @@
         "type": "track",
         "track_id": 30,
         "label": "Assembly Lane"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 30
     },
     {
       "item_id": 38,
@@ -610,7 +680,9 @@
         "type": "track",
         "track_id": 31,
         "label": "Hyper Spaceway"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 31
     },
     {
       "item_id": 39,
@@ -623,7 +695,9 @@
         "type": "track",
         "track_id": 32,
         "label": "Retro Stadium"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 32
     },
     {
       "item_id": 40,
@@ -636,7 +710,9 @@
         "type": "track",
         "track_id": 33,
         "label": "Twilight Tour"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 33
     },
     {
       "item_id": 41,
@@ -649,7 +725,9 @@
         "type": "track",
         "track_id": 34,
         "label": "Prehistoric Playground"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 34
     },
     {
       "item_id": 42,
@@ -662,7 +740,9 @@
         "type": "track",
         "track_id": 35,
         "label": "Spyro Circuit"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 35
     },
     {
       "item_id": 43,
@@ -675,7 +755,9 @@
         "type": "track",
         "track_id": 36,
         "label": "Nina's Nightmare"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 36
     },
     {
       "item_id": 44,
@@ -688,7 +770,9 @@
         "type": "track",
         "track_id": 37,
         "label": "Koala Carnival"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 37
     },
     {
       "item_id": 45,
@@ -701,7 +785,9 @@
         "type": "track",
         "track_id": 38,
         "label": "Gingerbread Joyride"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 38
     },
     {
       "item_id": 46,
@@ -714,7 +800,9 @@
         "type": "track",
         "track_id": 39,
         "label": "Megamix Mania"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 39
     },
     {
       "item_id": 47,
@@ -727,7 +815,824 @@
         "type": "track",
         "track_id": 40,
         "label": "Drive-thru Danger"
-      }
+      },
+      "item_category": "tracks",
+      "track_id": 40
+    },
+    {
+      "item_id": 48,
+      "name": "Mother Clucker Crash Avatar",
+      "price": 4200,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/d/d4/IAT_mother_clucker_render.png/revision/latest?cb=20201117131938",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "conditional_overrides": [
+        {
+          "bonus_milli": 2,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              1
+            ],
+            "label": "Crash Bandicoot"
+          }
+        }
+      ],
+      "item_category": "Avatar",
+      "unlock_condition": 1,
+      "character_id": 1
+    },
+    {
+      "item_id": 49,
+      "name": "Ze Artist Coco Avatar",
+      "price": 4200,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/f/fc/IAT_ze_artiste_coco_render.png/revision/latest?cb=20210812112843",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "conditional_overrides": [
+        {
+          "bonus_milli": 2,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              4,
+              33
+            ],
+            "label": "Coco Bandicoot and Baby Coco"
+          }
+        }
+      ],
+      "item_category": "Avatar",
+      "unlock_condition": 50,
+      "character_id": 4
+    },
+    {
+      "item_id": 50,
+      "name": "Ze Artist Coco",
+      "price": 2500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/e/e8/IAT_Ze_Artiste_Coco_mug.png/revision/latest/scale-to-width-down/70?cb=20201104232253",
+      "bonus_all_milli": 2,
+      "bonus_condition_milli": 3,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "item_category": "skin",
+      "character_id": 4
+    },
+    {
+      "item_id": 51,
+      "name": "Warped Biker Crash",
+      "price": 4800,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/a/a7/IAT_Warped_Biker_Crash_mug.png/revision/latest/scale-to-width-down/70?cb=20201104224837",
+      "bonus_all_milli": 3,
+      "bonus_condition_milli": 5,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "item_category": "skin",
+      "character_id": 1
+    },
+    {
+      "item_id": 52,
+      "name": "Warped Biker Crash Avatar",
+      "price": 6000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/d/d0/IAT_warped_biker_crash_render.png/revision/latest?cb=20210812112602",
+      "bonus_all_milli": 2,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "conditional_overrides": [
+        {
+          "bonus_milli": 2,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              1,
+              32
+            ],
+            "label": "Crash Bandicoot and Baby Crash"
+          }
+        }
+      ],
+      "bonus_coins": 1.1,
+      "item_category": "Avatar",
+      "unlock_condition": 51,
+      "character_id": 1
+    },
+    {
+      "item_id": 53,
+      "name": "Pursona Coco",
+      "price": 4800,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/a/af/IAT_Pursona_Coco_mug.png/revision/latest/scale-to-width-down/70?cb=20201104232257",
+      "bonus_all_milli": 3,
+      "bonus_condition_milli": 5,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "item_category": "skin",
+      "character_id": 4
+    },
+    {
+      "item_id": 54,
+      "name": "Pursona Coco Avatar",
+      "price": 6000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/0/01/IAT_pursona_render.png/revision/latest?cb=20201117132029",
+      "bonus_all_milli": 2,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "conditional_overrides": [
+        {
+          "bonus_milli": 2,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              4,
+              33
+            ],
+            "label": "Coco Bandicoot and Baby Coco"
+          }
+        }
+      ],
+      "bonus_coins": 1.1,
+      "item_category": "Avatar",
+      "unlock_condition": 53,
+      "character_id": 4
+    },
+    {
+      "item_id": 55,
+      "name": "Totally Tubular Crash",
+      "price": 7000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/8/86/IAT_Totally_Tubular_Crash_mug.png/revision/latest/scale-to-width-down/70?cb=20201104224837",
+      "bonus_all_milli": 4,
+      "bonus_condition_milli": 5,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        "label": "Crash Team Racing and Crash Nitro Kart characters"
+      },
+      "bonus_coins_flat": 5,
+      "item_category": "skin",
+      "character_id": 1
+    },
+    {
+      "item_id": 56,
+      "name": "Totally Tubular Crash Avatar",
+      "price": 9000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/3/31/IAT_tubular_crash.png/revision/latest?cb=20200807040037",
+      "bonus_all_milli": 3,
+      "bonus_condition_milli": 2,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "conditional_overrides": [
+        {
+          "bonus_milli": 3,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              1,
+              32
+            ],
+            "label": "Crash Bandicoot and Baby Crash"
+          }
+        }
+      ],
+      "bonus_coins": 1.2,
+      "item_category": "Avatar",
+      "unlock_condition": [
+        55,
+        48,
+        52
+      ],
+      "character_id": 1,
+      "unlock_label": "Totally Tubular Crash and previous Crash avatars"
+    },
+    {
+      "item_id": 58,
+      "name": "Totally Tubular Coco",
+      "price": 7000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/3/3d/IAT_Totally_Tubular_Coco_mug.png/revision/latest/scale-to-width-down/70?cb=20201104232253",
+      "bonus_all_milli": 4,
+      "bonus_condition_milli": 5,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        "label": "Crash Team Racing and Crash Nitro Kart characters"
+      },
+      "bonus_coins_flat": 5,
+      "item_category": "skin",
+      "character_id": 4
+    },
+    {
+      "item_id": 57,
+      "name": "Totally Tubular Coco Avatar",
+      "price": 9000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/9/9f/IAT_tubular_coco.png/revision/latest?cb=20200807040052",
+      "bonus_all_milli": 3,
+      "bonus_condition_milli": 2,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "conditional_overrides": [
+        {
+          "bonus_milli": 3,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              4,
+              33
+            ],
+            "label": "Coco Bandicoot and Baby Coco"
+          }
+        }
+      ],
+      "bonus_coins": 1.2,
+      "item_category": "Avatar",
+      "unlock_condition": [
+        58,
+        49,
+        54
+      ],
+      "unlock_label": "Totally Tubular Coco and previous Coco avatars",
+      "character_id": 4
+    },
+    {
+      "item_id": 59,
+      "name": "Marsupus Crash",
+      "price": 10500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/8/81/IAT_Marsupus_Erectus_Crash_mug.png/revision/latest/scale-to-width-down/70?cb=20201104224844",
+      "bonus_all_milli": 5,
+      "bonus_condition_milli": 5,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        "label": "Crash Team Racing and Crash Nitro Kart characters"
+      },
+      "additional_conditions": [
+        {
+          "bonus_milli": 3,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55,
+              56
+            ],
+            "label": "CTR Nitro-Fueled characters"
+          }
+        }
+      ],
+      "bonus_coins_flat": 6,
+      "item_category": "skin",
+      "character_id": 1
+    },
+    {
+      "item_id": 60,
+      "name": "Marsupus Coco",
+      "price": 10500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/5/52/IAT_Marsupus_Erectus_Coco_mug.png/revision/latest/scale-to-width-down/70?cb=20201104232256",
+      "bonus_all_milli": 5,
+      "bonus_condition_milli": 5,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        "label": "Crash Team Racing and Crash Nitro Kart characters"
+      },
+      "additional_conditions": [
+        {
+          "bonus_milli": 3,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55,
+              56
+            ],
+            "label": "CTR Nitro-Fueled characters"
+          }
+        }
+      ],
+      "bonus_coins_flat": 6,
+      "item_category": "skin",
+      "character_id": 4
+    },
+    {
+      "item_id": 61,
+      "name": "Marsupus Erectus Crash Avatar",
+      "price": 15000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/d/d8/Marsupus_erectus_crash.png/revision/latest?cb=20200807153924",
+      "bonus_all_milli": 4,
+      "bonus_condition_milli": 3,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "conditional_overrides": [
+        {
+          "bonus_milli": 4,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              1,
+              32
+            ],
+            "label": "Crash Bandicoot and Baby Crash"
+          }
+        }
+      ],
+      "bonus_coins": 1.3,
+      "item_category": "Avatar",
+      "unlock_condition": [
+        59,
+        48,
+        52,
+        56
+      ],
+      "unlock_label": "Marsupus Crash and previous Crash avatars",
+      "character_id": 1
+    },
+    {
+      "item_id": 62,
+      "name": "Marsupus Erectus Coco Avatar",
+      "price": 15000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/2/20/Marsupus_erectus_coco.png/revision/latest?cb=20200807154543",
+      "bonus_all_milli": 4,
+      "bonus_condition_milli": 3,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "label": "Crash Team Racing characters"
+      },
+      "conditional_overrides": [
+        {
+          "bonus_milli": 4,
+          "condition": {
+            "type": "characters",
+            "character_ids": [
+              4,
+              33
+            ],
+            "label": "Coco Bandicoot and Baby Coco"
+          }
+        }
+      ],
+      "bonus_coins": 1.3,
+      "item_category": "Avatar",
+      "unlock_condition": [
+        60,
+        49,
+        54,
+        57
+      ],
+      "unlock_label": "Marsupus Coco and previous Coco avatars",
+      "character_id": 4
+    },
+    {
+      "item_id": 63,
+      "name": "Neo Cortex Crashmoji",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/e/e0/Crashmoji_villains_8.png/revision/latest?cb=20250407020338",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          2,
+          53
+        ],
+        "label": "Neo Cortex and Baby Cortex"
+      },
+      "item_category": "skin",
+      "character_id": 2
+    },
+    {
+      "item_id": 64,
+      "name": "Papu Papu Crashmoji",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/3/32/Crashmoji_villains_1.png/revision/latest?cb=20250407020420",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          11
+        ],
+        "label": "Papu Papu"
+      },
+      "item_category": "skin",
+      "character_id": 11
+    },
+    {
+      "item_id": 65,
+      "name": "Tiny Tiger Crashmoji",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/b/b3/Crashmoji_villains_11.png/revision/latest?cb=20250407020314",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          3
+        ],
+        "label": "Tiny Tiger"
+      },
+      "item_category": "skin",
+      "character_id": 3
+    },
+    {
+      "item_id": 66,
+      "name": "Dr. N. Tropy Crashmoji",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/7/7e/Crashmoji_villains_13.png/revision/latest?cb=20250407020258",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          16,
+          54
+        ],
+        "label": "Dr. N. Tropy and Baby N. Tropy"
+      },
+      "item_category": "skin",
+      "character_id": 16
     }
   ]
 }

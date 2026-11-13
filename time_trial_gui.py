@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
+import shutil
+import uuid
 import ctypes
 import json
 import os
@@ -33,8 +36,6 @@ STREAM_TYPES = {
     ".js": "text/javascript; charset=utf-8",
 }
 LOGO_PATH = ROOT / "utils" / "logo_by_LexiLoo826.png"
-## Art cover used in the launcher window.
-COVER_PATH = ROOT / "utils" / "fondo_launcher.png"
 ICON_PATH = ROOT / "utils" / "ctrnf.ico"
 ACHIEVEMENT_ICON_DIR = ROOT / "utils" / "achievements"
 WUMPACOIN_PATH = ROOT / "utils" / "store" / "CTRNF-Wumpa_Coin.webp"
@@ -47,7 +48,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.2.1"
+APP_VERSION = "CTR - v1.2.5"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -279,6 +280,72 @@ def set_log_file(path: Path | None) -> None:
     SETTINGS_PATH.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+PROFILES_PATH = DATA_DIR / "profiles.json"
+PROFILES_DIR = DATA_DIR / "profiles"
+LEGACY_FILES = {"time_trials.csv": DATA_DIR / "time_trials.csv", "rally_ring.csv": DATA_DIR / "rally_ring.csv", "wallet.csv": DATA_DIR / "store" / "wallet.csv"}
+
+
+def load_profiles() -> dict:
+    if not PROFILES_PATH.exists():
+        return {"profiles": [], "active": None, "legacy_assigned": False}
+    data = json.loads(PROFILES_PATH.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("profiles"), list):
+        raise ValueError("Invalid profiles file; restore profiles.json from a backup.")
+    ids = set()
+    for profile in data["profiles"]:
+        if not isinstance(profile, dict) or not isinstance(profile.get("name"), str) or not profile["name"].strip():
+            raise ValueError("Invalid profile in profiles.json.")
+        identifier = profile.get("id", "")
+        if str(uuid.UUID(identifier)) != identifier or identifier in ids:
+            raise ValueError("Invalid or duplicate profile ID in profiles.json.")
+        ids.add(identifier)
+    if data.get("active") is not None and data["active"] not in ids:
+        raise ValueError("The active profile does not exist.")
+    return data
+
+
+def save_profiles(data: dict) -> None:
+    PROFILES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temp = PROFILES_PATH.with_suffix(".json.tmp")
+    temp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp.replace(PROFILES_PATH)
+
+
+def activate_profile(profile_id: str) -> None:
+    global RESULTS_CSV, RALLY_RESULTS_CSV, DATA_FILES
+    folder = PROFILES_DIR / profile_id
+    RESULTS_CSV = core.CSV_PATH = folder / "time_trials.csv"
+    RALLY_RESULTS_CSV = core.RALLY_RING_CSV_PATH = folder / "rally_ring.csv"
+    core.STORE_WALLET_PATH = folder / "store" / "wallet.csv"
+    DATA_FILES = {"time_trials.csv": RESULTS_CSV, "rally_ring.csv": RALLY_RESULTS_CSV, "wallet.csv": core.STORE_WALLET_PATH}
+
+
+def assign_legacy_data(data: dict, profile_id: str) -> None:
+    if data.get("legacy_assigned"):
+        raise ValueError("Existing data has already been assigned.")
+    folder = PROFILES_DIR / profile_id
+    sources = [(name, path) for name, path in LEGACY_FILES.items() if path.is_file() and path.stat().st_size]
+    targets = [(src, folder / ("store/wallet.csv" if name == "wallet.csv" else name)) for name, src in sources]
+    if any(dst.exists() and (not dst.is_file() or hashlib.sha256(src.read_bytes()).digest() != hashlib.sha256(dst.read_bytes()).digest()) for src, dst in targets):
+        raise ValueError("This user already has different data; choose a new empty user.")
+    for src, dst in targets:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if not dst.exists():
+            temporary = dst.with_suffix(dst.suffix + ".migration.tmp")
+            shutil.copy2(src, temporary)
+            if hashlib.sha256(src.read_bytes()).digest() != hashlib.sha256(temporary.read_bytes()).digest():
+                raise OSError(f"Verification failed for {src.name}.")
+            temporary.replace(dst)
+        if hashlib.sha256(src.read_bytes()).digest() != hashlib.sha256(dst.read_bytes()).digest():
+            raise OSError(f"Verification failed for {src.name}.")
+    data["legacy_assigned"] = profile_id
+    save_profiles(data)
+
+
+def legacy_data_pending(data: dict) -> bool:
+    return not data.get("legacy_assigned") and any(p.is_file() and p.stat().st_size for p in LEGACY_FILES.values())
+
+
 DATA_FILES = {
     "time_trials.csv": RESULTS_CSV,
     "rally_ring.csv": RALLY_RESULTS_CSV,
@@ -287,30 +354,89 @@ DATA_FILES = {
 
 
 def export_data(path: Path) -> None:
+    with core._store_lock:
+        _export_data_locked(path)
+
+
+def _backup_folder_name(name: str) -> str:
+    # A display name is not necessarily a valid Windows folder name.
+    safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name).strip().rstrip(". ")
+    if not safe or safe in (".", ".."):
+        safe = "User"
+    if safe.split(".")[0].upper() in {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}:
+        safe = "_" + safe
+    return safe
+
+
+def _backup_entries(archive: zipfile.ZipFile) -> dict[str, str]:
+    """Accept the current single-folder format and older flat backups."""
+    recognized = set(DATA_FILES) | {"profile.json"}
+    candidates = {}
+    for entry in archive.infolist():
+        parts = entry.filename.split("/")
+        if entry.is_dir() or len(parts) not in (1, 2) or parts[-1] not in recognized:
+            continue
+        prefix = parts[0] if len(parts) == 2 else ""
+        if prefix in (".", "..") or "\\" in prefix:
+            raise ValueError("Invalid backup folder.")
+        key = (prefix, parts[-1])
+        if key in candidates:
+            raise ValueError("Backup contains duplicate files.")
+        candidates[key] = entry.filename
+    prefixes = {prefix for prefix, _ in candidates}
+    if len(prefixes) > 1:
+        raise ValueError("Backup must contain files for one user only.")
+    return {name: value for (_, name), value in candidates.items()}
+
+
+def _export_data_locked(path: Path) -> None:
     if path.exists():
         raise ValueError("That file already exists. Choose another name so the current backup stays.")
+    profiles = load_profiles()
+    active = next((p for p in profiles["profiles"] if p["id"] == profiles.get("active")), None)
+    if not active:
+        raise ValueError("Select a user before exporting.")
+    folder = _backup_folder_name(active["name"])
     available = [(name, source) for name, source in DATA_FILES.items() if source.is_file()]
-    if not available:
-        raise ValueError("There are no records to export yet.")
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(path, "x", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(f"{folder}/profile.json", json.dumps(active, ensure_ascii=False))
         for name, source in available:
-            archive.write(source, arcname=name)
+            archive.write(source, arcname=f"{folder}/{name}")
+
+
+def _is_initial_wallet(path: Path) -> bool:
+    """Only the automatically created, untouched grant can be replaced."""
+    try:
+        rows = read_csv(path)
+        return (len(rows) == 1 and rows[0].get("id") == "1"
+                and rows[0].get("kind") == "grant"
+                and rows[0].get("coins") == str(core.BASE_WUMPAS)
+                and all(not rows[0].get(field) for field in ("mode", "race_id", "item_id")))
+    except (OSError, UnicodeError, csv.Error):
+        return False
 
 
 def import_data(path: Path) -> list[str]:
+    with core._store_lock:
+        return _import_data_locked(path)
+
+
+def _import_data_locked(path: Path) -> list[str]:
     with zipfile.ZipFile(path, "r") as archive:
-        names = set(archive.namelist())
-        selected = names.intersection(DATA_FILES)
-        if not selected:
-            raise ValueError("The file does not contain time_trials.csv, rally_ring.csv, or wallet.csv.")
+        entries = _backup_entries(archive)
+        selected = set(entries).intersection(DATA_FILES)
+        if not selected and "profile.json" not in entries:
+            raise ValueError("The file does not contain a user profile or compatible data files.")
         staged = {}
         schemas = {
             "time_trials.csv": {"id", "track", "skin", "time_raw", "time_seconds", "captured_at"},
             "rally_ring.csv": {"id", "track", "skin", "score", "laps", "captured_at"},
-            "wallet.csv": {"id", "kind", "coins", "captured_at"},
+            "wallet.csv": set(core.WALLET_FIELDS),
         }
         for name in selected:
-            raw = archive.read(name).decode("utf-8-sig")
+            raw = archive.read(entries[name]).decode("utf-8-sig")
+            if not raw.splitlines():
+                raise ValueError(f"{name} is empty.")
             delimiter = ";" if raw.splitlines()[0].count(";") > raw.splitlines()[0].count(",") else ","
             reader = csv.DictReader(raw.splitlines(), delimiter=delimiter)
             if not schemas[name].issubset(set(reader.fieldnames or [])):
@@ -319,7 +445,8 @@ def import_data(path: Path) -> list[str]:
             if any(not row.get("id") for row in rows):
                 raise ValueError(f"{name} contains rows without an ID.")
             staged[name] = raw.encode("utf-8-sig")
-        conflicts = [name for name in selected if DATA_FILES[name].exists() and DATA_FILES[name].stat().st_size > 0]
+        conflicts = [name for name in selected if DATA_FILES[name].exists() and DATA_FILES[name].stat().st_size > 0
+                     and not (name == "wallet.csv" and _is_initial_wallet(DATA_FILES[name]))]
         if conflicts:
             raise ValueError("Import cancelled: " + ", ".join(sorted(conflicts)) + " already has data. Export a copy and move or rename those CSV files before restoring.")
         for name, content in staged.items():
@@ -747,7 +874,9 @@ class DashboardState:
             core.ensure_rally_progression(RALLY_RESULTS_CSV)
             progress = core.build_rally_progression(rallies)
             trophies = core.build_trophies(rallies)
-            return {"mode": "profile", "game_running": running,
+            profiles = load_profiles()
+            active_user = next((p["name"] for p in profiles["profiles"] if p["id"] == profiles.get("active")), "")
+            return {"mode": "profile", "game_running": running, "user_name": active_user,
                     "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
                     "balance": core.wallet_balance(), "catalog": catalog,
                     "favorite": skin_by_raw.get(favorite), "favorite_runs": counts.get(favorite, 0),
@@ -1074,10 +1203,11 @@ class DashboardServer(ThreadingHTTPServer):
     """One dashboard owns the port. A second launch must move to the next free port."""
 
     allow_reuse_address = False
+    daemon_threads = False
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.2.1"
+    server_version = "CTRTimeTrialDashboard/1.2.5"
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -1402,6 +1532,10 @@ class DashboardLauncher:
         self.server_thread = None
         self.url = ""
         self.closing = False
+        self.server_busy = False
+        self.profiles = load_profiles()
+        if self.profiles.get("active"):
+            activate_profile(self.profiles["active"])
         self.root.title(APP_NAME)
         self.root.configure(bg=self.BG)
         self.root.resizable(True, True)
@@ -1418,6 +1552,7 @@ class DashboardLauncher:
         style.theme_use("clam")
         style.configure("Launcher.TFrame", background=self.BG)
         style.configure("Panel.TFrame", background=self.PANEL)
+        style.configure("Brand.TLabel", background=self.BG, foreground="#fff2e1", font=("Segoe UI", 22, "bold italic"))
         style.configure("Title.TLabel", background=self.BG, foreground=self.TEXT, font=("Segoe UI", 18, "bold"))
         style.configure("Eyebrow.TLabel", background=self.BG, foreground="#d4c6ff", font=("Segoe UI", 9, "bold"))
         style.configure("Body.TLabel", background=self.BG, foreground=self.MUTED, font=("Segoe UI", 10))
@@ -1432,28 +1567,36 @@ class DashboardLauncher:
         style.configure("SideLabel.TLabel", background=self.SIDE, foreground=self.MUTED, font=("Segoe UI", 8, "bold"))
         style.configure("SideValue.TLabel", background=self.SIDE, foreground=self.TEXT, font=("Segoe UI", 9), wraplength=185)
         style.configure("Footer.TLabel", background=self.BG, foreground=self.MUTED, font=("Segoe UI", 9))
-        self._style_button(style, "Nav.TButton", self.SIDE, self.TEXT, "#251a3a", font=("Segoe UI", 10), padding=(12, 10), anchor="w")
+        self._style_button(style, "Nav.TButton", "#261c39", self.TEXT, "#3a2b54", font=("Segoe UI", 10), padding=(12, 10), anchor="w")
         self._style_button(style, "NavActive.TButton", self.PRIMARY, self.TEXT, self.PRIMARY_HOVER, font=("Segoe UI", 10, "bold"), padding=(12, 10), anchor="w")
         self._style_button(style, "Settings.TButton", self.PRIMARY, self.TEXT, self.PRIMARY_HOVER, font=("Segoe UI", 10, "bold"), padding=(12, 9))
         style.configure("Update.TFrame", background="#2a2148")
         style.configure("Update.TLabel", background="#2a2148", foreground=self.TEXT, font=("Segoe UI", 9))
         self._style_button(style, "UpdateLink.TButton", self.PRIMARY, self.TEXT, self.PRIMARY_HOVER, font=("Segoe UI", 9, "bold"), padding=(9, 5))
         self._style_button(style, "UpdateQuiet.TButton", self.SECONDARY, self.TEXT, self.SECONDARY_HOVER, font=("Segoe UI", 9), padding=(8, 5))
+        style.configure("Users.TCombobox", fieldbackground=self.WELL, background=self.SECONDARY, foreground=self.TEXT, arrowcolor=self.TEXT, padding=8)
+        style.map("Users.TCombobox", fieldbackground=[("readonly", self.WELL)], foreground=[("readonly", self.TEXT)], selectbackground=[("readonly", self.WELL)], selectforeground=[("readonly", self.TEXT)])
+        root.option_add("*TCombobox*Listbox.background", self.WELL)
+        root.option_add("*TCombobox*Listbox.foreground", self.TEXT)
+        root.option_add("*TCombobox*Listbox.selectBackground", self.PRIMARY)
+        root.option_add("*TCombobox*Listbox.selectForeground", self.TEXT)
         style.configure("TSeparator", background=self.LINE)
         style.configure("TScrollbar", background=self.LINE, troughcolor=self.WELL, bordercolor=self.WELL, arrowcolor=self.MUTED)
         style.map("TScrollbar", background=[("active", self.PRIMARY_HOVER)])
 
         shell = ttk.Frame(root, style="Launcher.TFrame", padding=(18, 14))
         shell.pack(fill="both", expand=True)
-        top = ttk.Frame(shell, style="Panel.TFrame", padding=5)
+        top = ttk.Frame(shell, style="Launcher.TFrame", padding=(0, 0, 0, 10))
         top.pack(fill="x")
-        self.cover = None
-        if COVER_PATH.is_file():
+        self.brand_logo = None
+        if LOGO_PATH.is_file():
             try:
-                self.cover = tk.PhotoImage(file=str(COVER_PATH))
-                tk.Label(top, image=self.cover, bg=self.PANEL, borderwidth=0).pack(anchor="center")
+                self.brand_logo = tk.PhotoImage(file=str(LOGO_PATH)).subsample(9, 9)
+                tk.Label(top, image=self.brand_logo, bg=self.BG, borderwidth=0).pack(side="left", padx=(0, 16))
             except tk.TclError:
-                self.cover = None
+                self.brand_logo = None
+        ttk.Label(top, text="CRASH™ TEAM RACING NF - DASHBOARD", style="Brand.TLabel").pack(side="left", anchor="center")
+        ttk.Separator(shell, orient="horizontal").pack(fill="x")
 
         self.pending_release = None
         self.updating = False
@@ -1482,15 +1625,22 @@ class DashboardLauncher:
         sidebar.pack(side="left", fill="y", padx=(0, 14))
         sidebar.pack_propagate(False)
         ttk.Label(sidebar, text="NAVIGATION", style="SideTitle.TLabel").pack(anchor="w", padx=8, pady=(4, 13))
-        self.server_nav_button = ttk.Button(sidebar, text="▰   Server", style="NavActive.TButton", command=self.show_server_page)
+        self.nav_icons = {name: tk.PhotoImage(file=str(ROOT / "utils" / "nav" / f"{name}.png")) for name in ("server", "users", "streaming", "settings")}
+        self.server_nav_button = ttk.Button(sidebar, text="  Server", image=self.nav_icons["server"], compound="left", style="NavActive.TButton", command=self.show_server_page)
         self.server_nav_button.pack(fill="x")
-        self.streaming_nav_button = ttk.Button(sidebar, text="▶   Streaming", style="Nav.TButton", command=self.show_streaming_page)
-        self.streaming_nav_button.pack(fill="x", pady=(5, 0))
-        self.settings_nav_button = ttk.Button(sidebar, text="⚙   Settings", style="Nav.TButton", command=self.show_settings_page)
-        self.settings_nav_button.pack(fill="x", pady=(5, 0))
+        self.users_nav_button = ttk.Button(sidebar, text="  Users", image=self.nav_icons["users"], compound="left", style="Nav.TButton", command=self.show_users_page)
+        self.users_nav_button.pack(fill="x", pady=(6, 0))
+        self.streaming_nav_button = ttk.Button(sidebar, text="  Streaming", image=self.nav_icons["streaming"], compound="left", style="Nav.TButton", command=self.show_streaming_page)
+        self.streaming_nav_button.pack(fill="x", pady=(6, 0))
+        self.settings_nav_button = ttk.Button(sidebar, text="  Settings", image=self.nav_icons["settings"], compound="left", style="Nav.TButton", command=self.show_settings_page)
+        self.settings_nav_button.pack(fill="x", pady=(6, 0))
+        ttk.Label(sidebar, text="ACTIVE USER", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(18, 6))
+        self.active_user_var = tk.StringVar(value="No user selected")
+        ttk.Label(sidebar, textvariable=self.active_user_var, style="SideValue.TLabel").pack(anchor="w", padx=8)
         ttk.Label(sidebar, text="STATUS", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(27, 6))
-        self.side_state_var = tk.StringVar(value="Stopped")
-        ttk.Label(sidebar, textvariable=self.side_state_var, style="SideValue.TLabel").pack(anchor="w", padx=8)
+        self.side_state_var = tk.StringVar(value="● Stopped")
+        self.side_state_label = ttk.Label(sidebar, textvariable=self.side_state_var, style="SideValue.TLabel", foreground=self.BAD)
+        self.side_state_label.pack(anchor="w", padx=8)
         ttk.Label(sidebar, text="CONNECTION", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(20, 6))
         ttk.Label(sidebar, text="This computer only", style="SideValue.TLabel").pack(anchor="w", padx=8)
         ttk.Label(sidebar, text="PERSONAL DATA", style="SideLabel.TLabel").pack(anchor="w", padx=8, pady=(20, 6))
@@ -1517,6 +1667,7 @@ class DashboardLauncher:
         ttk.Label(card, text="The interface opens in your default browser. The server stays on while this window is open.", style="Status.TLabel", wraplength=600).pack(anchor="w")
 
         self._build_streaming_page()
+        self._build_users_page()
 
         self.settings_page, settings_body = self._scroll_page((20, 16))
         ttk.Label(settings_body, text="SETTINGS  /  LOCAL PREFERENCES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
@@ -1536,7 +1687,7 @@ class DashboardLauncher:
         backup_panel = ttk.Frame(settings_body, style="Panel.TFrame")
         backup_panel.pack(fill="x", pady=(20, 0))
         ttk.Label(backup_panel, text="Import and export data", style="PanelTitle.TLabel").pack(anchor="w")
-        ttk.Label(backup_panel, text="Export your personal CSV files as a ZIP backup. Import only fills empty datasets; it does not replace records you already have.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
+        ttk.Label(backup_panel, text="Stop the server to export or import a user backup. Imports fill empty datasets and can replace an untouched starting wallet; existing records are protected.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 10))
         self.data_count_var = tk.StringVar(value="")
         ttk.Label(backup_panel, textvariable=self.data_count_var, style="Status.TLabel").pack(anchor="w", pady=(0, 12))
         backup_actions = ttk.Frame(backup_panel, style="Panel.TFrame")
@@ -1558,6 +1709,8 @@ class DashboardLauncher:
         ttk.Label(footer, text=APP_VERSION, style="Footer.TLabel").pack(side="left", anchor="w")
         ttk.Label(footer, text="Developed by Julián Gómez", style="Footer.TLabel").pack(side="right", anchor="e")
         self.check_updates()
+        if not self.profiles.get("active") or legacy_data_pending(self.profiles):
+            self.show_users_page()
 
     def _apply_window_icon(self) -> None:
         """Tk on Windows only paints a title-bar icon from a BMP .ico, not from PNG-in-ICO."""
@@ -1628,6 +1781,145 @@ class DashboardLauncher:
         canvas.pack(side="left", fill="both", expand=True)
         outer._ctrnf_scroll = canvas
         return outer, inner
+
+    def _build_users_page(self) -> None:
+        from tkinter import ttk
+
+        self.users_page, body = self._scroll_page((26, 24))
+        ttk.Label(body, text="USERS  /  LOCAL PROFILES", style="Eyebrow.TLabel", background=self.PANEL).pack(anchor="w")
+        ttk.Label(body, text="Users", style="PanelTitle.TLabel").pack(anchor="w", pady=(7, 0))
+        ttk.Label(body, text="Each user has separate race records and a Store wallet. Stop the server before changing users.", style="Status.TLabel", wraplength=600).pack(anchor="w", pady=(6, 14))
+        self.user_choice = self.tk.StringVar()
+        self.user_selector = ttk.Combobox(body, textvariable=self.user_choice, state="readonly", width=45, style="Users.TCombobox")
+        self.user_selector.pack(anchor="w", fill="x")
+        ttk.Button(body, text="Select user", style="Secondary.TButton", command=self.select_user).pack(anchor="w", pady=(8, 18))
+        ttk.Label(body, text="Create a user", style="PanelTitle.TLabel").pack(anchor="w")
+        self.user_name = self.tk.StringVar()
+        ttk.Entry(body, textvariable=self.user_name).pack(anchor="w", fill="x", pady=(8, 8))
+        ttk.Button(body, text="Create user", style="Settings.TButton", command=self.create_user).pack(anchor="w")
+        ttk.Button(body, text="Import user from backup…", style="Secondary.TButton", command=self.import_user).pack(anchor="w", pady=(8, 0))
+        self.legacy_label = ttk.Label(body, text="", style="Status.TLabel", wraplength=600)
+        self.legacy_label.pack(anchor="w", pady=(20, 8))
+        self.assign_button = ttk.Button(body, text="Assign existing data to selected user", style="Secondary.TButton", command=self.assign_existing_data)
+        self.assign_button.pack(anchor="w")
+        self.users_status = self.tk.StringVar()
+        self.users_status_label = ttk.Label(body, textvariable=self.users_status, style="Status.TLabel", wraplength=600)
+        self.users_status_label.pack(anchor="w", pady=(14, 0))
+        self.refresh_users()
+
+    def refresh_users(self) -> None:
+        self.user_labels = [p["name"] for p in self.profiles["profiles"]]
+        self.user_selector.configure(values=self.user_labels)
+        active = self.profiles.get("active")
+        index = next((i for i, p in enumerate(self.profiles["profiles"]) if p["id"] == active), None)
+        self.user_choice.set(self.user_labels[index] if index is not None else "")
+        pending = legacy_data_pending(self.profiles)
+        self.legacy_label.configure(text="Existing data detected. Select an empty user and assign the data before starting. The original files remain as a backup." if pending else "No previous data to assign. Create or select a user to get started.")
+        if pending:
+            self.assign_button.pack(anchor="w", before=self.users_status_label)
+        else:
+            self.assign_button.pack_forget()
+        if hasattr(self, "active_user_var"):
+            self.active_user_var.set(self.profiles["profiles"][index]["name"] if index is not None else "No user selected")
+
+    def _user_change_allowed(self) -> bool:
+        if self.server_busy:
+            self.users_status.set("Stop the server and wait for it to finish before changing users.")
+            return False
+        return True
+
+    def create_user(self) -> None:
+        if not self._user_change_allowed():
+            return
+        name = self.user_name.get().strip()
+        if not name or len(name) > 80 or any(ord(ch) < 32 for ch in name):
+            self.users_status.set("Enter a name of 1 to 80 characters.")
+            return
+        if any(p["name"].casefold() == name.casefold() for p in self.profiles["profiles"]):
+            self.users_status.set("That user name already exists.")
+            return
+        profile = {"id": str(uuid.uuid4()), "name": name}
+        updated = dict(self.profiles, profiles=[*self.profiles["profiles"], profile], active=profile["id"])
+        try:
+            save_profiles(updated)
+            self.profiles = updated
+            activate_profile(profile["id"])
+            self.user_name.set("")
+            self.refresh_users()
+            self.users_status.set("User created. " + ("Assign the existing data if it belongs to this user." if legacy_data_pending(updated) else ""))
+        except OSError as exc:
+            self.users_status.set(str(exc))
+
+    def import_user(self) -> None:
+        if not self._user_change_allowed():
+            return
+        chosen = self.filedialog.askopenfilename(title="Import user backup", filetypes=(("CTRNF backup", "*.zip"),))
+        if not chosen:
+            return
+        old_active = self.profiles.get("active")
+        created_folder = None
+        try:
+            with zipfile.ZipFile(chosen) as archive:
+                entries = _backup_entries(archive)
+                profile = json.loads(archive.read(entries["profile.json"]).decode("utf-8"))
+            if not isinstance(profile, dict) or not isinstance(profile.get("name"), str) or not profile["name"].strip() or len(profile["name"]) > 80:
+                raise ValueError("Invalid profile in backup.")
+            identifier = profile.get("id", "")
+            if not isinstance(identifier, str) or str(uuid.UUID(identifier)) != identifier:
+                raise ValueError("Invalid profile ID in backup.")
+            if any(p["id"] == identifier or p["name"].casefold() == profile["name"].casefold() for p in self.profiles["profiles"]) or (PROFILES_DIR / identifier).exists():
+                raise ValueError("A user with this ID or name already exists.")
+            activate_profile(identifier)
+            created_folder = PROFILES_DIR / identifier
+            import_data(Path(chosen))
+            updated = dict(self.profiles, profiles=[*self.profiles["profiles"], {"id": identifier, "name": profile["name"]}], active=identifier)
+            save_profiles(updated)
+            self.profiles = updated
+            self.refresh_users()
+            self.users_status.set("User and data imported with the original ID.")
+        except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile, UnicodeError, csv.Error) as exc:
+            if created_folder and created_folder.is_dir():
+                shutil.rmtree(created_folder)
+            if old_active:
+                activate_profile(old_active)
+            self.users_status.set(f"Import failed: {exc}. Older backups can be imported into a selected user in Settings.")
+
+    def select_user(self) -> None:
+        if not self._user_change_allowed():
+            return
+        index = self.user_selector.current()
+        if index < 0:
+            self.users_status.set("Choose a user first.")
+            return
+        profile = self.profiles["profiles"][index]
+        updated = dict(self.profiles, active=profile["id"])
+        try:
+            save_profiles(updated)
+            self.profiles = updated
+            activate_profile(profile["id"])
+            self.refresh_users()
+            self.users_status.set(f"Active user: {profile['name']}")
+        except OSError as exc:
+            self.users_status.set(str(exc))
+
+    def assign_existing_data(self) -> None:
+        from tkinter import messagebox
+        if not self._user_change_allowed():
+            return
+        index = self.user_selector.current()
+        if index < 0:
+            self.users_status.set("Choose a user first.")
+            return
+        profile = self.profiles["profiles"][index]
+        if not messagebox.askyesno("Assign existing data", f"Copy all existing races and Store data to {profile['name']}? The original files will remain as a backup.", parent=self.root):
+            return
+        try:
+            assign_legacy_data(self.profiles, profile["id"])
+            self.select_user()
+            self.refresh_users()
+            self.users_status.set("Existing data assigned and verified. Original files remain as a backup.")
+        except (OSError, ValueError) as exc:
+            self.users_status.set(str(exc))
 
     def _build_streaming_page(self) -> None:
         from tkinter import ttk
@@ -1738,14 +2030,25 @@ class DashboardLauncher:
         target.yview_scroll(int(-event.delta / 120), "units")
 
     def _show_page(self, page, nav) -> None:
-        for frame in (self.server_page, self.streaming_page, self.settings_page):
+        for frame in (self.server_page, self.streaming_page, self.users_page, self.settings_page):
             frame.pack_forget()
         page.pack(fill="both", expand=True)
-        for button in (self.server_nav_button, self.streaming_nav_button, self.settings_nav_button):
+        for button in (self.server_nav_button, self.streaming_nav_button, self.users_nav_button, self.settings_nav_button):
             button.configure(style="Nav.TButton")
         nav.configure(style="NavActive.TButton")
 
     def start(self) -> None:
+        if not self.profiles.get("active"):
+            self.show_users_page()
+            self.users_status.set("Select a user or create one before starting the server.")
+            return
+        if legacy_data_pending(self.profiles):
+            self.show_users_page()
+            self.users_status.set("Assign your existing data to a user before starting the server.")
+            return
+        if self.server_busy:
+            return
+        self.server_busy = True
         self.start_button.configure(state="disabled")
         self.status_var.set("Starting server…")
         threading.Thread(target=self._start_server, daemon=True).start()
@@ -1876,6 +2179,10 @@ class DashboardLauncher:
     def show_streaming_page(self) -> None:
         self._show_page(self.streaming_page, self.streaming_nav_button)
 
+    def show_users_page(self) -> None:
+        self._show_page(self.users_page, self.users_nav_button)
+        self.refresh_users()
+
     def show_settings_page(self) -> None:
         self._show_page(self.settings_page, self.settings_nav_button)
         self.refresh_settings()
@@ -1956,6 +2263,12 @@ class DashboardLauncher:
             self.settings_status_label.configure(foreground=self.BAD)
 
     def export_backup(self) -> None:
+        if self.server_busy:
+            self.settings_status_var.set("Stop the server before exporting to ensure a consistent backup.")
+            return
+        if not self.profiles.get("active") or legacy_data_pending(self.profiles):
+            self.settings_status_var.set("Select a user and assign existing data first.")
+            return
         chosen = self.filedialog.asksaveasfilename(
             parent=self.root,
             title="Export CTRNF backup",
@@ -1974,6 +2287,9 @@ class DashboardLauncher:
             self.settings_status_label.configure(foreground=self.BAD)
 
     def import_backup(self) -> None:
+        if not self.profiles.get("active") or self.server_busy:
+            self.settings_status_var.set("Select a user and stop the server before importing.")
+            return
         chosen = self.filedialog.askopenfilename(
             parent=self.root,
             title="Import CTRNF backup",
@@ -2014,15 +2330,18 @@ class DashboardLauncher:
         self.status_var.set(f"Server running on port {port}")
         self._set_stream_urls(port)
         self.side_state_var.set("● Running")
+        self.side_state_label.configure(foreground=self.GOOD)
         self.status_label.configure(foreground=self.GOOD)
         self.open_button.configure(state="normal")
         self.start_button.configure(state="normal", text="STOP SERVER", style="Danger.TButton", command=self.stop)
         self.open_dashboard()
 
     def _server_failed(self, message: str) -> None:
+        self.server_busy = False
         self.status_var.set(f"The server could not start: {message}")
         self._set_stream_urls(None)
-        self.side_state_var.set("Unavailable")
+        self.side_state_var.set("● Unavailable")
+        self.side_state_label.configure(foreground=self.BAD)
         self.status_label.configure(foreground=self.BAD)
         self._show_start_button()
 
@@ -2039,10 +2358,24 @@ class DashboardLauncher:
         self._set_stream_urls(None)
         self.open_button.configure(state="disabled")
         self._show_start_button()
-        self.status_var.set("Server stopped")
-        self.side_state_var.set("Stopped")
+        self.start_button.configure(state="disabled")
+        self.status_var.set("Server stopping…")
+        self.side_state_var.set("● Stopped")
+        self.side_state_label.configure(foreground=self.BAD)
         self.status_label.configure(foreground=self.MUTED)
-        threading.Thread(target=lambda: (server.shutdown(), server.server_close()), daemon=True).start()
+        def shutdown():
+            server.shutdown()
+            server.server_close()
+            self.server_busy = False
+            try:
+                self.root.after(0, self._server_stopped)
+            except self.tk.TclError:
+                pass
+        threading.Thread(target=shutdown, daemon=True).start()
+
+    def _server_stopped(self) -> None:
+        self.status_var.set("Server stopped")
+        self._show_start_button()
 
     def _show_start_button(self) -> None:
         self.start_button.configure(state="normal", text="START SERVER", style="Accent.TButton", command=self.start)
@@ -2072,6 +2405,10 @@ def main() -> None:
     parser.add_argument("--server-only", action="store_true", help="start the server without the launcher window")
     args = parser.parse_args()
     if args.server_only:
+        profiles = load_profiles()
+        if not profiles.get("active") or legacy_data_pending(profiles):
+            raise SystemExit("Select a user and assign existing data in the launcher first.")
+        activate_profile(profiles["active"])
         run_server_only(args.port)
     else:
         run_launcher(args.port)
