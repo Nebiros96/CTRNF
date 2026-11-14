@@ -755,6 +755,8 @@ def _load_achievements(path: Path) -> list[dict]:
                 "name": name,
                 "notes": notes,
                 "description": (row.get("description_en") or row.get("description") or "").strip(),
+                "base_points_only": ("base points" in (row.get("description_en") or "").casefold()
+                                     or "puntos base" in (row.get("description") or "").casefold()),
                 "game_mode": game_mode,
                 "type": tier,
                 "tier": tier,
@@ -776,7 +778,9 @@ def _cell_int(row: dict[str, str], field: str) -> int:
 def _blank_stats() -> dict:
     return {
         "base_points": 0,
+        "bonus_points": 0,
         "max_score": 0,
+        "max_score_mult": 0,
         "laps": 0,
         "races": 0,
         "tracks": set(),
@@ -784,6 +788,7 @@ def _blank_stats() -> dict:
         "points_by": {},
         "base_by_character": {},
         "base_by_club": {},
+        "points_by_club": {},
         "tt_races": 0,
         "velo_tracks": set(),
         "dev_tracks": set(),
@@ -794,7 +799,9 @@ def _blank_stats() -> dict:
 def _clone_stats(stats: dict) -> dict:
     return {
         "base_points": stats["base_points"],
+        "bonus_points": stats["bonus_points"],
         "max_score": stats["max_score"],
+        "max_score_mult": stats["max_score_mult"],
         "laps": stats["laps"],
         "races": stats["races"],
         "tracks": set(stats["tracks"]),
@@ -802,6 +809,7 @@ def _clone_stats(stats: dict) -> dict:
         "points_by": dict(stats["points_by"]),
         "base_by_character": dict(stats["base_by_character"]),
         "base_by_club": dict(stats["base_by_club"]),
+        "points_by_club": dict(stats["points_by_club"]),
         "tt_races": stats.get("tt_races", 0),
         "velo_tracks": set(stats.get("velo_tracks") or ()),
         "dev_tracks": set(stats.get("dev_tracks") or ()),
@@ -819,7 +827,9 @@ def _add_rally_row(stats: dict, row: dict[str, str], catalog: dict, score_mult: 
     if score_mult is None and (row.get("score_mult") or "").strip():
         amount = _cell_int(row, "score_mult")
     stats["base_points"] += score
+    stats["bonus_points"] += amount
     stats["max_score"] = max(stats["max_score"], score)
+    stats["max_score_mult"] = max(stats["max_score_mult"], amount)
     stats["laps"] += _cell_int(row, "laps")
     stats["races"] += 1
     if track and track.casefold() not in {"null", "none"}:
@@ -833,6 +843,7 @@ def _add_rally_row(stats: dict, row: dict[str, str], catalog: dict, score_mult: 
     profile = catalog["characters"].get(character_id, {})
     for club in _mask_clubs(profile.get("mask") or ""):
         stats["base_by_club"][club] = stats["base_by_club"].get(club, 0) + score
+        stats["points_by_club"][club] = stats["points_by_club"].get(club, 0) + amount
 
 
 def _stats_from_rows(rows: list[dict[str, str]], catalog: dict) -> dict:
@@ -906,9 +917,9 @@ def _apply_time_trials(stats: dict, catalog: dict, rows: list[dict[str, str]] | 
 def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, int]:
     kind = ach["kind"]
     if kind == "total_points":
-        return stats["base_points"], ach["goal"]
+        return stats["base_points" if ach.get("base_points_only") else "bonus_points"], ach["goal"]
     if kind == "single_race":
-        return stats["max_score"], ach["goal"]
+        return stats["max_score" if ach.get("base_points_only") else "max_score_mult"], ach["goal"]
     if kind == "laps":
         return stats["laps"], ach["goal"]
     if kind == "races":
@@ -927,9 +938,11 @@ def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, in
         wanted = catalog["characters_by_game"].get(ach["game"].casefold(), [])
         return _set_count(wanted, stats["characters"])
     if kind == "mask_points":
-        return stats["base_by_club"].get(ach["club"], 0), ach["goal"]
+        by_club = stats["base_by_club" if ach.get("base_points_only") else "points_by_club"]
+        return by_club.get(ach["club"], 0), ach["goal"]
     if kind == "character_points":
-        best = max(stats["base_by_character"].values(), default=0)
+        by_character = stats["base_by_character" if ach.get("base_points_only") else "points_by"]
+        best = max(by_character.values(), default=0)
         return best, ach["goal"]
     if kind == "time_trials":
         return stats.get("tt_races", 0), ach["goal"]
@@ -993,9 +1006,9 @@ def _fmt_count(value: int) -> str:
 def _trophy_meta(ach: dict, target: int) -> str:
     kind = ach["kind"]
     if kind == "total_points":
-        return f"Suma {_fmt_count(ach['goal'])} pts base"
+        return f"Suma {_fmt_count(ach['goal'])} pts{' base' if ach.get('base_points_only') else ' con bonus'}"
     if kind == "single_race":
-        return f"Consigue {_fmt_count(ach['goal'])} pts base en una carrera"
+        return f"Consigue {_fmt_count(ach['goal'])} pts{' base' if ach.get('base_points_only') else ' con bonus'} en una carrera"
     if kind == "all_tracks":
         return f"Corre las {target} pistas de {ach['game']}"
     if kind == "all_characters":
@@ -1015,9 +1028,9 @@ def _trophy_meta(ach: dict, target: int) -> str:
         return f"Alcanza un bonus de {ach['goal_milli'] / 1000:.3f}"
     if kind == "mask_points":
         extra = "Aku Aku/Uka Uka y Any también suman." if ach["club"] in {"Aku Aku", "Uka Uka"} else "Any también suma."
-        return f"Suma {_fmt_count(ach['goal'])} pts base con máscara {ach['club']}. {extra}"
+        return f"Suma {_fmt_count(ach['goal'])} pts{' base' if ach.get('base_points_only') else ' con bonus'} con máscara {ach['club']}. {extra}"
     if kind == "character_points":
-        return f"Suma {_fmt_count(ach['goal'])} pts base con un mismo personaje"
+        return f"Suma {_fmt_count(ach['goal'])} pts{' base' if ach.get('base_points_only') else ' con bonus'} con un mismo personaje"
     if kind == "time_trials":
         return f"Completa {_fmt_count(ach['goal'])} carreras de Contrarreloj"
     if kind == "velo_tracks":
@@ -1461,7 +1474,7 @@ def score_with_progression(
 
     Skins and trophies already unlocked raise the next score. If this race opens
     more of either, the same record is recalculated with those bonuses included.
-    Trophy progress uses the raw score. score_mult stays the album currency.
+    Point trophies use the saved multiplied score unless their description specifies base points.
     """
     character_id = _character_id(skin, catalog)
     ladder = catalog["ladders"].get(character_id, []) if character_id else []
