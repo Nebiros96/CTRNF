@@ -50,6 +50,22 @@ class TrophyPointsTests(unittest.TestCase):
         self.assertEqual(result['score_mult'], core.scaled_score(910, 105))
         self.assertTrue(any(u['name'] == ach['name'] for u in result['unlocks']))
 
+    def test_all_skins_trophy_counts_only_explicit_base_categories(self):
+        categories = ('Basic', 'Exotic', 'Legendary', 'Beenox', 'Ultra', 'Future')
+        catalog = {'ladders': {'1': [
+            {'character_id': '1', 'skin_type': category, 'threshold': index + 1, 'bonus_milli': 1}
+            for index, category in enumerate(categories)
+        ]}}
+        stats = core._blank_stats()
+        stats['points_by']['1'] = 4
+        trophy = self.achievements['13']
+        self.assertEqual(core._measure_achievement(trophy, stats, catalog), (4, 4))
+        state, _ = core._achievement_state(stats, dict(catalog, achievements=[trophy]))
+        self.assertTrue(state['13']['unlocked'])
+        self.assertEqual(core._skin_counts(catalog, stats['points_by']), (4, 6))
+        stats['points_by']['1'] = 3
+        self.assertEqual(core._measure_achievement(trophy, stats, catalog), (3, 4))
+
     def test_missing_multiplied_score_falls_back_to_base(self):
         stats = core._blank_stats()
         core._add_rally_row(stats, {'score': '123', 'skin': self.crash}, self.catalog)

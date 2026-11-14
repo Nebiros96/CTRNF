@@ -51,6 +51,7 @@ CATALOG_IMAGE_DIR = PROJECT_ROOT / "web" / "catalog"
 _CATALOG_IMAGE_EXTENSIONS = (".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif")
 _CATALOG_IMAGE_FIELDS = ("url", "url_mask", "url_character", "dev_url")
 MASK_CLUBS = ("Aku Aku", "Uka Uka", "Velo", "Sparx")
+BASE_SKIN_TYPES = frozenset({"basic", "exotic", "legendary", "beenox"})
 # Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000, Ultra 20,000,000.
 UNLOCK_COST = {"basic": 500_000, "exotic": 2_000_000, "legendary": 5_000_000, "beenox": 10_000_000, "ultra": 20_000_000}
 # Added to the global multiplier. 1 milli = 0.001, so the next score is ×1.001.
@@ -930,7 +931,8 @@ def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, in
     if kind == "skin_type":
         return _skin_counts(catalog, stats["points_by"], ach["skin_type"])
     if kind == "all_skins":
-        return _skin_counts(catalog, stats["points_by"])
+        counts = [_skin_counts(catalog, stats["points_by"], skin_type) for skin_type in BASE_SKIN_TYPES]
+        return sum(unlocked for unlocked, _ in counts), sum(total for _, total in counts)
     if kind == "all_tracks":
         wanted = catalog["tracks_by_game"].get(ach["game"].casefold(), [])
         return _set_count(wanted, stats["tracks"])
