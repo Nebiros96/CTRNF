@@ -7,6 +7,10 @@ dist/
 # Pruebas locales de Python
 test_*.py
 *_test.py
+# Pruebas locales de JavaScript
+test_*.js
+*_test.js
+*.test.js
 .venv/
 venv/
 .env
