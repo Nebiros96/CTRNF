@@ -4,6 +4,9 @@ build/
 dist/
 *.spec
 *.py[cod]
+# Pruebas locales de Python
+test_*.py
+*_test.py
 .venv/
 venv/
 .env
