@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.2.5)
+# Crash™ Team Racing NF - Dashboard (v1.2.6)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -25,10 +25,6 @@ Choose the track you just ran, enter the time, and save it. The format is minute
 The top 10 for that track sits on the right: rank, skin, time, date, and the gap to your best. The developer time occupies a position in the top 10 when it qualifies; otherwise it appears separately below it. First place has a gold edge. The game's ghost times are also shown for comparison.
 
 ![Time Trial at Retro Stadium, with the record form and the track top 10](utils/TimeTrial.JPG)
-
-For the current track you also see your number of records, average time, improvement since the first time, and how close your attempts are to each other.
-
-![Track stats: records, absolute gain, relative gain, and standard deviation](utils/TTStats.JPG)
 
 ## Ring Rally
 
@@ -60,11 +56,11 @@ Purchased items add their flat bonus to the Skin Album multiplier and the store'
 
 ## Profile
 
-The profile brings your progress together: your most-used skin across both game modes, recorded runs, developers beaten, unlocked skins, and trophies. Switch the track overview between Time Trial and Ring Rally. Time Trial shows your personal best, absolute and relative differences against the developer, runs, and icons for beaten Velo and developer times. Ring Rally shows your personal best, runs, average base score, and total laps; mod tracks are hidden. Click a column heading to sort the list.
+The profile brings your progress together: your most-used skin across both game modes, recorded runs, developers beaten, unlocked skins, and trophies. Choose Game Overview, Track Overview, or Character Overview. Game Overview groups results by game. Its Time Trial total sums track personal bests and developer times when all tracks have them, and shows the corresponding comparison and reference icons when applicable. Its Ring Rally total sums the available track personal bests, runs, score after bonuses, and laps, with a weighted average base score. Mod tracks are excluded from Ring Rally. Track Overview shows personal bests and runs for each mode, developer comparisons in Time Trial, and average base score, score after bonuses, and laps in Ring Rally. Click a column heading to sort the list.
 
 ![Player profile with progress totals and a sortable track overview](utils/profile.JPG)
 
-Select a track to expand its Time Trial and Ring Rally progress charts; select it again or use Close to collapse them. The Time Trial chart also highlights the area faster than the developer time.
+Select a track to expand the selected mode's progress chart and top five; select it again or use Close to collapse them. The Time Trial chart highlights the area faster than the developer time, and the top five includes the developer when the time qualifies. Character Overview groups all skins by character, with total, Time Trial and Ring Rally runs, score after bonuses, and laps. Select a character for a sortable breakdown by track.
 
 ## OBS overlays
 

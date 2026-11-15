@@ -1027,6 +1027,7 @@ body {
 .profile-tracks th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
 .profile-tracks td, .profile-tracks th { padding:12px; border-bottom:1px solid var(--line); white-space:nowrap; }
 .profile-tracks td small { display:block; color:var(--muted); }
+.profile-tracks .profile-total th, .profile-tracks .profile-total td { color:var(--accent); font-weight:700; border-top:1px solid #9d6a2d; }
 .profile-beat { color:var(--accent); }
 .profile-legend { margin-top:14px; font-size:12px; }
 @media (max-width: 950px) { .profile-stats { grid-template-columns:repeat(3,minmax(0,1fr)); } }
@@ -1042,11 +1043,13 @@ body {
 .profile-detail[hidden] { display:none; }
 .profile-detail-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:15px; }
 .profile-detail-heading h3 { margin:0; font-size:18px; }
-.profile-charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.profile-charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:14px; }
 .profile-chart { min-width:0; padding:16px; border:1px solid var(--line); border-radius:12px; background:#1a202c; }
+.profile-chart:not(.profile-top-five) { display:flex; flex-direction:column; }
 .profile-chart h4 { margin:0; font-size:15px; }
 .profile-chart svg { display:block; width:100%; height:auto; overflow:visible; }
-.profile-chart svg text { fill:var(--muted); font-size:11px; }
+.profile-chart:not(.profile-top-five) svg { flex:1 1 0; height:0; min-height:220px; }
+.profile-chart svg text { fill:var(--muted); font-size:9px; }
 .chart-grid { stroke:#394558; stroke-width:1; }
 .chart-line { fill:none; stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
 .chart-line.trial { stroke:var(--blue); }
@@ -1072,3 +1075,27 @@ body {
 .profile-sort { padding:0; border:0; background:none; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; cursor:pointer; white-space:nowrap; }
 .profile-sort:hover, .profile-sort:focus-visible { color:var(--blue); }
 .profile-sort span { color:var(--accent); }
+.profile-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+.profile-nav-button { padding:11px 17px; border:1px solid #4a3870; background:#171122; color:var(--muted); font:600 12px var(--ui); text-transform:uppercase; letter-spacing:.05em; cursor:pointer; }
+.profile-nav-button:hover { color:var(--text); background:#2a1d42; }
+.profile-nav-button.active { color:#1a0d00; border-color:var(--accent); background:linear-gradient(100deg,var(--nitro),var(--accent)); }
+.profile-nav-button:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.profile-heading h2 { text-transform:capitalize; }
+.profile-character { display:flex; align-items:center; gap:10px; }
+.profile-character img { width:32px; height:32px; object-fit:contain; }
+.profile-character-detail h3 { margin:0 0 14px; font-size:16px; }
+.profile-character-detail p { color:var(--muted); }
+.profile-top-five { min-height:390px; }
+.profile-top-list { display:grid; align-content:start; gap:6px; min-height:284px; list-style:none; margin:14px 0 0; padding:0; }
+.profile-top-list li { display:flex; align-items:center; gap:10px; min-width:0; padding:7px 9px; border:1px solid var(--line); background:#111722; }
+.profile-top-list .profile-top-reference { border-left-color:var(--blue); background:linear-gradient(90deg, #0b2a3a, #150f22 70%); }
+.profile-top-rank { flex:none; width:21px; color:var(--accent); font-size:12px; font-weight:700; }
+.profile-top-avatar { display:grid; place-items:center; flex:none; width:36px; height:36px; overflow:hidden; background:#202a3a; }
+.profile-top-image { max-width:100%; max-height:100%; object-fit:contain; }
+.profile-top-placeholder { color:var(--muted); font-size:10px; }
+.profile-top-info { display:grid; gap:3px; min-width:0; flex:1; }
+.profile-top-info strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.profile-top-info span { color:var(--muted); font-size:11px; }
+.profile-top-value { flex:none; font-size:14px; font-variant-numeric:tabular-nums; }
+.profile-top-result { display:grid; justify-items:end; gap:3px; flex:none; }
+.profile-top-gap { color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
