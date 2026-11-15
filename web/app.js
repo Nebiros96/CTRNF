@@ -19,6 +19,9 @@ let profileSignature = "";
 let profileBestRelative = 0;
 let profileSort = { key: "track", direction: 1 };
 let profileMode = "time_trial";
+let profileOverview = "game";
+let profileCharacter = "";
+let profileCharacterSort = { key: "track_clean", direction: 1 };
 
 function imageBox(container, url, alt, options = {}) {
   const imageClass = options.imageClass || "thumb";
@@ -158,6 +161,10 @@ function formatScore(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "null";
   return Math.trunc(Math.abs(number)).toLocaleString("en-US");
+}
+
+function profileCount(value) {
+  return Number(value) === 0 ? "—" : formatScore(value);
 }
 
 function formatSpread(raw) {
@@ -1449,6 +1456,38 @@ async function buyStoreItem(itemId, confirmed) {
   }
 }
 
+function profileGames(tracks) {
+  const groups = new Map();
+  for (const track of tracks) {
+    if (profileMode === "rally_ring" && !track.rally_available) continue;
+    const name = track.track_game || "Other";
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(track);
+  }
+  return [...groups].map(([name, group]) => {
+    const pb = group.map((track) => clockCentis(track.pb));
+    const dev = group.map((track) => clockCentis(track.dev_time));
+    const complete = pb.every(Number.isFinite);
+    const devComplete = dev.every((value) => Number.isFinite(value) && value > 0);
+    const pbTotal = pb.reduce((sum, value) => sum + value, 0);
+    const devTotal = dev.reduce((sum, value) => sum + value, 0);
+    const rallyRecords = group.reduce((sum, track) => sum + track.rally_records, 0);
+    const scoreCount = group.reduce((sum, track) => sum + (track.rally_history || []).length, 0);
+    return {
+      track: name, track_clean: name, records: group.reduce((sum, track) => sum + track.records, 0),
+      pb: complete ? clockFromSeconds(pbTotal / 100) : "null",
+      dev_time: devComplete ? clockFromSeconds(devTotal / 100) : "null",
+      trial_history: complete ? [{ value: pbTotal / 100 }] : [],
+      top5: [{ beat_velo: group.every((track) => track.top5?.[0]?.beat_velo), beat_dev: group.every((track) => track.top5?.[0]?.beat_dev) }],
+      rally_available: true, rally_records: rallyRecords,
+      rally_pb: group.every((track) => track.rally_pb != null) ? group.reduce((sum, track) => sum + track.rally_pb, 0) : null,
+      rally_average: scoreCount ? group.reduce((sum, track) => sum + (track.rally_history || []).reduce((total, item) => total + item.value, 0), 0) / scoreCount : null,
+      rally_laps: group.reduce((sum, track) => sum + track.rally_laps, 0),
+      rally_score: group.reduce((sum, track) => sum + track.rally_score, 0),
+    };
+  });
+}
+
 function showProfileState(data) {
   paintConnection(data);
   const signature = JSON.stringify(data);
@@ -1470,11 +1509,13 @@ function showProfileState(data) {
       case "rally": return track.rally_pb;
       case "rallyRuns": return track.rally_available ? track.rally_records : null;
       case "average": return track.rally_available ? track.rally_average : null;
+      case "score": return track.rally_available ? track.rally_score : null;
       case "laps": return track.rally_available ? track.rally_laps : null;
       default: return track.track_clean || "";
     }
   };
-  const visibleTracks = profileMode === "rally_ring" ? tracks.filter((track) => track.rally_available) : tracks;
+  const overviewTracks = profileOverview === "game" ? profileGames(tracks) : tracks;
+  const visibleTracks = profileMode === "rally_ring" ? overviewTracks.filter((track) => track.rally_available) : overviewTracks;
   const sortedTracks = [...visibleTracks].sort((a, b) => {
     const left = sortValue(a), right = sortValue(b);
     if (left == null || right == null) return left == null ? (right == null ? 0 : 1) : -1;
@@ -1483,9 +1524,10 @@ function showProfileState(data) {
   });
   const columns = profileMode === "time_trial"
     ? [["track", "Track"], ["trial", "Personal best"], ["absolute", "PB vs dev (abs)"], ["relative", "PB vs dev (rel)"], ["trialRuns", "Runs"], ["reference", "Reference"]]
-    : [["track", "Track"], ["rally", "Personal best"], ["rallyRuns", "Runs"], ["average", "Average"], ["laps", "Laps"]];
+    : [["track", "Track"], ["rally", "Personal best"], ["rallyRuns", "Runs"], ["average", "Average"], ["score", "Score"], ["laps", "Laps"]];
+  columns[0][1] = profileOverview === "game" ? "Game" : "Track";
   const tableRow = (track) => {
-    const name = `<td><button type="button" class="profile-track-button" data-track="${escape(track.track)}">${escape(track.track_clean)}</button></td>`;
+    const name = profileOverview === "track" ? `<td><button type="button" class="profile-track-button" data-track="${escape(track.track)}">${escape(track.track_clean)}</button></td>` : `<td>${escape(track.track_clean)}</td>`;
     if (profileMode === "time_trial") {
       const best = track.top5?.[0];
       const icons = `${best?.beat_velo ? `<img class="profile-beat-icon" src="${VELO_BEAT_ICON}" alt="Velo beaten" title="Velo beaten">` : ""}${best?.beat_dev ? `<img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt="Developer beaten" title="Developer beaten">` : ""}`;
@@ -1493,8 +1535,28 @@ function showProfileState(data) {
       return `<tr>${name}<td>${track.pb === "null" ? "—" : escape(track.pb)}</td><td>${difference.absolute}</td><td><span style="color:${profileRelativeColor(difference.relativeValue)}">${difference.relative}</span></td><td>${track.records}</td><td>${icons || "—"}</td></tr>`;
     }
     if (!track.rally_available) return `<tr>${name}<td>N/A</td><td>—</td><td>—</td><td>—</td></tr>`;
-    return `<tr>${name}<td>${track.rally_pb == null ? "—" : formatScore(track.rally_pb)}</td><td>${track.rally_records}</td><td>${track.rally_average == null ? "—" : formatScore(Math.round(track.rally_average))}</td><td>${formatScore(track.rally_laps ?? 0)}</td></tr>`;
+    return `<tr>${name}<td>${track.rally_pb == null ? "—" : formatScore(track.rally_pb)}</td><td>${track.rally_records}</td><td>${track.rally_average == null ? "—" : formatScore(Math.round(track.rally_average))}</td><td>${formatScore(track.rally_score ?? 0)}</td><td>${formatScore(track.rally_laps ?? 0)}</td></tr>`;
   };
+  const characters = [...(data.characters || [])].sort((a, b) => {
+    const value = (character) => profileSort.key === "track" ? character.character : profileSort.key === "total_runs" ? character.trial_runs + character.rally_runs : character[profileSort.key];
+    const left = value(a), right = value(b);
+    const comparison = typeof left === "string" ? left.localeCompare(right) : (left || 0) - (right || 0);
+    return comparison * profileSort.direction || a.character.localeCompare(b.character);
+  });
+  const characterColumns = [["track", "Character"], ["total_runs", "Total Runs"], ["trial_runs", "TT Runs"], ["rally_runs", "RR Runs"], ["score", "Score"], ["laps", "Laps"]];
+  const activeColumns = profileOverview === "character" ? characterColumns : columns;
+  let rows = profileOverview === "character" ? characters.map((character) => `<tr><td><div class="profile-character">${character.url && character.url !== "null" ? `<img src="${escape(character.url)}" alt="">` : ""}<button type="button" class="profile-character-button profile-track-button" data-character="${escape(character.character_id)}" aria-expanded="${profileCharacter === character.character_id}">${escape(character.character)}</button></div></td><td>${profileCount(character.trial_runs + character.rally_runs)}</td><td>${profileCount(character.trial_runs)}</td><td>${profileCount(character.rally_runs)}</td><td>${profileCount(character.score)}</td><td>${profileCount(character.laps)}</td></tr>`).join("") : sortedTracks.map(tableRow).join("");
+  if (profileOverview === "game" && profileMode === "time_trial" && tracks.length) {
+    const total = profileGames(tracks.map((track) => ({ ...track, track_game: "Total" })))[0];
+    rows += tableRow(total).replace("<tr><td>Total</td>", '<tr class="profile-total"><th scope="row">Total</th>');
+  }
+  if (profileOverview === "game" && profileMode === "rally_ring") {
+    const officialTracks = tracks.filter((track) => track.rally_available);
+    const scores = officialTracks.flatMap((track) => (track.rally_history || []).map((entry) => entry.value));
+    const bests = officialTracks.map((track) => track.rally_pb).filter((value) => value != null);
+    const sum = (key) => officialTracks.reduce((total, track) => total + (track[key] || 0), 0);
+    rows += `<tr class="profile-total"><th scope="row">Total</th><td>${bests.length ? formatScore(bests.reduce((total, value) => total + value, 0)) : "—"}</td><td>${formatScore(sum("rally_records"))}</td><td>${scores.length ? formatScore(Math.round(scores.reduce((total, value) => total + value, 0) / scores.length)) : "—"}</td><td>${formatScore(sum("rally_score"))}</td><td>${formatScore(sum("rally_laps"))}</td></tr>`;
+  }
   const devs = official.filter((track) => track.dev_time_surpass).length;
   root.innerHTML = `
     <section class="panel profile-hero">
@@ -1505,13 +1567,24 @@ function showProfileState(data) {
     <div class="profile-stats">
       ${[["Time Trial", data.trial_records], ["Ring Rally", data.rally_records], ["Developers beaten", `${devs} / ${official.length}`], ["Skins unlocked", `${data.skins_unlocked} / ${data.skins_total}`], ["Trophies unlocked", `${data.trophies_unlocked} / ${data.trophies_total}`]].map(([label, value]) => `<div class="panel profile-stat"><div class="stat-label">${label}</div><div class="kpi-value">${value}</div></div>`).join("")}
     </div>
-    <section class="panel profile-tracks"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Track overview</h2></div><div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Track overview mode">${[["time_trial", "Time Trial"], ["rally_ring", "Ring Rally"]].map(([mode, label]) => `<button type="button" class="profile-mode-button${profileMode === mode ? " active" : ""}" data-mode="${mode}" aria-pressed="${profileMode === mode}">${label}</button>`).join("")}</div></div></div>
-      <div class="profile-table-wrap"><table><thead><tr>${columns.map(([key, label]) => key === "reference" ? `<th scope="col">${label}</th>` : `<th scope="col"${profileSort.key === key ? ` aria-sort="${profileSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-sort="${key}">${label} <span aria-hidden="true">${profileSort.key === key ? (profileSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${sortedTracks.map(tableRow).join("")}</tbody></table></div>
-      ${profileMode === "time_trial" ? `<p class="profile-legend"><img class="profile-beat-icon" src="${VELO_BEAT_ICON}" alt=""> Velo beaten · <img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt=""> Developer beaten</p>` : ""}
+    <nav class="profile-nav" aria-label="Profile overviews">${[["game", "Game overview"], ["track", "Track overview"], ["character", "Character overview"]].map(([key, label]) => `<button type="button" class="profile-nav-button${profileOverview === key ? " active" : ""}" data-overview="${key}" aria-pressed="${profileOverview === key}">${label}</button>`).join("")}</nav>
+    <section class="panel profile-tracks"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>${escape(profileOverview)} overview</h2></div>${profileOverview !== "character" ? `<div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Overview mode">${[["time_trial", "Time Trial"], ["rally_ring", "Ring Rally"]].map(([mode, label]) => `<button type="button" class="profile-mode-button${profileMode === mode ? " active" : ""}" data-mode="${mode}" aria-pressed="${profileMode === mode}">${label}</button>`).join("")}</div></div>` : ""}</div>
+      <div class="profile-table-wrap"><table><thead><tr>${activeColumns.map(([key, label]) => key === "reference" ? `<th scope="col">${label}</th>` : `<th scope="col"${profileSort.key === key ? ` aria-sort="${profileSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-sort="${key}">${label} <span aria-hidden="true">${profileSort.key === key ? (profileSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
+      ${profileOverview !== "character" && profileMode === "time_trial" ? `<p class="profile-legend"><img class="profile-beat-icon" src="${VELO_BEAT_ICON}" alt=""> Velo beaten · <img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt=""> Developer beaten</p>` : ""}
     </section>`;
+  root.querySelectorAll(".profile-nav-button").forEach((button) => button.addEventListener("click", () => {
+    if (profileOverview === button.dataset.overview) return;
+    profileOverview = button.dataset.overview;
+    profileTrack = "";
+    profileSort = { key: "track", direction: 1 };
+    profileSignature = "";
+    showProfileState(data);
+    root.querySelector(`.profile-nav-button[data-overview="${profileOverview}"]`)?.focus({ preventScroll: true });
+  }));
   root.querySelectorAll(".profile-mode-button").forEach((button) => button.addEventListener("click", () => {
     if (profileMode === button.dataset.mode) return;
     profileMode = button.dataset.mode;
+    if (profileMode === "rally_ring" && !tracks.find((track) => track.track === profileTrack)?.rally_available) profileTrack = "";
     profileSort = { key: "track", direction: 1 };
     profileSignature = "";
     showProfileState(data);
@@ -1520,13 +1593,13 @@ function showProfileState(data) {
   root.querySelectorAll(".profile-sort").forEach((button) => {
     button.addEventListener("click", () => {
       const key = button.dataset.sort;
-      profileSort = { key, direction: profileSort.key === key ? -profileSort.direction : (["rally", "trialRuns", "rallyRuns", "average", "laps"].includes(key) ? -1 : 1) };
+      profileSort = { key, direction: profileSort.key === key ? -profileSort.direction : (["rally", "trialRuns", "rallyRuns", "total_runs", "trial_runs", "rally_runs", "average", "score", "laps"].includes(key) ? -1 : 1) };
       profileSignature = "";
       showProfileState(data);
       root.querySelector(`.profile-sort[data-sort="${key}"]`)?.focus({ preventScroll: true });
     });
   });
-  root.querySelectorAll(".profile-track-button").forEach((button) => {
+  root.querySelectorAll(".profile-track-button[data-track]").forEach((button) => {
     button.addEventListener("click", () => {
       if (profileTrack === button.dataset.track) {
         profileTrack = "";
@@ -1538,7 +1611,76 @@ function showProfileState(data) {
       renderProfileDetail(data, true);
     });
   });
+  root.querySelectorAll(".profile-character-button").forEach((button) => button.addEventListener("click", () => {
+    profileCharacter = profileCharacter === button.dataset.character ? "" : button.dataset.character;
+    profileCharacterSort = { key: "track_clean", direction: 1 };
+    root.querySelector("#profile-character-detail-row")?.remove();
+    root.querySelectorAll(".profile-character-button").forEach((item) => item.setAttribute("aria-expanded", String(item.dataset.character === profileCharacter)));
+    if (profileCharacter) renderProfileCharacterDetail(data);
+  }));
   if (profileTrack) renderProfileDetail(data);
+  if (profileOverview === "character" && profileCharacter) renderProfileCharacterDetail(data);
+}
+
+function renderProfileCharacterDetail(data) {
+  const character = (data.characters || []).find((item) => item.character_id === profileCharacter);
+  const button = [...document.querySelectorAll(".profile-character-button")].find((item) => item.dataset.character === profileCharacter);
+  if (!character || !button) return;
+  document.getElementById("profile-character-detail-row")?.remove();
+  const row = document.createElement("tr");
+  row.id = "profile-character-detail-row";
+  row.className = "profile-detail-row";
+  const cell = document.createElement("td");
+  cell.colSpan = 6;
+  const detail = document.createElement("div");
+  detail.className = "profile-detail profile-character-detail";
+  const title = document.createElement("h3");
+  title.textContent = `${character.character} · Tracks`;
+  detail.append(title);
+  const tracks = [...(character.tracks || [])].sort((a, b) => {
+    const value = (track) => profileCharacterSort.key === "total_runs" ? track.trial_runs + track.rally_runs : track[profileCharacterSort.key];
+    const left = value(a), right = value(b);
+    const comparison = typeof left === "string" ? left.localeCompare(right) : (left || 0) - (right || 0);
+    return comparison * profileCharacterSort.direction || a.track_clean.localeCompare(b.track_clean);
+  });
+  if (!tracks.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No records for this character yet.";
+    detail.append(empty);
+  } else {
+    const wrap = document.createElement("div");
+    wrap.className = "profile-table-wrap";
+    const table = document.createElement("table");
+    const head = table.createTHead().insertRow();
+    for (const [key, label] of [["track_clean", "Track"], ["total_runs", "Total Runs"], ["trial_runs", "TT Runs"], ["rally_runs", "RR Runs"], ["score", "Score"], ["laps", "Laps"]]) {
+      const th = document.createElement("th");
+      th.scope = "col";
+      if (profileCharacterSort.key === key) th.setAttribute("aria-sort", profileCharacterSort.direction === 1 ? "ascending" : "descending");
+      const sort = document.createElement("button");
+      sort.type = "button";
+      sort.className = "profile-sort";
+      sort.textContent = `${label} ${profileCharacterSort.key === key ? (profileCharacterSort.direction === 1 ? "↑" : "↓") : "↕"}`;
+      sort.addEventListener("click", () => {
+        profileCharacterSort = { key, direction: profileCharacterSort.key === key ? -profileCharacterSort.direction : (key === "track_clean" ? 1 : -1) };
+        renderProfileCharacterDetail(data);
+        document.querySelector(`#profile-character-detail-row button[data-sort="${key}"]`)?.focus({ preventScroll: true });
+      });
+      sort.dataset.sort = key;
+      th.append(sort);
+      head.append(th);
+    }
+    const body = table.createTBody();
+    for (const track of tracks) {
+      const line = body.insertRow();
+      for (const value of [track.track_clean, profileCount(track.trial_runs + track.rally_runs), profileCount(track.trial_runs), profileCount(track.rally_runs), profileCount(track.score), profileCount(track.laps)]) line.insertCell().textContent = value;
+    }
+    wrap.append(table);
+    detail.append(wrap);
+  }
+  cell.append(detail);
+  row.append(cell);
+  button.closest("tr").after(row);
+  button.setAttribute("aria-expanded", "true");
 }
 
 function renderProfileDetail(data, focus = false) {
@@ -1550,7 +1692,7 @@ function renderProfileDetail(data, focus = false) {
   row.id = "profile-detail-row";
   row.className = "profile-detail-row";
   const cell = document.createElement("td");
-  cell.colSpan = profileMode === "time_trial" ? 6 : 5;
+  cell.colSpan = 6;
   const detail = document.createElement("div");
   detail.className = "profile-detail";
   cell.append(detail);
@@ -1574,12 +1716,73 @@ function renderProfileDetail(data, focus = false) {
       if (button.dataset.track === track.track) button.focus();
     });
   });
-  heading.append(profileDevIndicators(track), close);
+  heading.append(profileDevIndicators(track, profileMode === "time_trial"));
+  heading.append(close);
   const charts = document.createElement("div");
   charts.className = "profile-charts";
-  charts.append(profileChart("Time Trial", track.trial_history, true, track.dev_time), profileChart("Ring Rally", track.rally_history, false));
+  const isTime = profileMode === "time_trial";
+  charts.append(isTime ? profileChart("Time Trial", track.trial_history, true, track.dev_time) : profileChart("Ring Rally", track.rally_history, false), profileTopFive(track, isTime));
   detail.append(heading, charts);
   if (focus) close.focus({ preventScroll: true });
+}
+
+function profileTopEntries(track, isTime) {
+  if (!isTime) return [...(track.rally_history || [])].sort((a, b) => b.value - a.value).slice(0, 5);
+  const developer = (track.references || []).find((item) => item.kind === "dev");
+  return [...(track.top5 || []), ...(developer ? [developer] : [])].sort(byTime).slice(0, 5);
+}
+
+function profileTopFive(track, isTime) {
+  const card = document.createElement("section");
+  card.className = "profile-chart profile-top-five";
+  const title = document.createElement("h4");
+  title.textContent = isTime ? "Top 5 times" : "Top 5 scores";
+  card.append(title);
+  const entries = profileTopEntries(track, isTime);
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "profile-chart-empty";
+    empty.textContent = "No records for this track yet.";
+    card.append(empty);
+    return card;
+  }
+  const list = document.createElement("ol");
+  list.className = "profile-top-list";
+  entries.forEach((entry, index) => {
+    const row = document.createElement("li");
+    if (entry.reference) row.classList.add("profile-top-reference");
+    const rank = document.createElement("span");
+    rank.className = "profile-top-rank";
+    rank.textContent = String(index + 1).padStart(2, "0");
+    const avatar = document.createElement("div");
+    avatar.className = "profile-top-avatar";
+    imageBox(avatar, entry.skin_url, entry.character || "", { imageClass: "profile-top-image", fallbackClass: "profile-top-placeholder" });
+    const info = document.createElement("div");
+    info.className = "profile-top-info";
+    const name = document.createElement("strong");
+    name.textContent = entry.character || "Unknown character";
+    const meta = document.createElement("span");
+    meta.textContent = entry.reference ? "Developer time" : (isTime ? entry.date : entry.display_date) || "Date unavailable";
+    info.append(name, meta);
+    const value = document.createElement("strong");
+    value.className = "profile-top-value";
+    value.textContent = isTime ? entry.time_raw : formatScore(entry.value);
+    const result = document.createElement("div");
+    result.className = "profile-top-result";
+    result.append(value);
+    if (index > 0) {
+      const gap = document.createElement("span");
+      gap.className = "profile-top-gap";
+      gap.textContent = isTime
+        ? formatDelta(clockCentis(entry.time_raw) - clockCentis(entries[0].time_raw))
+        : `− ${formatScore(entries[0].value - entry.value)} pts`;
+      result.append(gap);
+    }
+    row.append(rank, avatar, info, result);
+    list.append(row);
+  });
+  card.append(list);
+  return card;
 }
 
 function profileDevDifference(track) {
@@ -1603,17 +1806,18 @@ function profileRelativeColor(value) {
   return `hsl(${Math.round(ratio * 120)} 75% 68%)`;
 }
 
-function profileDevIndicators(track) {
-  const difference = profileDevDifference(track);
+function profileDevIndicators(track, isTime = true) {
   const indicators = document.createElement("div");
   indicators.className = "profile-dev-indicators";
-  const entries = [["PB vs developer", difference.absolute], ["Relative difference", difference.relative]];
+  const difference = profileDevDifference(track);
+  const entries = [["Records", isTime ? track.records : track.rally_records]];
+  if (isTime) entries.push(["PB vs developer", difference.absolute], ["Relative difference", difference.relative]);
   for (const [label, value] of entries) {
     const item = document.createElement("div");
     const caption = document.createElement("span");
     const number = document.createElement("strong");
     caption.textContent = label;
-    number.textContent = value;
+    number.textContent = value ?? 0;
     if (label === "Relative difference") number.style.color = profileRelativeColor(difference.relativeValue);
     item.append(caption, number);
     indicators.append(item);
@@ -1637,6 +1841,7 @@ function profileChart(name, history, isTime, devTime) {
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");
   svg.setAttribute("viewBox", "0 0 500 205");
+  svg.setAttribute("preserveAspectRatio", "none");
   svg.setAttribute("role", "img");
   svg.setAttribute("aria-label", `${name}: ${history.length} records in recorded order. ${isTime ? "Lower is better." : "Higher is better."}`);
   const values = history.map((item) => item.value);
@@ -1691,12 +1896,12 @@ function profileChart(name, history, isTime, devTime) {
     dot.append(tip); svg.append(dot);
   });
   const caption = document.createElement("p");
-  caption.textContent = `${history.length} ${history.length === 1 ? "record" : "records"} · oldest to newest · ${isTime ? "lower" : "higher"} is better`;
+  caption.textContent = `${isTime ? "Lower" : "Higher"} is better`;
   if (reference != null) {
     const legend = document.createElement("p");
     legend.className = "chart-reference-legend";
-    legend.textContent = `Shaded area: faster than developer (${devTime})`;
-    card.append(svg, legend, caption);
+    legend.textContent = `Shaded area: faster than developer (${devTime}) - lower is better`;
+    card.append(svg, legend);
   } else card.append(svg, caption);
   return card;
 }

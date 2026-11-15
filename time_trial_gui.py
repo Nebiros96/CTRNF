@@ -48,7 +48,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.2.5"
+APP_VERSION = "CTR - v1.2.6"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -621,6 +621,39 @@ def rally_track_indicators(rows: list[dict[str, str]]) -> dict:
     return {"records": len(rows), "total_laps": laps, "average_score": sum(scores) / len(scores) if scores else None}
 
 
+def profile_character_totals(characters: list[dict], skins: list[dict], trials: list[dict], rallies: list[dict], tracks: list[dict] = ()) -> list[dict]:
+    """Aggregate races by catalog character, regardless of the skin used."""
+    totals = {
+        row["character_id"]: {"character_id": row["character_id"], "character": row.get("character", ""),
+                              "url": row.get("url_character", ""), "trial_runs": 0,
+                              "rally_runs": 0, "score": 0, "laps": 0, "tracks": {}}
+        for row in characters if row.get("character_id")
+    }
+    skin_character = {row.get("skin", ""): row.get("character_id", "") for row in skins}
+    track_names = {row.get("track", ""): row.get("track_clean") or row.get("track", "") for row in tracks}
+    for rows, mode in ((trials, "trial"), (rallies, "rally")):
+        for row in rows:
+            character = totals.get(skin_character.get((row.get("skin") or "").strip()))
+            if character is None:
+                continue
+            track = (row.get("track") or "").strip()
+            breakdown = character["tracks"].setdefault(track, {"track": track, "track_clean": track_names.get(track, track or "Unknown track"),
+                                                               "trial_runs": 0, "rally_runs": 0, "score": 0, "laps": 0})
+            character[f"{mode}_runs"] += 1
+            breakdown[f"{mode}_runs"] += 1
+            if mode == "rally":
+                for field, source in (("score", row.get("score_mult") or row.get("score")), ("laps", row.get("laps"))):
+                    try:
+                        value = int(source or 0)
+                        character[field] += value
+                        breakdown[field] += value
+                    except (TypeError, ValueError):
+                        pass
+    for character in totals.values():
+        character["tracks"] = list(character["tracks"].values())
+    return sorted(totals.values(), key=lambda row: row["character"].casefold())
+
+
 def track_indicators(rows: list[dict[str, str]]) -> dict:
     ordered: list[tuple[int, float]] = []
     for row in rows:
@@ -835,6 +868,7 @@ class DashboardState:
             tracks = read_csv(TRACKS_CSV)
             skins = read_csv(SKINS_CSV)
             trials = read_csv(RESULTS_CSV)
+            core.ensure_rally_progression(RALLY_RESULTS_CSV)
             rallies = read_csv(RALLY_RESULTS_CSV)
             skin_by_raw = {row.get("skin", ""): row for row in skins}
             counts = {}
@@ -860,7 +894,11 @@ class DashboardState:
                         try:
                             value = int(row.get("score", ""))
                             if value >= 0:
-                                track["rally_history"].append({"value": value, "date": row.get("captured_at", "")})
+                                skin = skin_by_raw.get((row.get("skin") or "").strip(), {})
+                                track["rally_history"].append({"value": value, "date": row.get("captured_at", ""),
+                                                               "display_date": display_date(row.get("captured_at", "")),
+                                                               "character": skin.get("character", ""),
+                                                               "skin_url": skin.get("url", "")})
                         except ValueError:
                             pass
                 track_rallies = [row for row in rallies if (row.get("track") or "").strip() == track["track"]]
@@ -870,8 +908,8 @@ class DashboardState:
                 track["rally_pb"] = max(scores) if scores else None
                 track["rally_average"] = rally_stats["average_score"]
                 track["rally_laps"] = rally_stats["total_laps"]
+                track["rally_score"] = sum(core._cell_int(row, "score_mult") if (row.get("score_mult") or "").strip() else core._cell_int(row, "score") for row in track_rallies)
                 track["rally_available"] = not core.is_mod_track(track)
-            core.ensure_rally_progression(RALLY_RESULTS_CSV)
             progress = core.build_rally_progression(rallies)
             trophies = core.build_trophies(rallies)
             profiles = load_profiles()
@@ -879,6 +917,7 @@ class DashboardState:
             return {"mode": "profile", "game_running": running, "user_name": active_user,
                     "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
                     "balance": core.wallet_balance(), "catalog": catalog,
+                    "characters": profile_character_totals(read_csv(core.CHARACTERS_CSV_PATH), skins, trials, rallies, tracks),
                     "favorite": skin_by_raw.get(favorite), "favorite_runs": counts.get(favorite, 0),
                     "trial_records": len(trials), "rally_records": len(rallies),
                     "skins_unlocked": progress["unlocked"], "skins_total": progress["total_skins"],
@@ -1207,7 +1246,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.2.5"
+    server_version = "CTRTimeTrialDashboard/1.2.6"
 
     def log_message(self, format: str, *args) -> None:
         return
