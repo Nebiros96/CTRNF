@@ -21,7 +21,8 @@ let profileSort = { key: "track", direction: 1 };
 let profileMode = "time_trial";
 let profileOverview = "game";
 let profileCharacter = "";
-let profileCharacterSort = { key: "track_clean", direction: 1 };
+let profileCharacterSort = { key: "trial_runs", direction: -1 };
+let profileCharacterMode = "time_trial";
 
 function imageBox(container, url, alt, options = {}) {
   const imageClass = options.imageClass || "thumb";
@@ -1585,7 +1586,7 @@ function showProfileState(data) {
     if (profileOverview === button.dataset.overview) return;
     profileOverview = button.dataset.overview;
     profileTrack = "";
-    profileSort = { key: "track", direction: 1 };
+    profileSort = profileOverview === "character" ? { key: "total_runs", direction: -1 } : { key: "track", direction: 1 };
     profileSignature = "";
     showProfileState(data);
     root.querySelector(`.profile-nav-button[data-overview="${profileOverview}"]`)?.focus({ preventScroll: true });
@@ -1622,7 +1623,7 @@ function showProfileState(data) {
   });
   root.querySelectorAll(".profile-character-button").forEach((button) => button.addEventListener("click", () => {
     profileCharacter = profileCharacter === button.dataset.character ? "" : button.dataset.character;
-    profileCharacterSort = { key: "track_clean", direction: 1 };
+    profileCharacterSort = { key: profileCharacterMode === "time_trial" ? "trial_runs" : "score", direction: -1 };
     root.querySelector("#profile-character-detail-row")?.remove();
     root.querySelectorAll(".profile-character-button").forEach((item) => item.setAttribute("aria-expanded", String(item.dataset.character === profileCharacter)));
     if (profileCharacter) renderProfileCharacterDetail(data);
@@ -1645,23 +1646,56 @@ function renderProfileCharacterDetail(data) {
   detail.className = "profile-detail profile-character-detail";
   const title = document.createElement("h3");
   title.textContent = `${character.character} · Tracks`;
-  detail.append(title);
-  const tracks = [...(character.tracks || [])].sort((a, b) => {
-    const value = (track) => profileCharacterSort.key === "total_runs" ? track.trial_runs + track.rally_runs : track[profileCharacterSort.key];
+  const heading = document.createElement("div");
+  heading.className = "profile-character-detail-heading";
+  const modeLabel = document.createElement("div");
+  modeLabel.className = "profile-mode-label";
+  const label = document.createElement("span");
+  label.textContent = "Mode";
+  const modes = document.createElement("div");
+  modes.className = "profile-mode";
+  modes.setAttribute("role", "group");
+  modes.setAttribute("aria-label", "Character track mode");
+  for (const [mode, text] of [["time_trial", "Time Trial"], ["rally_ring", "Ring Rally"]]) {
+    const control = document.createElement("button");
+    control.type = "button";
+    control.className = `profile-mode-button${profileCharacterMode === mode ? " active" : ""}`;
+    control.dataset.characterMode = mode;
+    control.setAttribute("aria-pressed", String(profileCharacterMode === mode));
+    control.textContent = text;
+    control.addEventListener("click", () => {
+      if (profileCharacterMode === mode) return;
+      profileCharacterMode = mode;
+      profileCharacterSort = { key: mode === "time_trial" ? "trial_runs" : "score", direction: -1 };
+      renderProfileCharacterDetail(data);
+      document.querySelector(`#profile-character-detail-row [data-character-mode="${mode}"]`)?.focus({ preventScroll: true });
+    });
+    modes.append(control);
+  }
+  modeLabel.append(label, modes);
+  heading.append(title, modeLabel);
+  detail.append(heading);
+  const isTrial = profileCharacterMode === "time_trial";
+  const tracks = [...(character.tracks || [])].filter((track) => isTrial ? track.trial_runs > 0 : track.rally_runs > 0).sort((a, b) => {
+    const value = (track) => track[profileCharacterSort.key];
     const left = value(a), right = value(b);
     const comparison = typeof left === "string" ? left.localeCompare(right) : (left || 0) - (right || 0);
-    return comparison * profileCharacterSort.direction || a.track_clean.localeCompare(b.track_clean);
+    const tieBreak = !isTrial && profileCharacterSort.key === "score" && profileCharacterSort.direction === -1
+      ? (b.laps || 0) - (a.laps || 0) || (b.rally_runs || 0) - (a.rally_runs || 0)
+      : 0;
+    return comparison * profileCharacterSort.direction || tieBreak || a.track_clean.localeCompare(b.track_clean);
   });
   if (!tracks.length) {
     const empty = document.createElement("p");
-    empty.textContent = "No records for this character yet.";
+    empty.textContent = "No records for this character in this mode yet.";
     detail.append(empty);
   } else {
     const wrap = document.createElement("div");
     wrap.className = "profile-table-wrap";
     const table = document.createElement("table");
     const head = table.createTHead().insertRow();
-    for (const [key, label] of [["track_clean", "Track"], ["total_runs", "Total Runs"], ["trial_runs", "TT Runs"], ["rally_runs", "RR Runs"], ["score", "Total Score"], ["laps", "Laps"]]) {
+    const columns = isTrial ? [["track_clean", "Track"], ["trial_runs", "Runs"], ["best_seconds", "Best Time"]] : [["track_clean", "Track"], ["rally_runs", "Runs"], ["score", "Total Score"], ["laps", "Laps"]];
+    for (const [key, label] of columns) {
       const th = document.createElement("th");
       th.scope = "col";
       if (profileCharacterSort.key === key) th.setAttribute("aria-sort", profileCharacterSort.direction === 1 ? "ascending" : "descending");
@@ -1670,7 +1704,7 @@ function renderProfileCharacterDetail(data) {
       sort.className = "profile-sort";
       sort.textContent = `${label} ${profileCharacterSort.key === key ? (profileCharacterSort.direction === 1 ? "↑" : "↓") : "↕"}`;
       sort.addEventListener("click", () => {
-        profileCharacterSort = { key, direction: profileCharacterSort.key === key ? -profileCharacterSort.direction : (key === "track_clean" ? 1 : -1) };
+        profileCharacterSort = { key, direction: profileCharacterSort.key === key ? -profileCharacterSort.direction : (["track_clean", "best_seconds"].includes(key) ? 1 : -1) };
         renderProfileCharacterDetail(data);
         document.querySelector(`#profile-character-detail-row button[data-sort="${key}"]`)?.focus({ preventScroll: true });
       });
@@ -1678,10 +1712,34 @@ function renderProfileCharacterDetail(data) {
       th.append(sort);
       head.append(th);
     }
+    if (isTrial) {
+      const th = document.createElement("th");
+      th.scope = "col";
+      th.textContent = "Reference";
+      head.append(th);
+    }
     const body = table.createTBody();
     for (const track of tracks) {
       const line = body.insertRow();
-      for (const value of [track.track_clean, profileCount(track.trial_runs + track.rally_runs), profileCount(track.trial_runs), profileCount(track.rally_runs), profileCount(track.score), profileCount(track.laps)]) line.insertCell().textContent = value;
+      for (const [key] of columns) {
+        const cell = line.insertCell();
+        if (key === "best_seconds") {
+          cell.textContent = track.best_time || "—";
+        } else cell.textContent = key === "track_clean" ? track.track_clean : profileCount(track[key]);
+      }
+      if (isTrial) {
+        const cell = line.insertCell();
+        for (const [show, text, title] of [[track.best_pb, "PB", "Personal best when recorded"], [track.best_top1, "★", "First place on this track"]]) {
+            if (!show) continue;
+            const badge = document.createElement("span");
+            badge.className = "pb-flag";
+            badge.textContent = text;
+            badge.title = title;
+            badge.setAttribute("aria-label", title);
+            if (cell.hasChildNodes()) cell.append(" ");
+            cell.append(badge);
+        }
+      }
     }
     wrap.append(table);
     detail.append(wrap);

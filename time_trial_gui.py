@@ -48,7 +48,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.2.6"
+APP_VERSION = "CTR - v1.2.7"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -644,6 +644,22 @@ def profile_character_totals(characters: list[dict], skins: list[dict], trials: 
     }
     skin_character = {row.get("skin", ""): row.get("character_id", "") for row in skins}
     track_names = {row.get("track", ""): row.get("track_clean") or row.get("track", "") for row in tracks}
+    developer_times = {row.get("track", ""): to_centis(row.get("dev_time") or "") for row in tracks}
+    best_by_track = {}
+    best_by_character_track = {}
+    for row in trials:
+        try:
+            seconds = float(row.get("time_seconds", ""))
+        except (TypeError, ValueError):
+            continue
+        track = (row.get("track") or "").strip()
+        character_id = skin_character.get((row.get("skin") or "").strip())
+        rank = (seconds, record_date_key(row))
+        if track not in best_by_track or rank < best_by_track[track][0]:
+            best_by_track[track] = (rank, row)
+        key = (character_id, track)
+        if key not in best_by_character_track or rank < best_by_character_track[key][0]:
+            best_by_character_track[key] = (rank, row)
     for rows, mode in ((trials, "trial"), (rallies, "rally")):
         for row in rows:
             character = totals.get(skin_character.get((row.get("skin") or "").strip()))
@@ -663,6 +679,15 @@ def profile_character_totals(characters: list[dict], skins: list[dict], trials: 
                     except (TypeError, ValueError):
                         pass
     for character in totals.values():
+        for track, breakdown in character["tracks"].items():
+            best = best_by_character_track.get((character["character_id"], track))
+            if best:
+                best_row = best[1]
+                breakdown["best_time"] = (best_row.get("time_raw") or "").strip() or dev_clock(str(best[0][0]))
+                breakdown["best_seconds"] = best[0][0]
+                breakdown["best_pb"] = str(best_row.get("pb") or "0").strip() == "1"
+                dev = developer_times.get(track)
+                breakdown["best_top1"] = best_by_track[track][1] is best_row and (dev is None or round(best[0][0] * 100) <= dev)
         character["tracks"] = list(character["tracks"].values())
     return sorted(totals.values(), key=lambda row: row["character"].casefold())
 
@@ -1260,7 +1285,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.2.6"
+    server_version = "CTRTimeTrialDashboard/1.2.7"
 
     def log_message(self, format: str, *args) -> None:
         return
