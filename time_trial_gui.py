@@ -20,7 +20,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -588,10 +588,22 @@ def trial_card(row: dict[str, str], skin_by_raw: dict[str, dict[str, str]]) -> d
         "skin_url": (skin_data.get("url") or "").strip(),
         "time_raw": (row.get("time_raw") or "").strip() or "null",
         "date": display_date(row.get("captured_at", "")),
+        "captured_at": row.get("captured_at", ""),
         "pb": (row.get("pb") or "0").strip(),
         "beat_dev": False,
         "beat_velo": False,
     }
+
+
+def record_date_key(row: dict) -> float:
+    """Place undated records after dated records, preserving their input order."""
+    try:
+        value = datetime.fromisoformat(row.get("captured_at") or "")
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.timestamp()
+    except (ValueError, TypeError, OverflowError, OSError):
+        return float("inf")
 
 
 def reference_entry(kind: str, character: str, skin_url: str, raw_time: str) -> dict | None:
@@ -618,7 +630,8 @@ def rally_track_indicators(rows: list[dict[str, str]]) -> dict:
             laps += int(row.get("laps", ""))
         except (TypeError, ValueError):
             pass
-    return {"records": len(rows), "total_laps": laps, "average_score": sum(scores) / len(scores) if scores else None}
+    total_score = sum(core._cell_int(row, "score_mult") if (row.get("score_mult") or "").strip() else core._cell_int(row, "score") for row in rows)
+    return {"records": len(rows), "total_laps": laps, "average_score": sum(scores) / len(scores) if scores else None, "total_score": total_score}
 
 
 def profile_character_totals(characters: list[dict], skins: list[dict], trials: list[dict], rallies: list[dict], tracks: list[dict] = ()) -> list[dict]:
@@ -717,7 +730,7 @@ def track_catalog(
     catalog = []
     for track_row in tracks:
         key = (track_row.get("track") or "").strip()
-        entries = sorted(grouped.get(key, []), key=lambda item: item["seconds"])
+        entries = sorted(grouped.get(key, []), key=lambda item: (item["seconds"], record_date_key(item)))
         dev_time = track_row.get("dev_time") or ""
         velo_time = track_row.get("velo_time") or ""
         for item in entries:
@@ -995,6 +1008,7 @@ class DashboardState:
                     "score": (row.get("score") or "").strip(),
                     "laps": (row.get("laps") or "").strip(),
                     "date": display_date(row.get("captured_at", "")),
+                    "captured_at": row.get("captured_at", ""),
                     "pb": (row.get("pb") or "0").strip(),
                     **({"beat_dev": False, "beat_velo": False} if rally_mode else beat_flags(
                         row.get("time_seconds", ""),
@@ -1003,7 +1017,7 @@ class DashboardState:
                     )),
                 }
             )
-        top10 = sorted(track_times, key=lambda item: item["seconds"], reverse=rally_mode)[:10]
+        top10 = sorted(track_times, key=lambda item: (-item["seconds"] if rally_mode else item["seconds"], record_date_key(item)))[:10]
 
         last = None
         if newest:
@@ -1155,7 +1169,7 @@ class DashboardState:
                     score = int(row.get("score") or "")
                 except (TypeError, ValueError):
                     continue
-                if best_row is None or score > best_score or (score == best_score and row_id(row) > row_id(best_row)):
+                if best_row is None or score > best_score or (score == best_score and record_date_key(row) < record_date_key(best_row)):
                     best_score = score
                     best_row = row
             who = identity((best_row or {}).get("skin", "")) if best_row else {}
@@ -1180,7 +1194,7 @@ class DashboardState:
                 seconds = float(row.get("time_seconds") or "")
             except (TypeError, ValueError):
                 continue
-            if best_seconds is None or seconds < best_seconds:
+            if best_seconds is None or seconds < best_seconds or (seconds == best_seconds and record_date_key(row) < record_date_key(best_row)):
                 best_seconds = seconds
                 best_row = row
 
