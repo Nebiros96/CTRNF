@@ -1079,7 +1079,8 @@ body {
 .profile-heading h2 { text-transform:capitalize; }
 .profile-character { display:flex; align-items:center; gap:10px; }
 .profile-character img { width:32px; height:32px; object-fit:contain; }
-.profile-character-detail h3 { margin:0 0 14px; font-size:16px; }
+.profile-character-detail-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px; }
+.profile-character-detail h3 { margin:0; font-size:16px; }
 .profile-character-detail p { color:var(--muted); }
 .profile-top-five { min-height:390px; }
 .profile-top-list { display:grid; align-content:start; gap:6px; min-height:284px; list-style:none; margin:14px 0 0; padding:0; }
