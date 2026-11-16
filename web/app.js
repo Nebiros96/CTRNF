@@ -127,7 +127,9 @@ function clockCentis(raw) {
 function byTime(a, b) {
   const delta = clockCentis(a.time_raw) - clockCentis(b.time_raw);
   if (delta) return delta;
-  return (a.reference ? 1 : 0) - (b.reference ? 1 : 0);
+  const referenceDelta = (a.reference ? 1 : 0) - (b.reference ? 1 : 0);
+  if (referenceDelta) return referenceDelta;
+  return (Date.parse(a.captured_at) || Infinity) - (Date.parse(b.captured_at) || Infinity);
 }
 
 function leaderboardTimes(rows, catalog, trackKey) {
@@ -276,6 +278,13 @@ function renderGhosts(data) {
   for (const entry of entries) list.append(ghostRow(entry));
 }
 
+function renderLastResult(element, last, value) {
+  if (!last) { element.textContent = "null"; return; }
+  const track = document.createElement("strong");
+  track.textContent = last.track_clean || "null";
+  element.replaceChildren(track, document.createTextNode(` · ${last.character || "null"} · ${value}`));
+}
+
 function renderLastTrial(last) {
   const signature = JSON.stringify(last || null);
   if (signature === lastTrialSignature) return;
@@ -294,7 +303,7 @@ function renderLastTrial(last) {
     return;
   }
 
-  title.textContent = `${last.track_clean || "null"} · ${last.character || "null"} · ${last.time_raw || "null"}`;
+  renderLastResult(title, last, last.time_raw || "null");
 
   const icons = [];
   if (last.beat_dev) icons.push([DEV_BEAT_ICON, "Beats the developer"]);
@@ -1524,7 +1533,7 @@ function showProfileState(data) {
   });
   const columns = profileMode === "time_trial"
     ? [["track", "Track"], ["trial", "Personal best"], ["absolute", "PB vs dev (abs)"], ["relative", "PB vs dev (rel)"], ["trialRuns", "Runs"], ["reference", "Reference"]]
-    : [["track", "Track"], ["rally", "Personal best"], ["rallyRuns", "Runs"], ["average", "Average"], ["score", "Score"], ["laps", "Laps"]];
+    : [["track", "Track"], ["rally", "Personal best"], ["rallyRuns", "Runs"], ["average", "Average"], ["score", "Total Score"], ["laps", "Laps"]];
   columns[0][1] = profileOverview === "game" ? "Game" : "Track";
   const tableRow = (track) => {
     const name = profileOverview === "track" ? `<td><button type="button" class="profile-track-button" data-track="${escape(track.track)}">${escape(track.track_clean)}</button></td>` : `<td>${escape(track.track_clean)}</td>`;
@@ -1543,7 +1552,7 @@ function showProfileState(data) {
     const comparison = typeof left === "string" ? left.localeCompare(right) : (left || 0) - (right || 0);
     return comparison * profileSort.direction || a.character.localeCompare(b.character);
   });
-  const characterColumns = [["track", "Character"], ["total_runs", "Total Runs"], ["trial_runs", "TT Runs"], ["rally_runs", "RR Runs"], ["score", "Score"], ["laps", "Laps"]];
+  const characterColumns = [["track", "Character"], ["total_runs", "Total Runs"], ["trial_runs", "TT Runs"], ["rally_runs", "RR Runs"], ["score", "Total Score"], ["laps", "Laps"]];
   const activeColumns = profileOverview === "character" ? characterColumns : columns;
   let rows = profileOverview === "character" ? characters.map((character) => `<tr><td><div class="profile-character">${character.url && character.url !== "null" ? `<img src="${escape(character.url)}" alt="">` : ""}<button type="button" class="profile-character-button profile-track-button" data-character="${escape(character.character_id)}" aria-expanded="${profileCharacter === character.character_id}">${escape(character.character)}</button></div></td><td>${profileCount(character.trial_runs + character.rally_runs)}</td><td>${profileCount(character.trial_runs)}</td><td>${profileCount(character.rally_runs)}</td><td>${profileCount(character.score)}</td><td>${profileCount(character.laps)}</td></tr>`).join("") : sortedTracks.map(tableRow).join("");
   if (profileOverview === "game" && profileMode === "time_trial" && tracks.length) {
@@ -1652,7 +1661,7 @@ function renderProfileCharacterDetail(data) {
     wrap.className = "profile-table-wrap";
     const table = document.createElement("table");
     const head = table.createTHead().insertRow();
-    for (const [key, label] of [["track_clean", "Track"], ["total_runs", "Total Runs"], ["trial_runs", "TT Runs"], ["rally_runs", "RR Runs"], ["score", "Score"], ["laps", "Laps"]]) {
+    for (const [key, label] of [["track_clean", "Track"], ["total_runs", "Total Runs"], ["trial_runs", "TT Runs"], ["rally_runs", "RR Runs"], ["score", "Total Score"], ["laps", "Laps"]]) {
       const th = document.createElement("th");
       th.scope = "col";
       if (profileCharacterSort.key === key) th.setAttribute("aria-sort", profileCharacterSort.direction === 1 ? "ascending" : "descending");
@@ -1727,7 +1736,7 @@ function renderProfileDetail(data, focus = false) {
 }
 
 function profileTopEntries(track, isTime) {
-  if (!isTime) return [...(track.rally_history || [])].sort((a, b) => b.value - a.value).slice(0, 5);
+  if (!isTime) return [...(track.rally_history || [])].sort((a, b) => b.value - a.value || (Date.parse(a.date) || Infinity) - (Date.parse(b.date) || Infinity)).slice(0, 5);
   const developer = (track.references || []).find((item) => item.kind === "dev");
   return [...(track.top5 || []), ...(developer ? [developer] : [])].sort(byTime).slice(0, 5);
 }
@@ -2074,11 +2083,10 @@ function showRallyState(data) {
   paintIndicator("rally-ind-records", String(stats?.records ?? 0));
   paintIndicator("rally-ind-laps", formatScore(stats?.total_laps ?? 0));
   paintIndicator("rally-ind-average", stats?.average_score == null ? "null" : formatScore(Math.round(stats.average_score)));
+  paintIndicator("rally-ind-total", formatScore(stats?.total_score ?? 0));
   fillCards($("rally-cards"), data.top10 || [], { scoreMode: true });
   const last = data.last_trial;
-  $("rally-last").textContent = last
-    ? `${last.track_clean || "null"} · ${last.character || "null"} · ${formatScore(last.score)} pts`
-    : "null";
+  renderLastResult($("rally-last"), last, last ? `${formatScore(last.score)} pts` : "");
   $("rally-last-notes").textContent = "";
   const delta = $("rally-last-delta");
   const badges = $("rally-last-badges");
