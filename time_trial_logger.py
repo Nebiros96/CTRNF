@@ -46,6 +46,8 @@ STORE_CATALOG_PATH = PROJECT_ROOT / "data" / "store" / "store.json"
 STORE_WALLET_PATH = USER_DATA_DIR / "store" / "wallet.csv"
 WEEKEND_WUMPA_MULTIPLIER = 2
 BASE_WUMPAS = 5000
+GOLDEN_WUMPA_CHANCE = 0.1667
+GOLDEN_WUMPA_BONUS = 200
 WUMPACOIN_ICON = "/wumpacoin.webp"
 ACHIEVEMENT_ICON_DIR = PROJECT_ROOT / "utils" / "achievements"
 _ACHIEVEMENT_ICON_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".jfif")
@@ -1445,10 +1447,12 @@ def credit_race_coins(mode: str, race_id: str, track: str, captured_at: str, bre
         base = _csv_int(track_row.get(field) or "") or 0
         weekend_amount = base * weekend
         multiplied = int((Decimal(weekend_amount) * multiplier).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-        amount = multiplied + flat
+        golden_bonus = GOLDEN_WUMPA_BONUS if random.random() < GOLDEN_WUMPA_CHANCE else 0
+        amount = multiplied + flat + golden_bonus
         if breakdown is not None:
             breakdown.update({"base": base, "weekend_multiplier": weekend, "coin_multiplier": str(multiplier),
-                              "multiplier_bonus": multiplied - weekend_amount, "flat_bonus": flat, "total": amount})
+                              "multiplier_bonus": multiplied - weekend_amount, "flat_bonus": flat,
+                              "golden_bonus": golden_bonus, "total": amount})
         rows.append(
             {
                 "id": "",

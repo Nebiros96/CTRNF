@@ -2544,6 +2544,12 @@ function paintResume(draft, record) {
     if (detail.flat_bonus) addRow("Extra Wumpacoins", `+${formatCoins(detail.flat_bonus)}`);
   }
   if (breakdown.childElementCount) box.append(breakdown);
+  if (Number(detail?.golden_bonus) > 0) {
+    const golden = document.createElement("div");
+    golden.className = "golden-wumpa";
+    golden.innerHTML = `<img src="/catalog/718df85b9bb23892.webp" alt=""><div><span>Lucky find!</span><strong>Golden Wumpa</strong><small>+${formatCoins(detail.golden_bonus)} Wumpacoins</small></div>`;
+    box.append(golden);
+  }
   box.append(coins);
 }
 
