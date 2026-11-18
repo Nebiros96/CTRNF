@@ -48,7 +48,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.3.0"
+APP_VERSION = "CTR - v1.3.1"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -607,6 +607,35 @@ def record_date_key(row: dict) -> float:
         return float("inf")
 
 
+def profile_logs(trials: list[dict], rallies: list[dict], tracks: list[dict], skins: list[dict]) -> list[dict]:
+    """Combine race histories without changing their recorded local date or IDs."""
+    tracks_by_raw = {(row.get("track") or "").strip(): row for row in tracks}
+    skins_by_raw = {(row.get("skin") or "").strip(): row for row in skins}
+    logs = []
+    for mode, rows in (("Time Trial", trials), ("Ring Rally", rallies)):
+        for row in rows:
+            track = (row.get("track") or "").strip()
+            skin = (row.get("skin") or "").strip()
+            skin_data = skins_by_raw.get(skin, {})
+            captured_at = (row.get("captured_at") or "").strip()
+            try:
+                date = datetime.fromisoformat(captured_at).strftime("%d/%m/%Y %H:%M")
+            except ValueError:
+                date = captured_at or "—"
+            stamp = record_date_key(row)
+            logs.append({"mode": mode, "id": (row.get("id") or "").strip() or "—",
+                         "track": tracks_by_raw.get(track, {}).get("track_clean") or track or "—",
+                         "character": skin_data.get("character") or "—",
+                         "skin": skin_data.get("skin_name") or skin or "—",
+                         "skin_url": skin_data.get("url") or "",
+                         "result": (row.get("time_raw") if mode == "Time Trial" else row.get("score")) or "",
+                         "date": date, "captured_at": captured_at,
+                         "timestamp": stamp if stamp != float("inf") else None})
+    logs.sort(key=lambda row: (record_date_key(row) == float("inf"),
+                               -record_date_key(row) if record_date_key(row) != float("inf") else 0))
+    return logs
+
+
 def reference_entry(kind: str, character: str, skin_url: str, raw_time: str) -> dict | None:
     if to_centis(raw_time) is None:
         return None
@@ -956,6 +985,7 @@ class DashboardState:
             return {"mode": "profile", "game_running": running, "user_name": active_user,
                     "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
                     "balance": core.wallet_balance(), "catalog": catalog,
+                    "logs": profile_logs(trials, rallies, tracks, skins),
                     "characters": profile_character_totals(read_csv(core.CHARACTERS_CSV_PATH), skins, trials, rallies, tracks),
                     "favorite": skin_by_raw.get(favorite), "favorite_runs": counts.get(favorite, 0),
                     "trial_records": len(trials), "rally_records": len(rallies),
@@ -1286,7 +1316,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.3.0"
+    server_version = "CTRTimeTrialDashboard/1.3.1"
 
     def log_message(self, format: str, *args) -> None:
         return

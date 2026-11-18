@@ -20,6 +20,10 @@ let profileBestRelative = 0;
 let profileSort = { key: "track", direction: 1 };
 let profileMode = "time_trial";
 let profileOverview = "game";
+let profileLogsPage = 0;
+let profileLogsSearch = "";
+let profileLogsMode = "All";
+let profileLogsSort = { key: "date", direction: -1 };
 let profileCharacter = "";
 let profileCharacterSort = { key: "trial_runs", direction: -1 };
 let profileCharacterMode = "time_trial";
@@ -1134,10 +1138,10 @@ function paintTokens(tokens) {
   album.replaceChildren();
   const total = tokens.reduce((sum, token) => sum + token.total, 0);
   const unlocked = tokens.reduce((sum, token) => sum + token.unlocked, 0);
-  $("token-summary").textContent = `${unlocked} / ${total} tokens unlocked · ${unlocked === total && total ? "+0.020 global bonus" : "+0.020 on tracks of unlocked colors"}`;
+  $("token-summary").textContent = `${unlocked} / ${total} tokens unlocked · ${unlocked === total && total ? "+0.200 global bonus" : "+0.200 on tracks of completed colors"}`;
   for (const token of tokens) {
     const card = document.createElement("article");
-    card.className = `skin-card token-card ${token.unlocked ? "unlocked" : "locked"}`;
+    card.className = `skin-card token-card ${token.total > 0 && token.unlocked >= token.total ? "unlocked" : "locked"}`;
     const frame = document.createElement("div");
     frame.className = "skin-frame";
     imageBox(frame, token.url, `${token.color} token`, { imageClass: "skin-art", fallbackClass: "null-image" });
@@ -1564,6 +1568,45 @@ function profileGames(tracks) {
   });
 }
 
+function profileLogsTable(logs) {
+  const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[char]);
+  const query = profileLogsSearch.trim().toLocaleLowerCase();
+  logs = logs.filter((log) => (profileLogsMode === "All" || log.mode === profileLogsMode) &&
+    (!query || [log.track, log.character].some((value) => String(value || "").toLocaleLowerCase().includes(query))));
+  const sortValue = (log) => {
+    switch (profileLogsSort.key) {
+      case "id": return /^\d+$/.test(log.id) ? Number(log.id) : null;
+      case "date": return log.timestamp ?? null;
+      case "result": {
+        if (!log.result) return null;
+        if (log.mode === "Ring Rally") { const value = Number(log.result); return Number.isFinite(value) ? value : null; }
+        const match = /^(\d+):(\d{2}):(\d{2})$/.exec(log.result);
+        return match ? Number(match[1]) * 6000 + Number(match[2]) * 100 + Number(match[3]) : null;
+      }
+      case "character": return `${log.character} ${log.skin}`.toLocaleLowerCase();
+      default: return String(log[profileLogsSort.key] || "").toLocaleLowerCase();
+    }
+  };
+  logs.sort((a, b) => {
+    if (profileLogsSort.key === "result" && a.mode !== b.mode) return a.mode.localeCompare(b.mode);
+    const left = sortValue(a), right = sortValue(b);
+    if (left == null || right == null) return left == null ? (right == null ? 0 : 1) : -1;
+    const comparison = typeof left === "string" ? left.localeCompare(right, undefined, { numeric: true }) : left - right;
+    return comparison * profileLogsSort.direction;
+  });
+  const pages = Math.max(1, Math.ceil(logs.length / 50));
+  profileLogsPage = Math.max(0, Math.min(profileLogsPage, pages - 1));
+  const start = profileLogsPage * 50;
+  const rows = logs.slice(start, start + 50).map((log) => {
+    const result = log.result ? (log.mode === "Ring Rally" && /^\d+$/.test(log.result) ? formatScore(log.result) : log.result) : "—";
+    return `<tr><td>${escape(log.id)}</td><td>${escape(log.mode)}</td><td>${escape(log.track)}</td><td><div class="profile-log-character"><span class="profile-log-avatar" data-skin-url="${escape(log.skin_url || "")}"></span><span>${escape(log.character)}<small>${escape(log.skin)}</small></span></div></td><td>${escape(result)}</td><td>${escape(log.date)}</td></tr>`;
+  }).join("");
+  return `<section class="panel profile-tracks profile-logs"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Logs</h2><p>Record numbers belong to each game mode · Time / Score sorts within each mode.</p></div></div>
+    <div class="profile-log-filters"><label class="profile-log-search">Search track or character<input type="search" id="profile-log-search" value="${escape(profileLogsSearch)}" placeholder="Track or character"></label><div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Filter logs by mode">${["All", "Time Trial", "Ring Rally"].map((mode) => `<button type="button" class="profile-mode-button${profileLogsMode === mode ? " active" : ""}" data-log-mode="${mode}" aria-pressed="${profileLogsMode === mode}">${mode}</button>`).join("")}</div></div></div>
+    <div class="profile-table-wrap"><table><thead><tr>${[["id", "Record #"], ["mode", "Mode"], ["track", "Track"], ["character", "Character / skin"], ["result", "Time / Score"], ["date", "Datetime"]].map(([key, label]) => `<th scope="col"${profileLogsSort.key === key ? ` aria-sort="${profileLogsSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-log-sort="${key}">${label} <span aria-hidden="true">${profileLogsSort.key === key ? (profileLogsSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${rows || '<tr><td colspan="6">No matching records.</td></tr>'}</tbody></table></div>
+    <div class="profile-pagination"><span>${logs.length ? `${start + 1}–${Math.min(start + 50, logs.length)} of ${logs.length}` : "0 records"}</span><div><button type="button" class="profile-nav-button" data-log-page="previous" ${profileLogsPage === 0 ? "disabled" : ""}>Previous</button><span>Page ${profileLogsPage + 1} / ${pages}</span><button type="button" class="profile-nav-button" data-log-page="next" ${profileLogsPage >= pages - 1 ? "disabled" : ""}>Next</button></div></div></section>`;
+}
+
 function showProfileState(data) {
   paintConnection(data);
   const signature = JSON.stringify(data);
@@ -1643,12 +1686,13 @@ function showProfileState(data) {
     <div class="profile-stats">
       ${[["Time Trial", data.trial_records], ["Ring Rally", data.rally_records], ["Developers beaten", `${devs} / ${official.length}`], ["Skins unlocked", `${data.skins_unlocked} / ${data.skins_total}`], ["Trophies unlocked", `${data.trophies_unlocked} / ${data.trophies_total}`]].map(([label, value]) => `<div class="panel profile-stat"><div class="stat-label">${label}</div><div class="kpi-value">${value}</div></div>`).join("")}
     </div>
-    <nav class="profile-nav" aria-label="Profile overviews">${[["game", "Game overview"], ["track", "Track overview"], ["character", "Character overview"]].map(([key, label]) => `<button type="button" class="profile-nav-button${profileOverview === key ? " active" : ""}" data-overview="${key}" aria-pressed="${profileOverview === key}">${label}</button>`).join("")}</nav>
-    <section class="panel profile-tracks"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>${escape(profileOverview)} overview</h2></div>${profileOverview !== "character" ? `<div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Overview mode">${[["time_trial", "Time Trial"], ["rally_ring", "Ring Rally"]].map(([mode, label]) => `<button type="button" class="profile-mode-button${profileMode === mode ? " active" : ""}" data-mode="${mode}" aria-pressed="${profileMode === mode}">${label}</button>`).join("")}</div></div>` : ""}</div>
+    <nav class="profile-nav" aria-label="Profile overviews">${[["game", "Game overview"], ["track", "Track overview"], ["character", "Character overview"], ["logs", "Logs"]].map(([key, label]) => `<button type="button" class="profile-nav-button${profileOverview === key ? " active" : ""}" data-overview="${key}" aria-pressed="${profileOverview === key}">${label}</button>`).join("")}</nav>
+    ${profileOverview === "logs" ? profileLogsTable(data.logs || []) : `<section class="panel profile-tracks"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>${escape(profileOverview)} overview</h2></div>${profileOverview !== "character" ? `<div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Overview mode">${[["time_trial", "Time Trial"], ["rally_ring", "Ring Rally"]].map(([mode, label]) => `<button type="button" class="profile-mode-button${profileMode === mode ? " active" : ""}" data-mode="${mode}" aria-pressed="${profileMode === mode}">${label}</button>`).join("")}</div></div>` : ""}</div>
       <div class="profile-table-wrap"><table><thead><tr>${activeColumns.map(([key, label]) => key === "reference" ? `<th scope="col">${label}</th>` : `<th scope="col"${profileSort.key === key ? ` aria-sort="${profileSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-sort="${key}">${label} <span aria-hidden="true">${profileSort.key === key ? (profileSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
       ${profileOverview !== "character" && profileMode === "time_trial" ? `<p class="profile-legend"><img class="profile-beat-icon" src="${VELO_BEAT_ICON}" alt=""> Velo beaten · <img class="profile-beat-icon" src="${DEV_BEAT_ICON}" alt=""> Developer beaten</p>` : ""}
-    </section>`;
-  root.querySelectorAll(".profile-nav-button").forEach((button) => button.addEventListener("click", () => {
+    </section>`}`;
+  root.querySelectorAll(".profile-log-avatar").forEach((avatar) => imageBox(avatar, avatar.dataset.skinUrl, "", { imageClass: "profile-log-image", fallbackClass: "profile-log-placeholder" }));
+  root.querySelectorAll(".profile-nav .profile-nav-button").forEach((button) => button.addEventListener("click", () => {
     if (profileOverview === button.dataset.overview) return;
     profileOverview = button.dataset.overview;
     profileTrack = "";
@@ -1657,7 +1701,7 @@ function showProfileState(data) {
     showProfileState(data);
     root.querySelector(`.profile-nav-button[data-overview="${profileOverview}"]`)?.focus({ preventScroll: true });
   }));
-  root.querySelectorAll(".profile-mode-button").forEach((button) => button.addEventListener("click", () => {
+  root.querySelectorAll(".profile-mode-button[data-mode]").forEach((button) => button.addEventListener("click", () => {
     if (profileMode === button.dataset.mode) return;
     profileMode = button.dataset.mode;
     if (profileMode === "rally_ring" && !tracks.find((track) => track.track === profileTrack)?.rally_available) profileTrack = "";
@@ -1666,7 +1710,38 @@ function showProfileState(data) {
     showProfileState(data);
     root.querySelector(`.profile-mode-button[data-mode="${profileMode}"]`)?.focus({ preventScroll: true });
   }));
-  root.querySelectorAll(".profile-sort").forEach((button) => {
+  root.querySelector("#profile-log-search")?.addEventListener("input", (event) => {
+    const cursor = event.target.selectionStart;
+    profileLogsSearch = event.target.value;
+    profileLogsPage = 0;
+    profileSignature = "";
+    showProfileState(data);
+    const input = root.querySelector("#profile-log-search");
+    input?.focus({ preventScroll: true });
+    if (cursor != null) input?.setSelectionRange(cursor, cursor);
+  });
+  root.querySelectorAll("[data-log-mode]").forEach((button) => button.addEventListener("click", () => {
+    profileLogsMode = button.dataset.logMode;
+    profileLogsPage = 0;
+    profileSignature = "";
+    showProfileState(data);
+    root.querySelector(`[data-log-mode="${profileLogsMode}"]`)?.focus({ preventScroll: true });
+  }));
+  root.querySelectorAll("[data-log-page]").forEach((button) => button.addEventListener("click", () => {
+    profileLogsPage += button.dataset.logPage === "next" ? 1 : -1;
+    profileSignature = "";
+    showProfileState(data);
+    root.querySelector(`[data-log-page="${button.dataset.logPage}"]:not(:disabled)`)?.focus({ preventScroll: true });
+  }));
+  root.querySelectorAll("[data-log-sort]").forEach((button) => button.addEventListener("click", () => {
+    const key = button.dataset.logSort;
+    profileLogsSort = { key, direction: profileLogsSort.key === key ? -profileLogsSort.direction : (key === "date" ? -1 : 1) };
+    profileLogsPage = 0;
+    profileSignature = "";
+    showProfileState(data);
+    root.querySelector(`[data-log-sort="${key}"]`)?.focus({ preventScroll: true });
+  }));
+  root.querySelectorAll(".profile-sort[data-sort]").forEach((button) => {
     button.addEventListener("click", () => {
       const key = button.dataset.sort;
       profileSort = { key, direction: profileSort.key === key ? -profileSort.direction : (["rally", "trialRuns", "rallyRuns", "total_runs", "trial_runs", "rally_runs", "average", "score", "laps"].includes(key) ? -1 : 1) };
@@ -1694,7 +1769,7 @@ function showProfileState(data) {
     root.querySelectorAll(".profile-character-button").forEach((item) => item.setAttribute("aria-expanded", String(item.dataset.character === profileCharacter)));
     if (profileCharacter) renderProfileCharacterDetail(data);
   }));
-  if (profileTrack) renderProfileDetail(data);
+  if (profileOverview === "track" && profileTrack) renderProfileDetail(data);
   if (profileOverview === "character" && profileCharacter) renderProfileCharacterDetail(data);
 }
 
