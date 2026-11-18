@@ -9,6 +9,8 @@ import hashlib
 import json
 import os
 import re
+import random
+import functools
 import sys
 import threading
 import time
@@ -49,7 +51,7 @@ ACHIEVEMENT_ICON_DIR = PROJECT_ROOT / "utils" / "achievements"
 _ACHIEVEMENT_ICON_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".jfif")
 CATALOG_IMAGE_DIR = PROJECT_ROOT / "web" / "catalog"
 _CATALOG_IMAGE_EXTENSIONS = (".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif")
-_CATALOG_IMAGE_FIELDS = ("url", "url_mask", "url_character", "dev_url")
+_CATALOG_IMAGE_FIELDS = ("url", "url_mask", "url_character", "dev_url", "token_url")
 MASK_CLUBS = ("Aku Aku", "Uka Uka", "Velo", "Sparx")
 BASE_SKIN_TYPES = frozenset({"basic", "exotic", "legendary", "beenox"})
 # Stacked in skin order. Basic 500,000, then Exotic 2,000,000, Legendary 5,000,000, Beenox 10,000,000, Ultra 20,000,000.
@@ -58,6 +60,7 @@ UNLOCK_COST = {"basic": 500_000, "exotic": 2_000_000, "legendary": 5_000_000, "b
 BONUS_MILLI = {"basic": 1, "exotic": 2, "legendary": 3, "beenox": 5, "ultra": 10}
 _rally_lock = threading.Lock()
 _store_lock = threading.RLock()
+_token_lock = threading.RLock()
 WALLET_FIELDS = ("id", "kind", "mode", "race_id", "item_id", "coins", "captured_at")
 CSV_FIELDS = (
     "id",
@@ -69,6 +72,7 @@ CSV_FIELDS = (
     "time_seconds",
     "pb",
     "delta_pb",
+    "notes",
     "captured_at",
 )
 
@@ -273,11 +277,73 @@ def ensure_delta_pb_column(path: Path) -> None:
     os.replace(temp_path, path)
 
 
+def _token_synchronized(fn):
+    @functools.wraps(fn)
+    def wrapped(*args, **kwargs):
+        with _token_lock:
+            return fn(*args, **kwargs)
+    return wrapped
+
+
+def token_progress() -> list[dict]:
+    colors = {}
+    for row in _read_table(TRACKS_CSV_PATH):
+        color = (row.get("token") or "").strip()
+        if color:
+            entry = colors.setdefault(color, {"color": color, "total": 0, "unlocked": 0, "url": catalog_image_url(row.get("token_url") or "")})
+            entry["total"] += 1
+    for path in (CSV_PATH, RALLY_RING_CSV_PATH):
+        for row in _read_table(path):
+            for color in re.findall(r"(?:^|;\s*)Token unlocked: ([^;]+)", row.get("notes") or ""):
+                if color in colors:
+                    colors[color]["unlocked"] = min(colors[color]["total"], colors[color]["unlocked"] + 1)
+    return list(colors.values())
+
+
+def _token_award(track: str) -> dict | None:
+    color = (_track_catalog_row(track).get("token") or "").strip()
+    entry = next ( (item for item in token_progress() if item["color"] == color), None)
+    if not entry or entry["unlocked"] >= entry["total"]:
+        return None
+    if random.random() >= 0.5 ** (min(entry["unlocked"], 5) + 1):
+        return None
+    return {**entry, "unlocked": entry["unlocked"] + 1}
+
+
+def _token_bonus_milli(track: str = "") -> int:
+    tokens = token_progress()
+    if tokens and all(item["unlocked"] >= item["total"] for item in tokens):
+        return 20
+    color = (_track_catalog_row(track).get("token") or "").strip()
+    return 20 if any(item["color"] == color and item["unlocked"] for item in tokens) else 0
+
+
+def _ensure_time_trial_notes(path: Path) -> None:
+    if not path.exists() or path.stat().st_size == 0:
+        return
+    delimiter = csv_delimiter(path)
+    with path.open("r", newline="", encoding="utf-8-sig") as source:
+        reader = csv.DictReader(source, delimiter=delimiter)
+        fields = list(reader.fieldnames or [])
+        if "notes" in fields:
+            return
+        rows = list(reader)
+    fields.insert(fields.index("captured_at") if "captured_at" in fields else len(fields), "notes")
+    temp = path.with_suffix(path.suffix + ".tmp")
+    with temp.open("w", newline="", encoding="utf-8-sig") as target:
+        writer = csv.DictWriter(target, fieldnames=fields, delimiter=delimiter)
+        writer.writeheader()
+        writer.writerows(rows)
+    os.replace(temp, path)
+
+
+@_token_synchronized
 def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[str, str]:
     seconds = parse_time(raw_time)
     ensure_possible_time(track, seconds)
     best_by_track = ensure_pb_column(csv_path)
     ensure_delta_pb_column(csv_path)
+    _ensure_time_trial_notes(csv_path)
     track = (track or "").strip()
     skin = (skin or "").strip()
     if not track or track.casefold() in {"null", "none"}:
@@ -293,6 +359,7 @@ def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[st
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     needs_header = not csv_path.exists() or csv_path.stat().st_size == 0
     prior_pb = best_by_track.get(track) if track and track.casefold() not in {"null", "none"} else None
+    award = _token_award(track)
     record = {
         "id": str(next_id(csv_path)),
         "track_id": track_id,
@@ -303,16 +370,24 @@ def save_record(track: str, skin: str, raw_time: str, csv_path: Path) -> dict[st
         "time_seconds": f"{seconds:.2f}",
         "pb": "1" if track and track.casefold() not in {"null", "none"} and (track not in best_by_track or seconds < best_by_track[track]) else "0",
         "delta_pb": f"{seconds - prior_pb:.2f}" if prior_pb is not None else ("0.00" if track and track.casefold() not in {"null", "none"} else ""),
+        "notes": f"Token unlocked: {award['color']}" if award else "",
         "captured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     }
+    delimiter = "," if needs_header else csv_delimiter(csv_path)
+    if needs_header:
+        fields = list(CSV_FIELDS)
+    else:
+        with csv_path.open("r", newline="", encoding="utf-8-sig") as source:
+            fields = next(csv.reader(source, delimiter=delimiter))
     with csv_path.open("a", newline="", encoding="utf-8-sig") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
+        writer = csv.DictWriter(csv_file, fieldnames=fields, delimiter=delimiter, extrasaction="ignore")
         if needs_header:
             writer.writeheader()
         writer.writerow(record)
     coin_breakdown = {}
     record["wumpas"] = str(credit_race_coins("time_trial", record["id"], record["track"], record["captured_at"], coin_breakdown))
     record["wumpa_breakdown"] = coin_breakdown
+    record["token_unlock"] = award
     return record
 
 
@@ -1240,6 +1315,7 @@ def _load_store_items() -> list[dict]:
                 "name": name,
                 "item_category": row["item_category"],
                 "character_id": row.get("character_id"),
+                "level": row.get("level"),
                 "track_id": row.get("track_id"),
                 "price": int(row["price"]),
                 "bonus_all_milli": int(row["bonus_all_milli"]),
@@ -1256,9 +1332,9 @@ def _load_store_items() -> list[dict]:
             }
         )
     for item in items:
-        if item["item_category"] in ("skin", "Avatar") and item["character_id"] is not None:
+        if item["item_category"] == "Avatar" and item["character_id"] is not None:
             prices = sorted({other["price"] for other in items if other["item_category"] == item["item_category"] and other["character_id"] == item["character_id"]})
-            item["level"] = prices.index(item["price"]) + 1
+            item["level"] = item["level"] if item["level"] is not None else prices.index(item["price"]) + 1
         else:
             item["level"] = None
     return items
@@ -1471,6 +1547,7 @@ def score_with_progression(
     catalog: dict,
     laps: int = 0,
     track: str = "",
+    token_milli: int = 0,
 ) -> dict:
     """Snapshot the global multiplier for one new score without rewriting older rows.
 
@@ -1482,7 +1559,7 @@ def score_with_progression(
     ladder = catalog["ladders"].get(character_id, []) if character_id else []
     prior_stats = _stats_from_rows(prior_rows, catalog)
     _apply_time_trials(prior_stats, catalog)
-    store_milli = _store_milli_for_skin(skin, catalog, track)
+    store_milli = _store_milli_for_skin(skin, catalog, track) + token_milli
     prior_state, milli = _achievement_state(prior_stats, catalog)
     milli += store_milli
     points = prior_stats["points_by"].get(character_id, 0) if character_id else 0
@@ -1627,7 +1704,7 @@ def _new_rally_record(
             except (TypeError, ValueError):
                 continue
             previous = old_score if previous is None else max(previous, old_score)
-    progress = score_with_progression(rows, skin, score, catalog, laps=laps, track=track)
+    progress = score_with_progression(rows, skin, score, catalog, laps=laps, track=track, token_milli=_token_bonus_milli(track))
     record_id = max((int(row["id"]) for row in rows if str(row.get("id", "")).isdigit()), default=0) + 1
     return {
         "id": str(record_id),
@@ -1659,6 +1736,7 @@ def ensure_rally_progression(csv_path: Path | None = None) -> None:
             _write_rally(path, rows)
 
 
+@_token_synchronized
 def save_rally_record(
     track: str, skin: str, raw_score: str, raw_laps: str, csv_path: Path
 ) -> tuple[dict[str, str], list[dict]]:
@@ -1674,6 +1752,9 @@ def save_rally_record(
         if any(not _row_has_progression(row) for row in rows):
             _fill_missing_progression(rows, catalog)
         record, unlocks = _new_rally_record(rows, (track or "").strip(), (skin or "").strip(), score, laps, catalog)
+        award = _token_award(record["track"])
+        if award:
+            record["notes"] = "; ".join(filter(None, [record["notes"], f"Token unlocked: {award['color']}"]))
         if ready:
             _append_rally(csv_path, record)
         else:
@@ -1681,6 +1762,7 @@ def save_rally_record(
         coin_breakdown = {}
         record["wumpas"] = str(credit_race_coins("rally_ring", record["id"], record["track"], record["captured_at"], coin_breakdown))
         record["wumpa_breakdown"] = coin_breakdown
+        record["token_unlock"] = award
         return record, unlocks
 
 
@@ -1766,6 +1848,9 @@ def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = N
     stats = _stats_from_rows(rows, catalog)
     _apply_time_trials(stats, catalog)
     _state, global_milli = _achievement_state(stats, catalog)
+    tokens = token_progress()
+    if tokens and all(item["unlocked"] >= item["total"] for item in tokens):
+        global_milli += 20
     return {
         "characters": characters,
         "active_character_id": active,

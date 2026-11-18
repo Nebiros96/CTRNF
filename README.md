@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.2.6)
+# Crash™ Team Racing NF - Dashboard (v1.3.0)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -35,6 +35,8 @@ Track stats show the number of records, total laps, and average base score for t
 ![Ring Rally at Jungle Boogie, with the score form and the track top 10](utils/RingRally.JPG)
 
 ## Skin album
+
+The Album also tracks CTR Tokens. New Time Trial and Ring Rally records can award a token matching the track's color, with separate odds for each color. The first token of a color adds a 0.020 Ring Rally bonus on matching tracks; collecting all 40 makes that bonus global. Token unlocks are recorded alongside the race and included in user backups.
 
 The album groups skins by character and by rarity: Basic, Exotic, Legendary, Beenox, and Ultra. At the top you see how many you have unlocked and the global multiplier the next race uses, with any character.
 

@@ -48,7 +48,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.2.7"
+APP_VERSION = "CTR - v1.3.0"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -496,6 +496,7 @@ def progress_payload(running: bool) -> dict:
         "game_running": running,
         "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
         "progression": built["characters"],
+        "tokens": core.token_progress(),
         "active_character_id": built["active_character_id"],
         "multiplier": built["multiplier"],
         "store_bonus": built["store_bonus"],
@@ -1285,7 +1286,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.2.7"
+    server_version = "CTRTimeTrialDashboard/1.3.0"
 
     def log_message(self, format: str, *args) -> None:
         return
