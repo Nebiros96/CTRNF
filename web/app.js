@@ -1121,10 +1121,35 @@ function showProgressState(data) {
     unlocked,
     skins,
     characters,
+    tokens: data.tokens,
   });
   if (signature === progressSignature) return;
   progressSignature = signature;
   paintProgress(characters, data.multiplier, records, unlocked, skins, data.store_bonus);
+  paintTokens(data.tokens || []);
+}
+
+function paintTokens(tokens) {
+  const album = $("token-album");
+  album.replaceChildren();
+  const total = tokens.reduce((sum, token) => sum + token.total, 0);
+  const unlocked = tokens.reduce((sum, token) => sum + token.unlocked, 0);
+  $("token-summary").textContent = `${unlocked} / ${total} tokens unlocked · ${unlocked === total && total ? "+0.020 global bonus" : "+0.020 on tracks of unlocked colors"}`;
+  for (const token of tokens) {
+    const card = document.createElement("article");
+    card.className = `skin-card token-card ${token.unlocked ? "unlocked" : "locked"}`;
+    const frame = document.createElement("div");
+    frame.className = "skin-frame";
+    imageBox(frame, token.url, `${token.color} token`, { imageClass: "skin-art", fallbackClass: "null-image" });
+    const name = document.createElement("div");
+    name.className = "skin-title";
+    name.textContent = `${token.color} Token`;
+    const count = document.createElement("div");
+    count.className = "skin-state";
+    count.textContent = `${token.unlocked} / ${token.total}`;
+    card.append(frame, name, count);
+    album.append(card);
+  }
 }
 
 let trophySignature = "";
@@ -1301,21 +1326,25 @@ function storeHelpButton(item) {
 function storeCard(item, coinIcon) {
   const card = document.createElement("article");
   card.className = "store-card";
+  const front = document.createElement("div");
+  card.classList.add("store-card-flip");
+  front.className = "store-card-face store-card-front";
+  card.append(front);
   const frame = document.createElement("div");
   frame.className = "store-frame";
   imageBox(frame, item.url, item.name, { imageClass: "store-art", fallbackClass: "store-fallback" });
-  card.append(frame);
+  front.append(frame);
   if (item.level != null) {
     const level = document.createElement("span");
     level.className = "store-level";
     level.textContent = `LV ${item.level}`;
-    card.append(level);
+    front.append(level);
   }
 
   const name = document.createElement("h3");
   name.className = "store-name";
   name.textContent = item.name;
-  card.append(name);
+  front.append(name);
 
   const price = document.createElement("div");
   price.className = "store-price";
@@ -1325,7 +1354,7 @@ function storeCard(item, coinIcon) {
   const amount = document.createElement("span");
   amount.textContent = formatCoins(item.price);
   price.append(coin, amount);
-  card.append(price);
+  front.append(price);
 
   {
     const details = document.createElement("div");
@@ -1351,7 +1380,44 @@ function storeCard(item, coinIcon) {
       row.append(icon, text);
       details.append(row);
     }
-    card.append(details);
+    {
+      const back = document.createElement("div");
+      back.className = "store-card-face store-card-back";
+      back.inert = true;
+      const backButton = document.createElement("button");
+      backButton.type = "button";
+      backButton.className = "store-flip-button";
+      backButton.textContent = "Back to item ↩";
+      back.append(details, backButton);
+      card.append(back);
+      const flipButton = document.createElement("button");
+      flipButton.type = "button";
+      flipButton.className = "store-flip-button";
+      flipButton.textContent = "View bonuses ↻";
+      front.append(flipButton);
+      const setFlipped = (flipped) => {
+        if (flipped) {
+          document.querySelectorAll(".store-card-flip.is-flipped").forEach((openCard) => {
+            if (openCard === card) return;
+            openCard.classList.remove("is-flipped");
+            openCard.querySelector(".store-card-front").inert = false;
+            openCard.querySelector(".store-card-back").inert = true;
+          });
+        }
+        card.classList.toggle("is-flipped", flipped);
+        front.inert = flipped;
+        back.inert = !flipped;
+        (flipped ? backButton : flipButton).focus({ preventScroll: true });
+      };
+      flipButton.addEventListener("click", () => setFlipped(true));
+      backButton.addEventListener("click", () => setFlipped(false));
+      front.addEventListener("click", (event) => {
+        if (!event.target.closest("button")) setFlipped(true);
+      });
+      back.addEventListener("click", (event) => {
+        if (!event.target.closest("button")) setFlipped(false);
+      });
+    }
   }
 
   if (!item.purchased) {
@@ -1364,7 +1430,7 @@ function storeCard(item, coinIcon) {
       const requirement = document.createElement("p");
       requirement.className = "store-requirement";
       requirement.textContent = `Requires: ${item.unlock_name}`;
-      card.append(requirement);
+      front.append(requirement);
     } else if (!item.affordable) {
       button.disabled = true;
       button.textContent = "Not enough";
@@ -1375,7 +1441,7 @@ function storeCard(item, coinIcon) {
       button.textContent = "Buy";
       button.addEventListener("click", () => buyStoreItem(item.id, false));
     }
-    card.append(button);
+    front.append(button);
   }
   return card;
 }
@@ -2414,12 +2480,29 @@ function openResume(draft, record, items) {
   list.replaceChildren();
   const cards = Array.isArray(items) ? items : [];
   for (const item of cards) list.append(paintUnlockItem(item));
-  const hasCards = cards.length > 0;
+  if (record.token_unlock) {
+    const token = record.token_unlock;
+    const card = document.createElement("article");
+    card.className = "unlock-item unlocked";
+    const icon = document.createElement("div");
+    icon.className = "unlock-icon";
+    imageBox(icon, token.url, `${token.color} token`, { imageClass: "unlock-art", fallbackClass: "null-image" });
+    const copy = document.createElement("div");
+    copy.className = "unlock-copy";
+    const name = document.createElement("strong");
+    name.textContent = `Congratulations! You unlocked a ${token.color} token`;
+    const count = document.createElement("p");
+    count.textContent = `${token.unlocked} / ${token.total} unlocked`;
+    copy.append(name, count);
+    card.append(icon, copy);
+    list.append(card);
+  }
+  const hasCards = cards.length > 0 || Boolean(record.token_unlock);
   resumeFocus = draft.focusId || (draft.mode === "rally_ring" ? "score" : "time");
   $("unlock-eyebrow").textContent = draft.mode === "rally_ring" ? "Ring Rally" : "Time Trial";
   $("unlock-title").textContent = "Resume";
   $("unlock-lead").hidden = !hasCards;
-  $("unlock-lead").textContent = hasCards ? unlockHeadline(cards) : "";
+  $("unlock-lead").textContent = cards.length ? unlockHeadline(cards) : "";
   list.hidden = !hasCards;
   $("unlock-modal").hidden = false;
   document.querySelector("main").inert = true;

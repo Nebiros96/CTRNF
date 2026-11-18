@@ -50,7 +50,7 @@ def collect_urls() -> list[str]:
     tables = (
         (core.SKINS_CSV_PATH, ("url",)),
         (core.CHARACTERS_CSV_PATH, ("url_mask", "url_character")),
-        (core.TRACKS_CSV_PATH, ("url", "dev_url")),
+        (core.TRACKS_CSV_PATH, ("url", "dev_url", "token_url")),
         (core.ACHIEVEMENTS_CSV_PATH, ("url",)),
     )
     for path, fields in tables:

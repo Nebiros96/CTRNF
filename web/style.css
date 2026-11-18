@@ -1096,3 +1096,25 @@ body {
 .profile-top-value { flex:none; font-size:14px; font-variant-numeric:tabular-nums; }
 .profile-top-result { display:grid; justify-items:end; gap:3px; flex:none; }
 .profile-top-gap { color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+/* Store cards reveal their bonuses on the reverse. */
+.store-grid .store-card-flip { display: block; padding: 0; border: 0; background: transparent; perspective: 1000px; }
+.store-card-face { box-sizing: border-box; width: 100%; padding: 14px; border: 1px solid var(--line); background: var(--well); backface-visibility: hidden; transition: transform .5s ease; }
+.store-card-front { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 100%; cursor: pointer; }
+.store-card-front .store-buy { margin-top: auto; }
+.store-card-back { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; transform: rotateY(-180deg); cursor: pointer; }
+.store-card-flip.is-flipped .store-card-front { transform: rotateY(180deg); }
+.store-card-flip.is-flipped .store-card-back { transform: rotateY(0); }
+.store-card-back .avatar-bonuses { text-align: left; }
+.store-flip-button { padding: 5px; border: 0; background: transparent; color: #f5cf62; font: 700 11px var(--ui); cursor: pointer; }
+.store-flip-button:hover, .store-flip-button:focus-visible { color: #fff0b5; text-decoration: underline; }
+.store-card-back .store-flip-button { margin-top: auto; }
+@media (prefers-reduced-motion: reduce) { .store-card-face { transition: none; } }
+.token-album { margin-top: 12px; }
+.token-card { min-width: 0; }
+@media (max-width: 720px) {
+  .token-album { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; overflow: visible; }
+  .token-card { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .token-card .skin-frame, .token-card .skin-title, .token-card .skin-state { grid-column: auto; grid-row: auto; margin: 0; }
+}
+#token-summary { color: var(--muted); font-size: 13px; }

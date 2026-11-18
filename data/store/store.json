@@ -1633,6 +1633,173 @@
       },
       "item_category": "skin",
       "character_id": 16
+    },
+    {
+      "item_id": 67,
+      "name": "King Chicken Space",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/6/6b/Space_chicken_sticker.png/revision/latest?cb=20200220235341",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          44
+        ],
+        "label": "King Chicken"
+      },
+      "item_category": "skin",
+      "character_id": 44
+    },
+    {
+      "item_id": 68,
+      "name": "Pasadena O'Possum",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/5/5e/Pasadena_opossum_sticker.png/revision/latest?cb=20191109002601",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          42
+        ],
+        "label": "Pasadena O'Possum"
+      },
+      "item_category": "skin",
+      "character_id": 42
+    },
+    {
+      "item_id": 69,
+      "name": "Pura",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/b/b7/Pura-1.png/revision/latest?cb=20200115143954",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          8
+        ],
+        "label": "Pura"
+      },
+      "item_category": "skin",
+      "character_id": 8
+    },
+    {
+      "item_id": 70,
+      "name": "Polar",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/b/b6/Rustland_polar_sticker.png/revision/latest?cb=20200118203412",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          7
+        ],
+        "label": "Polar"
+      },
+      "item_category": "skin",
+      "character_id": 7
+    },
+    {
+      "item_id": 71,
+      "name": "Dingodile Rumble",
+      "price": 1500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/9/99/Rumble_discord_dingodile_emote.png/revision/latest?cb=20251219114711",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          6
+        ],
+        "label": "Dingodile"
+      },
+      "item_category": "skin",
+      "character_id": 6
+    },
+    {
+      "item_id": 72,
+      "name": "Crash Twinsanity Nefarious Tropy",
+      "price": 2500,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/5/55/Crash_Twinsanity_Nefarious_Tropy_Icon.png/revision/latest?cb=20250329160950",
+      "bonus_all_milli": 2,
+      "bonus_condition_milli": 3,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          2,
+          3,
+          5,
+          6,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          38,
+          39,
+          40,
+          41,
+          44,
+          45,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56
+        ],
+        "label": "All Uka Uka and Velo Characters"
+      },
+      "item_category": "skin",
+      "character_id": 16
+    },
+    {
+      "item_id": 73,
+      "name": "N. Sane Trilogy Doctor Nefarious Tropy",
+      "price": 9000,
+      "level": 3,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/0/09/Crash_Bandicoot_N._Sane_Trilogy_Doctor_Nefarious_Tropy.png/revision/latest?cb=20170817125407",
+      "bonus_all_milli": 3,
+      "bonus_condition_milli": 5,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1, 4, 7, 8, 9, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+          27, 28, 29, 30, 31, 32, 33, 34, 42, 43, 44, 46, 47, 48, 49, 51, 56
+        ],
+        "label": "Aku Aku and Velo mask characters"
+      },
+      "additional_conditions": [
+        {
+          "bonus_milli": 10,
+          "condition": {
+            "type": "characters",
+            "character_ids": [16, 54],
+            "label": "Dr. N. Tropy and Baby N. Tropy"
+          }
+        }
+      ],
+      "bonus_coins": 1.2,
+      "item_category": "Avatar",
+      "unlock_condition": [66, 72],
+      "unlock_label": "Dr. N. Tropy Crashmoji and Crash Twinsanity Nefarious Tropy",
+      "character_id": 16
     }
   ]
 }
