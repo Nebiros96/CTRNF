@@ -807,6 +807,16 @@ body {
 .resume-breakdown { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); background: #100b19; }
 .resume-breakdown > div { display: flex; justify-content: space-between; gap: 14px; color: var(--muted); font-size: 12px; }
 .resume-breakdown strong { color: var(--text); white-space: nowrap; }
+.golden-wumpa { display: flex; align-items: center; gap: 14px; overflow: hidden; margin-top: 8px; padding: 10px 16px; border: 1px solid #ffd54a; background: radial-gradient(circle at 35px 50%, #b7791870, transparent 45%), linear-gradient(110deg, #4c300c, #1d1422); animation: golden-reveal .65s cubic-bezier(.2,.8,.2,1) both, golden-glow 2s ease-in-out .65s infinite alternate; }
+.golden-wumpa img { width: 72px; height: 72px; object-fit: contain; filter: drop-shadow(0 0 10px #ffd34c99); animation: golden-float 2s ease-in-out infinite alternate; }
+.golden-wumpa div { display: grid; gap: 2px; }
+.golden-wumpa span { color: #f7d779; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.golden-wumpa strong { color: #ffe787; font: italic 22px/1.1 var(--display); text-transform: uppercase; }
+.golden-wumpa small { color: #fff2bf; font-weight: 700; }
+@keyframes golden-reveal { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+@keyframes golden-float { from { transform: translateY(3px) rotate(-5deg); } to { transform: translateY(-4px) rotate(5deg); } }
+@keyframes golden-glow { from { box-shadow: 0 0 4px #ffca3344; } to { box-shadow: 0 0 18px #ffca3388; } }
+@media (prefers-reduced-motion: reduce) { .golden-wumpa, .golden-wumpa img { animation: none; } }
 .unlock-coins {
   display: flex;
   align-items: center;

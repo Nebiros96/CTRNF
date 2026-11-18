@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.3.1)
+# Crash™ Team Racing NF - Dashboard (v1.3.2)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -51,6 +51,8 @@ Each trophy shows your progress, its tier, and how much it adds to the multiplie
 ## Store
 
 The store opens with 5,000 Wumpacoins. That amount is the first row of a new wallet and is not added again. Races you already saved stay as they are and do not pay coins. From this version on, each saved Time Trial or Ring Rally pays the amount set for that track. Ring Rally pays more. Friday, Saturday, and Sunday pay double.
+
+Each new record also has an independent 16.67% chance of finding a Golden Wumpa, awarding 200 extra Wumpacoins. This roll is independent of CTR Tokens and previous races.
 
 Purchased items add their flat bonus to the Skin Album multiplier and the store's purchased bonus total. A conditional bonus applies only on the next Ring Rally when the race matches it: a Crash Team Racing character, a mask, or that exact track. The store catalog is maintained in `data/store/store.json` and preserves item IDs used by the wallet.
 
