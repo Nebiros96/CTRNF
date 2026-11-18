@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.3.0)
+# Crash™ Team Racing NF - Dashboard (v1.3.1)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -36,7 +36,7 @@ Track stats show the number of records, total laps, and average base score for t
 
 ## Skin album
 
-The Album also tracks CTR Tokens. New Time Trial and Ring Rally records can award a token matching the track's color, with separate odds for each color. The first token of a color adds a 0.020 Ring Rally bonus on matching tracks; collecting all 40 makes that bonus global. Token unlocks are recorded alongside the race and included in user backups.
+The Album also tracks CTR Tokens. New Time Trial and Ring Rally records can award a token matching the track's color. Completing a color adds a 0.200 Ring Rally bonus on matching tracks; collecting all 40 makes that bonus global. The bonus applies to subsequent races. Token unlocks are recorded alongside the race and included in user backups.
 
 The album groups skins by character and by rarity: Basic, Exotic, Legendary, Beenox, and Ultra. At the top you see how many you have unlocked and the global multiplier the next race uses, with any character.
 
@@ -58,7 +58,7 @@ Purchased items add their flat bonus to the Skin Album multiplier and the store'
 
 ## Profile
 
-The profile brings your progress together: your most-used skin across both game modes, recorded runs, developers beaten, unlocked skins, and trophies. Choose Game Overview, Track Overview, or Character Overview. Game Overview groups results by game. Its Time Trial total sums track personal bests and developer times when all tracks have them, and shows the corresponding comparison and reference icons when applicable. Its Ring Rally total sums the available track personal bests, runs, score after bonuses, and laps, with a weighted average base score. Mod tracks are excluded from Ring Rally. Track Overview shows personal bests and runs for each mode, developer comparisons in Time Trial, and average base score, score after bonuses, and laps in Ring Rally. Click a column heading to sort the list.
+The profile brings your progress together: your most-used skin across both game modes, recorded runs, developers beaten, unlocked skins, and trophies. Choose Game Overview, Track Overview, Character Overview, or Logs. Logs combines both race modes, newest first, in pages of 50 with the track, character, skin, record number, and recorded date and time. Game Overview groups results by game. Its Time Trial total sums track personal bests and developer times when all tracks have them, and shows the corresponding comparison and reference icons when applicable. Its Ring Rally total sums the available track personal bests, runs, score after bonuses, and laps, with a weighted average base score. Mod tracks are excluded from Ring Rally. Track Overview shows personal bests and runs for each mode, developer comparisons in Time Trial, and average base score, score after bonuses, and laps in Ring Rally. Click a column heading to sort the list.
 
 ![Player profile with progress totals and a sortable track overview](utils/profile.JPG)
 

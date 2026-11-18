@@ -58,6 +58,7 @@ BASE_SKIN_TYPES = frozenset({"basic", "exotic", "legendary", "beenox"})
 UNLOCK_COST = {"basic": 500_000, "exotic": 2_000_000, "legendary": 5_000_000, "beenox": 10_000_000, "ultra": 20_000_000}
 # Added to the global multiplier. 1 milli = 0.001, so the next score is ×1.001.
 BONUS_MILLI = {"basic": 1, "exotic": 2, "legendary": 3, "beenox": 5, "ultra": 10}
+TOKEN_BONUS_MILLI = 200
 _rally_lock = threading.Lock()
 _store_lock = threading.RLock()
 _token_lock = threading.RLock()
@@ -313,9 +314,9 @@ def _token_award(track: str) -> dict | None:
 def _token_bonus_milli(track: str = "") -> int:
     tokens = token_progress()
     if tokens and all(item["unlocked"] >= item["total"] for item in tokens):
-        return 20
+        return TOKEN_BONUS_MILLI
     color = (_track_catalog_row(track).get("token") or "").strip()
-    return 20 if any(item["color"] == color and item["unlocked"] for item in tokens) else 0
+    return TOKEN_BONUS_MILLI if any(item["color"] == color and item["total"] > 0 and item["unlocked"] >= item["total"] for item in tokens) else 0
 
 
 def _ensure_time_trial_notes(path: Path) -> None:
@@ -1850,7 +1851,7 @@ def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = N
     _state, global_milli = _achievement_state(stats, catalog)
     tokens = token_progress()
     if tokens and all(item["unlocked"] >= item["total"] for item in tokens):
-        global_milli += 20
+        global_milli += TOKEN_BONUS_MILLI
     return {
         "characters": characters,
         "active_character_id": active,

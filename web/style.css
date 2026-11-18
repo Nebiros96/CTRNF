@@ -1076,6 +1076,18 @@ body {
 .profile-nav-button:hover, .store-category:hover { color:var(--text); background:#2a1d42; }
 .profile-nav-button.active, .store-category.active { color:#1a0d00; border-color:var(--accent); background:linear-gradient(100deg,var(--nitro),var(--accent)); }
 .profile-nav-button:focus-visible, .store-category:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.profile-pagination { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:16px; color:var(--muted); font-size:13px; }
+.profile-pagination > div { display:flex; align-items:center; gap:10px; }
+.profile-pagination .profile-nav-button:disabled { opacity:.45; cursor:default; }
+.profile-logs td, .profile-logs th { padding:5px 10px; }
+.profile-log-character { display:flex; align-items:center; gap:8px; }
+.profile-log-avatar, .profile-log-image, .profile-log-placeholder { width:32px; height:32px; flex:none; }
+.profile-log-avatar { display:grid; place-items:center; }
+.profile-log-image { object-fit:contain; }
+.profile-log-placeholder { display:grid; place-items:center; color:var(--muted); font-size:10px; }
+.profile-log-filters { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px; }
+.profile-log-search { display:grid; gap:6px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+.profile-log-search input { min-width:240px; padding:10px 12px; border:1px solid #4a3870; background:#100b1b; color:var(--text); font:14px var(--ui); }
 .profile-heading h2 { text-transform:capitalize; }
 .profile-character { display:flex; align-items:center; gap:10px; }
 .profile-character img { width:32px; height:32px; object-fit:contain; }
@@ -1112,6 +1124,7 @@ body {
 @media (prefers-reduced-motion: reduce) { .store-card-face { transition: none; } }
 .token-album { margin-top: 12px; }
 .token-card { min-width: 0; }
+.token-card.locked .skin-art { filter: grayscale(1); }
 @media (max-width: 720px) {
   .token-album { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; overflow: visible; }
   .token-card { grid-template-columns: 1fr; justify-items: center; text-align: center; }
