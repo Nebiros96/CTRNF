@@ -61,6 +61,8 @@ UNLOCK_COST = {"basic": 500_000, "exotic": 2_000_000, "legendary": 5_000_000, "b
 # Added to the global multiplier. 1 milli = 0.001, so the next score is ×1.001.
 BONUS_MILLI = {"basic": 1, "exotic": 2, "legendary": 3, "beenox": 5, "ultra": 10}
 TOKEN_BONUS_MILLI = 200
+TOKEN_UNLOCK_PROBABILITIES = (1.0, 0.5, 0.3, 0.2, 0.1)
+TOKEN_UNLOCK_PROBABILITY_AFTER_FIFTH = 0.05
 _rally_lock = threading.Lock()
 _store_lock = threading.RLock()
 _token_lock = threading.RLock()
@@ -305,10 +307,16 @@ def token_progress() -> list[dict]:
 
 def _token_award(track: str) -> dict | None:
     color = (_track_catalog_row(track).get("token") or "").strip()
-    entry = next ( (item for item in token_progress() if item["color"] == color), None)
+    entry = next((item for item in token_progress() if item["color"] == color), None)
     if not entry or entry["unlocked"] >= entry["total"]:
         return None
-    if random.random() >= 0.5 ** (min(entry["unlocked"], 5) + 1):
+    token_index = entry["unlocked"]
+    probability = (
+        TOKEN_UNLOCK_PROBABILITIES[token_index]
+        if token_index < len(TOKEN_UNLOCK_PROBABILITIES)
+        else TOKEN_UNLOCK_PROBABILITY_AFTER_FIFTH
+    )
+    if random.random() >= probability:
         return None
     return {**entry, "unlocked": entry["unlocked"] + 1}
 
@@ -1042,13 +1050,16 @@ def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, in
     return 0, 0
 
 
-def _achievement_state(stats: dict, catalog: dict) -> tuple[dict[str, dict], int]:
+def _achievement_state(
+    stats: dict, catalog: dict, store_global_milli: int = 0
+) -> tuple[dict[str, dict], int]:
     """Progress of every trophy and the global bonus, skins included.
 
-    The multiplier trophy looks at skins plus the other trophies, without its
-    own bonus. Ring Rally Legend unlocks only after every other trophy that
-    adds a bonus. An empty mult is 0, so that trophy stays on the list and
-    unlocking it does not move the Ring Rally multiplier.
+    The multiplier trophy looks at skins, the other trophies, and the
+    purchased unconditional store bonus, without its own bonus. Ring Rally
+    Legend unlocks only after every other trophy that adds a bonus. An empty
+    mult is 0, so that trophy stays on the list and unlocking it does not move
+    the Ring Rally multiplier.
     """
     achievements = catalog.get("achievements") or []
     regular = [ach for ach in achievements if ach["kind"] not in {"multiplier", "platinum"}]
@@ -1064,8 +1075,9 @@ def _achievement_state(stats: dict, catalog: dict) -> tuple[dict[str, dict], int
             bonus += ach["milli"]
     if multiplier is not None:
         target = multiplier["goal_milli"]
-        unlocked = target > 0 and bonus >= target
-        state[multiplier["id"]] = {"current": bonus, "target": target, "unlocked": unlocked}
+        current = bonus + store_global_milli
+        unlocked = target > 0 and current >= target
+        state[multiplier["id"]] = {"current": current, "target": target, "unlocked": unlocked}
         if unlocked:
             bonus += multiplier["milli"]
     others = [ach for ach in achievements if ach is not platinum and ach["milli"] > 0]
@@ -1369,6 +1381,17 @@ def _store_milli_for_skin(skin: str, catalog: dict, track: str = "") -> int:
     return total
 
 
+def _store_global_milli() -> int:
+    """Purchased unconditional store bonus, matching Album's global multiplier."""
+    with _store_lock:
+        owned = _purchased_ids(_read_wallet())
+    return sum(
+        item["bonus_all_milli"]
+        for item in _load_store_items()
+        if item["id"] in owned
+    )
+
+
 def _weekend_wumpa_multiplier(captured_at: str) -> int:
     """Friday, Saturday and Sunday use the local date on the race stamp."""
     try:
@@ -1565,7 +1588,8 @@ def score_with_progression(
     prior_stats = _stats_from_rows(prior_rows, catalog)
     _apply_time_trials(prior_stats, catalog)
     store_milli = _store_milli_for_skin(skin, catalog, track) + token_milli
-    prior_state, milli = _achievement_state(prior_stats, catalog)
+    store_global_milli = _store_global_milli()
+    prior_state, milli = _achievement_state(prior_stats, catalog, store_global_milli)
     milli += store_milli
     points = prior_stats["points_by"].get(character_id, 0) if character_id else 0
     score_mult = scaled_score(score, milli)
@@ -1579,7 +1603,7 @@ def score_with_progression(
             catalog,
             score_mult=score_mult,
         )
-        state, new_milli = _achievement_state(trial, catalog)
+        state, new_milli = _achievement_state(trial, catalog, store_global_milli)
         new_milli += store_milli
         unlocked = [step for step in ladder if step["threshold"] <= points + score_mult]
         fresh = [step for step in unlocked if step["threshold"] > points]
@@ -1852,7 +1876,7 @@ def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = N
     active = _character_id(rows[-1].get("skin", ""), catalog) if rows else ""
     stats = _stats_from_rows(rows, catalog)
     _apply_time_trials(stats, catalog)
-    _state, global_milli = _achievement_state(stats, catalog)
+    _state, global_milli = _achievement_state(stats, catalog, _store_global_milli())
     tokens = token_progress()
     if tokens and all(item["unlocked"] >= item["total"] for item in tokens):
         global_milli += TOKEN_BONUS_MILLI
@@ -1870,6 +1894,7 @@ def build_trophies(rows: list[dict[str, str]], catalog: dict | None = None) -> d
     """PlayStation-style trophy list. Dates come from the race that crossed each goal."""
     catalog = catalog or load_rally_catalog()
     achievements = catalog.get("achievements") or []
+    store_global_milli = _store_global_milli()
     stats = _blank_stats()
     unlocked_at: dict[str, str] = {}
 
@@ -1887,14 +1912,14 @@ def build_trophies(rows: list[dict[str, str]], catalog: dict | None = None) -> d
             _add_rally_row(stats, row, catalog)
         else:
             _add_time_trial_row(stats, row, catalog)
-        final_state, total_milli = _achievement_state(stats, catalog)
+        final_state, total_milli = _achievement_state(stats, catalog, store_global_milli)
         captured = (row.get("captured_at") or "").strip()
         for ach in achievements:
             info = final_state.get(ach["id"], {})
             if info.get("unlocked") and ach["id"] not in unlocked_at:
                 unlocked_at[ach["id"]] = captured
     if not events:
-        final_state, total_milli = _achievement_state(stats, catalog)
+        final_state, total_milli = _achievement_state(stats, catalog, store_global_milli)
     trophies = []
     unlocked_count = 0
     for ach in achievements:
