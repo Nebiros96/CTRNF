@@ -1800,6 +1800,116 @@
       "unlock_condition": [66, 72],
       "unlock_label": "Dr. N. Tropy Crashmoji and Crash Twinsanity Nefarious Tropy",
       "character_id": 16
+    },
+    {
+      "item_id": 74,
+      "name": "Doctor Nitrus Brio Avatar",
+      "price": 4200,
+      "level": 1,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/b/b4/Crash_Bandicoot_N._Sane_Trilogy_Doctor_Nitrus_Brio.png/revision/latest?cb=20170705232130",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+          37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
+          47, 48, 49, 50, 51, 52, 53, 54, 55, 56
+        ],
+        "label": "CTR Nitro Fueled characters"
+      },
+      "additional_conditions": [
+        {
+          "bonus_milli": 2,
+          "condition": {
+            "type": "characters",
+            "character_ids": [39],
+            "label": "Dr. N. Brio"
+          }
+        }
+      ],
+      "item_category": "Avatar",
+      "character_id": 39
+    },
+    {
+      "item_id": 75,
+      "name": "Koala Kong Avatar",
+      "price": 4200,
+      "level": 1,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/5/57/Crash_Bandicoot_N._Sane_Trilogy_Koala_Kong.png/revision/latest?cb=20170701125624",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+          37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
+          47, 48, 49, 50, 51, 52, 53, 54, 55, 56
+        ],
+        "label": "CTR Nitro Fueled characters"
+      },
+      "additional_conditions": [
+        {
+          "bonus_milli": 2,
+          "condition": {
+            "type": "characters",
+            "character_ids": [41],
+            "label": "Koala Kong"
+          }
+        }
+      ],
+      "item_category": "Avatar",
+      "character_id": 41,
+      "album_unlock_condition": {
+        "type": "skin_count",
+        "character_ids": [41],
+        "minimum_unlocked": 3
+      },
+      "unlock_label": "Koala Kong's first 3 skins unlocked in the Album"
+    },
+    {
+      "item_id": 76,
+      "name": "The Komodo's Brothers Avatar",
+      "price": 10000,
+      "level": 3,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/0/07/Crash_Bandicoot_N._Sane_Trilogy_Komodo_Joe_and_Komodo_Moe.png/revision/latest?cb=20181216012700",
+      "bonus_all_milli": 1,
+      "bonus_condition_milli": 1,
+      "condition": {
+        "type": "characters",
+        "character_ids": [
+          1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+          27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+          41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
+          55, 56
+        ],
+        "label": "CTR and CTR Nitro Fueled characters"
+      },
+      "additional_conditions": [
+        {
+          "bonus_milli": 2,
+          "condition": {
+            "type": "characters",
+            "character_ids": [12, 38],
+            "label": "Komodo Joe or Komodo Moe"
+          }
+        }
+      ],
+      "album_unlock_condition": {
+        "type": "skin_count",
+        "character_ids": [12, 38],
+        "minimum_unlocked": 4
+      },
+      "unlock_label": "4 skins unlocked in the Album between Komodo Joe and Komodo Moe",
+      "album_completion_bonus": {
+        "character_ids": [12, 38],
+        "one_complete_bonus_milli": 10,
+        "both_complete_bonus_milli": 20,
+        "one_complete_label": "One Komodo brother has all skins unlocked in the Album",
+        "both_complete_label": "Both Komodo brothers have all skins unlocked in the Album"
+      },
+      "item_category": "Avatar",
+      "character_ids": [12, 38]
     }
   ]
 }
