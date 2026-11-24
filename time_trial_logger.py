@@ -1289,6 +1289,43 @@ def _condition_matches_race(condition: dict, character_id: str, track_id: str) -
     raise ValueError(f"Unknown store condition type: {condition['type']}")
 
 
+def _album_unlocked_counts(rows: list[dict[str, str]], catalog: dict) -> dict[str, int]:
+    """Count album skins unlocked for each character, including each Basic skin."""
+    points_by = _stats_from_rows(rows, catalog)["points_by"]
+    return {
+        character_id: sum(step["threshold"] <= points_by.get(character_id, 0) for step in ladder)
+        for character_id, ladder in catalog.get("ladders", {}).items()
+    }
+
+
+def _current_album_unlocked_counts(catalog: dict | None = None) -> dict[str, int]:
+    catalog = catalog or load_rally_catalog()
+    with _rally_lock:
+        _fieldnames, rows = _read_rally(RALLY_RING_CSV_PATH)
+    return _album_unlocked_counts(rows, catalog)
+
+
+def _album_skin_requirement_met(condition: dict | None, unlocked_counts: dict[str, int]) -> bool:
+    if not condition:
+        return True
+    if condition.get("type") != "skin_count":
+        raise ValueError(f"Unknown album store condition type: {condition.get('type')}")
+    character_ids = [str(value) for value in condition.get("character_ids", [])]
+    unlocked = sum(unlocked_counts.get(character_id, 0) for character_id in character_ids)
+    return unlocked >= int(condition.get("minimum_unlocked", 0))
+
+
+def _album_completed_character_count(condition: dict | None, unlocked_counts: dict[str, int], catalog: dict) -> int:
+    if not condition:
+        return 0
+    character_ids = [str(value) for value in condition.get("character_ids", [])]
+    return sum(
+        bool(catalog.get("ladders", {}).get(character_id))
+        and unlocked_counts.get(character_id, 0) >= len(catalog["ladders"][character_id])
+        for character_id in character_ids
+    )
+
+
 def _store_help_lines(item: dict) -> list[str]:
     lines = []
     if item["bonus_all_milli"]:
@@ -1307,6 +1344,10 @@ def _store_help_lines(item: dict) -> list[str]:
         lines.append(f"×{item['bonus_coins']} Wumpacoins from every new race")
     for override in item["conditional_overrides"]:
         lines.append(f"+{override['bonus_milli'] / 1000:.3f} if {override['condition']['label']}")
+    completion = item["album_completion_bonus"]
+    if completion:
+        lines.append(f"+{completion['one_complete_bonus_milli'] / 1000:.3f} on every Ring Rally if either Komodo brother has all skins unlocked")
+        lines.append(f"+{completion['both_complete_bonus_milli'] / 1000:.3f} on every Ring Rally if both Komodo brothers have all skins unlocked")
     return lines
 
 
@@ -1330,6 +1371,7 @@ def _load_store_items() -> list[dict]:
                 "name": name,
                 "item_category": row["item_category"],
                 "character_id": row.get("character_id"),
+                "character_ids": row.get("character_ids", []),
                 "level": row.get("level"),
                 "track_id": row.get("track_id"),
                 "price": int(row["price"]),
@@ -1338,6 +1380,8 @@ def _load_store_items() -> list[dict]:
                 "condition": condition,
                 "conditional_overrides": row.get("conditional_overrides", []),
                 "additional_conditions": row.get("additional_conditions", []),
+                "album_unlock_condition": row.get("album_unlock_condition"),
+                "album_completion_bonus": row.get("album_completion_bonus"),
                 "unlock_condition": [str(value) for value in required],
                 "unlock_label": row.get("unlock_label", ""),
                 "bonus_coins_flat": int(row.get("bonus_coins_flat", 0)),
@@ -1347,16 +1391,20 @@ def _load_store_items() -> list[dict]:
             }
         )
     for item in items:
-        if item["item_category"] == "Avatar" and item["character_id"] is not None:
-            prices = sorted({other["price"] for other in items if other["item_category"] == item["item_category"] and other["character_id"] == item["character_id"]})
-            item["level"] = item["level"] if item["level"] is not None else prices.index(item["price"]) + 1
+        if item["item_category"] == "Avatar":
+            if item["level"] is None and item["character_id"] is not None:
+                prices = sorted({other["price"] for other in items if other["item_category"] == item["item_category"] and other["character_id"] == item["character_id"]})
+                item["level"] = prices.index(item["price"]) + 1
         else:
             item["level"] = None
     return items
 
 
-def _store_milli_for_skin(skin: str, catalog: dict, track: str = "") -> int:
+def _store_milli_for_skin(
+    skin: str, catalog: dict, track: str = "", prior_rows: list[dict[str, str]] | None = None
+) -> int:
     """Purchased store bonus for this race. Conditional bonuses need the matching character or track."""
+    album_counts = _album_unlocked_counts(prior_rows or [], catalog)
     with _store_lock:
         owned = _purchased_ids(_read_wallet())
     if not owned:
@@ -1378,18 +1426,34 @@ def _store_milli_for_skin(skin: str, catalog: dict, track: str = "") -> int:
         for extra in item["additional_conditions"]:
             if _condition_matches_race(extra["condition"], character_id, track_id):
                 total += int(extra["bonus_milli"])
+        completion = item["album_completion_bonus"]
+        complete_count = _album_completed_character_count(completion, album_counts, catalog)
+        if complete_count == 1:
+            total += int(completion["one_complete_bonus_milli"])
+        elif complete_count >= 2:
+            total += int(completion["both_complete_bonus_milli"])
     return total
 
 
-def _store_global_milli() -> int:
+def _store_global_milli(album_counts: dict[str, int] | None = None, catalog: dict | None = None) -> int:
     """Purchased unconditional store bonus, matching Album's global multiplier."""
+    catalog = catalog or load_rally_catalog()
+    if album_counts is None:
+        album_counts = _current_album_unlocked_counts(catalog)
     with _store_lock:
         owned = _purchased_ids(_read_wallet())
-    return sum(
-        item["bonus_all_milli"]
-        for item in _load_store_items()
-        if item["id"] in owned
-    )
+    total = 0
+    for item in _load_store_items():
+        if item["id"] not in owned:
+            continue
+        total += item["bonus_all_milli"]
+        completion = item["album_completion_bonus"]
+        complete_count = _album_completed_character_count(completion, album_counts, catalog)
+        if complete_count == 1:
+            total += int(completion["one_complete_bonus_milli"])
+        elif complete_count >= 2:
+            total += int(completion["both_complete_bonus_milli"])
+    return total
 
 
 def _weekend_wumpa_multiplier(captured_at: str) -> int:
@@ -1411,8 +1475,11 @@ def race_wumpas(track: str, mode: str, captured_at: str) -> int:
     return base * _weekend_wumpa_multiplier(captured_at)
 
 
-def store_bonus_summary() -> dict:
+def store_bonus_summary(album_counts: dict[str, int] | None = None, catalog: dict | None = None) -> dict:
     """Purchased store bonuses. The conditional part depends on who races."""
+    catalog = catalog or load_rally_catalog()
+    if album_counts is None:
+        album_counts = _current_album_unlocked_counts(catalog)
     with _store_lock:
         owned = _purchased_ids(_read_wallet())
     always = 0
@@ -1421,6 +1488,17 @@ def store_bonus_summary() -> dict:
         if item["id"] not in owned:
             continue
         always += item["bonus_all_milli"]
+        completion = item["album_completion_bonus"]
+        complete_count = _album_completed_character_count(completion, album_counts, catalog)
+        if complete_count == 1:
+            always += int(completion["one_complete_bonus_milli"])
+        elif complete_count >= 2:
+            always += int(completion["both_complete_bonus_milli"])
+        if completion:
+            one_label = completion["one_complete_label"]
+            both_label = completion["both_complete_label"]
+            grouped[one_label] = grouped.get(one_label, 0) + int(completion["one_complete_bonus_milli"])
+            grouped[both_label] = grouped.get(both_label, 0) + int(completion["both_complete_bonus_milli"])
         for additional in item["additional_conditions"]:
             additional_label = additional["condition"]["label"]
             grouped[additional_label] = grouped.get(additional_label, 0) + int(additional["bonus_milli"])
@@ -1492,6 +1570,8 @@ def credit_race_coins(mode: str, race_id: str, track: str, captured_at: str, bre
 
 
 def store_payload() -> dict:
+    album_catalog = load_rally_catalog()
+    album_counts = _current_album_unlocked_counts(album_catalog)
     with _store_lock:
         rows = _read_wallet()
         balance = _wallet_balance(rows)
@@ -1503,13 +1583,16 @@ def store_payload() -> dict:
         purchased = item["id"] in owned
         required = item["unlock_condition"]
         missing = [identifier for identifier in required if identifier not in owned]
-        locked = bool(missing)
+        album_locked = not _album_skin_requirement_met(item["album_unlock_condition"], album_counts)
+        locked = bool(missing) or album_locked
+        unlock_name = item["unlock_label"] or ", ".join(names.get(identifier, identifier) for identifier in missing)
         items.append(
             {
                 "id": item["id"],
                 "name": item["name"],
                 "item_category": item["item_category"],
                 "character_id": item["character_id"],
+                "character_ids": item.get("character_ids", []),
                 "track_id": item["track_id"],
                 "level": item["level"],
                 "price": item["price"],
@@ -1522,7 +1605,7 @@ def store_payload() -> dict:
                 "purchased": purchased,
                 "locked": locked and not purchased,
                 "unlock_condition": required,
-                "unlock_name": item["unlock_label"] or ", ".join(names.get(identifier, identifier) for identifier in missing),
+                "unlock_name": unlock_name,
                 "affordable": purchased or (not locked and balance >= item["price"]),
             }
         )
@@ -1537,6 +1620,8 @@ def store_payload() -> dict:
 
 def buy_store_item(item_id: str) -> dict:
     item_id = str(item_id or "").strip()
+    album_catalog = load_rally_catalog()
+    album_counts = _current_album_unlocked_counts(album_catalog)
     with _store_lock:
         catalog = {item["id"]: item for item in _load_store_items()}
         item = catalog.get(item_id)
@@ -1550,6 +1635,8 @@ def buy_store_item(item_id: str) -> dict:
         if missing:
             labels = [catalog[identifier]["name"] if identifier in catalog else identifier for identifier in missing]
             raise ValueError(f"Buy {', '.join(labels)} first to unlock {item['name']}.")
+        if not _album_skin_requirement_met(item["album_unlock_condition"], album_counts):
+            raise ValueError(f"{item['unlock_label'] or 'Album skin requirement'} to unlock {item['name']}.")
         balance = _wallet_balance(rows)
         if balance < item["price"]:
             raise ValueError(f"Not enough Wumpacoins. {item['name']} costs {item['price']:,}.")
@@ -1587,8 +1674,9 @@ def score_with_progression(
     ladder = catalog["ladders"].get(character_id, []) if character_id else []
     prior_stats = _stats_from_rows(prior_rows, catalog)
     _apply_time_trials(prior_stats, catalog)
-    store_milli = _store_milli_for_skin(skin, catalog, track) + token_milli
-    store_global_milli = _store_global_milli()
+    album_counts = _album_unlocked_counts(prior_rows, catalog)
+    store_milli = _store_milli_for_skin(skin, catalog, track, prior_rows) + token_milli
+    store_global_milli = _store_global_milli(album_counts, catalog)
     prior_state, milli = _achievement_state(prior_stats, catalog, store_global_milli)
     milli += store_milli
     points = prior_stats["points_by"].get(character_id, 0) if character_id else 0
@@ -1876,7 +1964,8 @@ def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = N
     active = _character_id(rows[-1].get("skin", ""), catalog) if rows else ""
     stats = _stats_from_rows(rows, catalog)
     _apply_time_trials(stats, catalog)
-    _state, global_milli = _achievement_state(stats, catalog, _store_global_milli())
+    album_counts = _album_unlocked_counts(rows, catalog)
+    _state, global_milli = _achievement_state(stats, catalog, _store_global_milli(album_counts, catalog))
     tokens = token_progress()
     if tokens and all(item["unlocked"] >= item["total"] for item in tokens):
         global_milli += TOKEN_BONUS_MILLI
@@ -1886,7 +1975,7 @@ def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = N
         "unlocked": unlocked_total,
         "total_skins": skins_total,
         "multiplier": f"{global_milli / 1000:.3f}",
-        "store_bonus": store_bonus_summary(),
+        "store_bonus": store_bonus_summary(album_counts, catalog),
     }
 
 
@@ -1894,7 +1983,7 @@ def build_trophies(rows: list[dict[str, str]], catalog: dict | None = None) -> d
     """PlayStation-style trophy list. Dates come from the race that crossed each goal."""
     catalog = catalog or load_rally_catalog()
     achievements = catalog.get("achievements") or []
-    store_global_milli = _store_global_milli()
+    store_global_milli = _store_global_milli(_album_unlocked_counts(rows, catalog), catalog)
     stats = _blank_stats()
     unlocked_at: dict[str, str] = {}
 
