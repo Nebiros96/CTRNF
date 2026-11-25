@@ -992,7 +992,11 @@ class DashboardState:
             trophies = core.build_trophies(rallies)
             profiles = load_profiles()
             active_user = next((p["name"] for p in profiles["profiles"] if p["id"] == profiles.get("active")), "")
+            with craft.LOCK:
+                crate_state = craft.state(craft_inventory_path())
+            crates, _ = craft.catalog()
             return {"mode": "profile", "game_running": running, "user_name": active_user,
+                    "crates": crates, "crate_inventory": crate_state["inventory"], "crate_acquired": crate_state["acquired"],
                     "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
                     "balance": core.wallet_balance(), "catalog": catalog,
                     "logs": profile_logs(trials, rallies, tracks, skins, core.ensure_wallet()),

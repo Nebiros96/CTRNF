@@ -32,11 +32,15 @@ def write(path, rows):
         if os.path.exists(name): os.unlink(name)
 
 def state(path):
-    rows=read(path); counts={}; unlocked=[]
+    rows=read(path); counts={}; acquired={}; unlocked=[]
     for row in rows:
         if row['kind']=='unlock': unlocked.append(row['track'])
-        elif row['kind'] != 'race': counts[row['crate_id']]=counts.get(row['crate_id'],0)+int(row['amount'])
-    return {'inventory':counts,'unlocked':unlocked}
+        elif row['kind'] != 'race':
+            amount = int(row['amount'])
+            counts[row['crate_id']]=counts.get(row['crate_id'],0)+amount
+            if row['kind'] in ('earn', 'exchange') and amount > 0:
+                acquired[row['crate_id']] = acquired.get(row['crate_id'], 0) + amount
+    return {'inventory':counts,'acquired':acquired,'unlocked':unlocked}
 
 def exchange(path, target):
     with LOCK:
