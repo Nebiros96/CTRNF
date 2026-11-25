@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.4.0)
+# Crash™ Team Racing NF - Dashboard (v1.4.1)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -60,7 +60,7 @@ Purchased items add their flat bonus to the Skin Album multiplier and the store'
 
 ## Craft
 
-New Time Trial and Ring Rally records award crate boxes after the race summary. Time Trial awards one box; Ring Rally awards one to three based on laps, with no boxes below five laps. Each box reveals a crate type and quantity. Historic records are not converted into crates.
+New Time Trial and Ring Rally records award crate boxes after the race summary. Time Trial awards one box; Ring Rally awards one to three based on laps, with no boxes below five laps. Each box reveals a crate type and quantity. Historic records are not converted into crates. After opening the boxes, the dashboard stays on the current game mode.
 
 Craft shows the shared inventory and each track's level 1 requirements. Spend the required crates manually on a track to unlock a +0.020 multiplier bonus for future Ring Rally records on that track. Mod tracks can award Time Trial boxes but have no Ring Rally unlock. Infinity crates can be exchanged for other crate types under **Infinity Exchange**. Crate inventory and unlocks belong to the selected user and are included in backups.
 

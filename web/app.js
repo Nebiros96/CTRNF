@@ -2748,7 +2748,9 @@ function openLoot(loot, preview = false) {
   $("loot-modal").hidden = false; document.querySelector("main").inert = true;
 }
 $("loot-close").addEventListener("click", () => {
-  $("loot-modal").hidden = true; document.querySelector("main").inert = false; setView("craft");
+  $("loot-modal").hidden = true;
+  document.querySelector("main").inert = false;
+  $(resumeFocus)?.focus();
 });
 async function openCraftPreview() {
   try {
