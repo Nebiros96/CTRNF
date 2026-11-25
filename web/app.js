@@ -22,7 +22,7 @@ let profileMode = "time_trial";
 let profileOverview = "game";
 let profileLogsPage = 0;
 let profileLogsSearch = "";
-let profileLogsMode = "All";
+let profileLogsMode = "Time Trial";
 let profileLogsSort = { key: "date", direction: -1 };
 let profileCharacter = "";
 let profileCharacterSort = { key: "trial_runs", direction: -1 };
@@ -1082,6 +1082,8 @@ async function commitConfirm() {
       setStatus("status", `Saved #${data.record.id} · ${data.record.time_seconds} s`, false);
     }
     closeConfirm();
+    pendingLoot = Array.isArray(data.loot) ? data.loot : [];
+    if (data.loot_error) setStatus(draft.statusId, `Race saved; crates could not be delivered: ${data.loot_error}`, true);
     openResume(draft, data.record || {}, Array.isArray(data.unlocks) ? data.unlocks : []);
     await refresh();
   } catch (error) {
@@ -1571,12 +1573,13 @@ function profileGames(tracks) {
 function profileLogsTable(logs) {
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[char]);
   const query = profileLogsSearch.trim().toLocaleLowerCase();
-  logs = logs.filter((log) => (profileLogsMode === "All" || log.mode === profileLogsMode) &&
+  logs = logs.filter((log) => (log.mode === profileLogsMode) &&
     (!query || [log.track, log.character].some((value) => String(value || "").toLocaleLowerCase().includes(query))));
   const sortValue = (log) => {
     switch (profileLogsSort.key) {
       case "id": return /^\d+$/.test(log.id) ? Number(log.id) : null;
       case "date": return log.timestamp ?? null;
+      case "multiplier": case "wumpas": return log[profileLogsSort.key] != null && log[profileLogsSort.key] !== "" && Number.isFinite(Number(log[profileLogsSort.key])) ? Number(log[profileLogsSort.key]) : null;
       case "result": {
         if (!log.result) return null;
         if (log.mode === "Ring Rally") { const value = Number(log.result); return Number.isFinite(value) ? value : null; }
@@ -1599,11 +1602,13 @@ function profileLogsTable(logs) {
   const start = profileLogsPage * 50;
   const rows = logs.slice(start, start + 50).map((log) => {
     const result = log.result ? (log.mode === "Ring Rally" && /^\d+$/.test(log.result) ? formatScore(log.result) : log.result) : "—";
-    return `<tr><td>${escape(log.id)}</td><td>${escape(log.mode)}</td><td>${escape(log.track)}</td><td><div class="profile-log-character"><span class="profile-log-avatar" data-skin-url="${escape(log.skin_url || "")}"></span><span>${escape(log.character)}<small>${escape(log.skin)}</small></span></div></td><td>${escape(result)}</td><td>${escape(log.date)}</td></tr>`;
+    const multiplier = log.multiplier !== "" && log.multiplier != null && Number.isFinite(Number(log.multiplier)) ? formatFactor(log.multiplier) : "—";
+    const coins = log.wumpas != null && /^\d+$/.test(String(log.wumpas)) ? formatCoins(log.wumpas) : "—";
+    return `<tr><td>${escape(log.id)}</td><td>${escape(log.track)}</td><td><div class="profile-log-character"><span class="profile-log-avatar" data-skin-url="${escape(log.skin_url || "")}"></span><span>${escape(log.character)}<small>${escape(log.skin)}</small></span></div></td><td>${escape(result)}</td>${profileLogsMode === "Ring Rally" ? `<td>${escape(multiplier)}</td>` : ""}<td>${escape(coins)}</td><td>${escape(log.date)}</td></tr>`;
   }).join("");
-  return `<section class="panel profile-tracks profile-logs"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Logs</h2><p>Record numbers belong to each game mode · Time / Score sorts within each mode.</p></div></div>
-    <div class="profile-log-filters"><label class="profile-log-search">Search track or character<input type="search" id="profile-log-search" value="${escape(profileLogsSearch)}" placeholder="Track or character"></label><div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Filter logs by mode">${["All", "Time Trial", "Ring Rally"].map((mode) => `<button type="button" class="profile-mode-button${profileLogsMode === mode ? " active" : ""}" data-log-mode="${mode}" aria-pressed="${profileLogsMode === mode}">${mode}</button>`).join("")}</div></div></div>
-    <div class="profile-table-wrap"><table><thead><tr>${[["id", "Record #"], ["mode", "Mode"], ["track", "Track"], ["character", "Character / skin"], ["result", "Time / Score"], ["date", "Datetime"]].map(([key, label]) => `<th scope="col"${profileLogsSort.key === key ? ` aria-sort="${profileLogsSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-log-sort="${key}">${label} <span aria-hidden="true">${profileLogsSort.key === key ? (profileLogsSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${rows || '<tr><td colspan="6">No matching records.</td></tr>'}</tbody></table></div>
+  return `<section class="panel profile-tracks profile-logs"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Logs</h2></div></div>
+    <div class="profile-log-filters"><label class="profile-log-search">Search track or character<input type="search" id="profile-log-search" value="${escape(profileLogsSearch)}" placeholder="Track or character"></label><div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Filter logs by mode">${["Time Trial", "Ring Rally"].map((mode) => `<button type="button" class="profile-mode-button${profileLogsMode === mode ? " active" : ""}" data-log-mode="${mode}" aria-pressed="${profileLogsMode === mode}">${mode}</button>`).join("")}</div></div></div>
+    <div class="profile-table-wrap"><table><thead><tr>${[["id", "Record #"], ["track", "Track"], ["character", "Character / skin"], ["result", profileLogsMode === "Ring Rally" ? "Score" : "Time"], ...(profileLogsMode === "Ring Rally" ? [["multiplier", "Multiplier"]] : []), ["wumpas", "Wumpacoins"], ["date", "Datetime"]].map(([key, label]) => `<th scope="col"${profileLogsSort.key === key ? ` aria-sort="${profileLogsSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-log-sort="${key}">${label} <span aria-hidden="true">${profileLogsSort.key === key ? (profileLogsSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${rows || '<tr><td colspan="7">No matching records.</td></tr>'}</tbody></table></div>
     <div class="profile-pagination"><span>${logs.length ? `${start + 1}–${Math.min(start + 50, logs.length)} of ${logs.length}` : "0 records"}</span><div><button type="button" class="profile-nav-button" data-log-page="previous" ${profileLogsPage === 0 ? "disabled" : ""}>Previous</button><span>Page ${profileLogsPage + 1} / ${pages}</span><button type="button" class="profile-nav-button" data-log-page="next" ${profileLogsPage >= pages - 1 ? "disabled" : ""}>Next</button></div></div></section>`;
 }
 
@@ -1722,6 +1727,7 @@ function showProfileState(data) {
   });
   root.querySelectorAll("[data-log-mode]").forEach((button) => button.addEventListener("click", () => {
     profileLogsMode = button.dataset.logMode;
+    profileLogsSort = { key: "date", direction: -1 };
     profileLogsPage = 0;
     profileSignature = "";
     showProfileState(data);
@@ -2033,6 +2039,24 @@ function profileDevIndicators(track, isTime = true) {
   return indicators;
 }
 
+function profilePersonalBests(history, isTime) {
+  const entries = history.map((item, index) => ({ ...item, order: index, timestamp: Date.parse(item.date) }));
+  if (entries.every((item) => Number.isFinite(item.timestamp))) {
+    entries.sort((a, b) => a.timestamp - b.timestamp || a.order - b.order);
+  }
+  let best = isTime ? Infinity : -Infinity;
+  const dailyBests = [];
+  for (const item of entries) {
+    if (!Number.isFinite(item.value) || (isTime ? item.value >= best : item.value <= best)) continue;
+    best = item.value;
+    const day = (item.date || "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+    const previous = dailyBests[dailyBests.length - 1];
+    if (day && previous?.day === day) dailyBests[dailyBests.length - 1] = { ...item, day };
+    else dailyBests.push({ ...item, day });
+  }
+  return dailyBests;
+}
+
 function profileChart(name, history, isTime, devTime) {
   const card = document.createElement("section");
   card.className = "profile-chart";
@@ -2046,12 +2070,13 @@ function profileChart(name, history, isTime, devTime) {
     card.append(empty);
     return card;
   }
+  history = profilePersonalBests(history, isTime);
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");
   svg.setAttribute("viewBox", "0 0 500 205");
   svg.setAttribute("preserveAspectRatio", "none");
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", `${name}: ${history.length} records in recorded order. ${isTime ? "Lower is better." : "Higher is better."}`);
+  svg.setAttribute("aria-label", `${name}: ${history.length} personal bests by date. ${isTime ? "Lower is better." : "Higher is better."}`);
   const values = history.map((item) => item.value);
   const devCentis = isTime ? clockCentis(devTime) : Infinity;
   const reference = Number.isFinite(devCentis) && devCentis > 0 ? devCentis / 100 : null;
@@ -2059,7 +2084,11 @@ function profileChart(name, history, isTime, devTime) {
   const min = Math.min(...rangeValues), max = Math.max(...rangeValues);
   const padding = Math.max((max - min) * 0.12, isTime ? 0.5 : Math.max(max * 0.05, 1));
   const low = min - padding, high = max + padding;
-  const x = (i) => history.length === 1 ? 275 : 64 + i * 420 / (history.length - 1);
+  const dated = history.every((item) => Number.isFinite(item.timestamp));
+  const firstDate = history[0].timestamp, lastDate = history[history.length - 1].timestamp;
+  const x = (i) => history.length === 1 ? 274 : dated && lastDate > firstDate
+    ? 64 + (history[i].timestamp - firstDate) * 420 / (lastDate - firstDate)
+    : 64 + i * 420 / (history.length - 1);
   const y = (v) => 15 + (high - v) * 155 / (high - low);
   const format = (v) => isTime ? `${Math.floor(v / 60)}:${(v % 60).toFixed(2).padStart(5, "0")}` : Math.round(v).toLocaleString("en-US");
   for (let i = 0; i < 3; i++) {
@@ -2079,18 +2108,21 @@ function profileChart(name, history, isTime, devTime) {
     tip.textContent = `Faster than developer: ${devTime}`;
     area.append(tip); svg.append(area);
   }
-  const rawStep = Math.max(1, (history.length - 1) / 4);
-  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
-  const step = [1, 2, 5, 10].map((factor) => factor * magnitude).find((value) => value >= rawStep);
-  for (let race = 1; race <= history.length; race += step) {
+  const dateLabel = (item) => {
+    const match = (item.date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return match ? `${match[3]}/${match[2]}/${match[1].slice(2)}` : "Date unavailable";
+  };
+  const tickCount = Math.min(history.length, 3);
+  for (let i = 0; i < tickCount; i++) {
+    const index = tickCount === 1 ? 0 : Math.round(i * (history.length - 1) / (tickCount - 1));
     const label = document.createElementNS(ns, "text");
-    label.setAttribute("x", x(race - 1)); label.setAttribute("y", "188");
-    label.setAttribute("text-anchor", "middle"); label.textContent = String(race);
-    svg.append(label);
+    label.setAttribute("x", x(index)); label.setAttribute("y", "188");
+    label.setAttribute("text-anchor", index === 0 && tickCount > 1 ? "start" : index === history.length - 1 && tickCount > 1 ? "end" : "middle");
+    label.textContent = dateLabel(history[index]); svg.append(label);
   }
   const axisLabel = document.createElementNS(ns, "text");
   axisLabel.setAttribute("x", "274"); axisLabel.setAttribute("y", "203");
-  axisLabel.setAttribute("text-anchor", "middle"); axisLabel.textContent = "Race number";
+  axisLabel.setAttribute("text-anchor", "middle"); axisLabel.textContent = "Date";
   svg.append(axisLabel);
   const polyline = document.createElementNS(ns, "polyline");
   polyline.setAttribute("points", history.map((item, i) => `${x(i)},${y(item.value)}`).join(" "));
@@ -2100,7 +2132,7 @@ function profileChart(name, history, isTime, devTime) {
     const dot = document.createElementNS(ns, "circle");
     dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(item.value)); dot.setAttribute("r", "3.5"); dot.setAttribute("class", isTime ? "chart-dot trial" : "chart-dot rally");
     const tip = document.createElementNS(ns, "title");
-    tip.textContent = `#${i + 1} · ${item.label || format(item.value)} · ${item.date || "Date unavailable"}`;
+    tip.textContent = `PB ${i + 1} · ${item.label || format(item.value)} · ${dateLabel(item)}`;
     dot.append(tip); svg.append(dot);
   });
   const caption = document.createElement("p");
@@ -2121,6 +2153,7 @@ function setView(name) {
   $("view-progress").hidden = name !== "progress";
   $("view-trophies").hidden = name !== "trophies";
   $("view-store").hidden = name !== "store";
+  $("view-craft").hidden = name !== "craft";
   pendingStoreBuy = "";
   currentMode = name === "profile" ? "profile" : name === "rally" ? "rally_ring" : name === "progress" ? "rally_progress" : name === "trophies" ? "rally_trophies" : name === "store" ? "store" : "time_trial";
   for (const button of document.querySelectorAll(".nav-btn")) {
@@ -2130,7 +2163,100 @@ function setView(name) {
     else button.removeAttribute("aria-current");
   }
   window.scrollTo({ top: 0 });
-  refresh();
+  if (name === "craft") loadCraft();
+  else refresh();
+}
+
+let craftPage = "tracks";
+function setCraftPage(page) {
+  craftPage = page;
+  $("craft-grid").hidden = page !== "tracks";
+  $("craft-exchange").hidden = page !== "exchange";
+
+  document.querySelectorAll("[data-craft-page]").forEach((button) => {
+    const active = button.dataset.craftPage === page;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+document.querySelectorAll("[data-craft-page]").forEach((button) => button.addEventListener("click", () => setCraftPage(button.dataset.craftPage)));
+
+async function craftAction(action, data) {
+  const response = await fetch(`/api/craft/${action}`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data)});
+  const result = await response.json(); if (!response.ok) throw new Error(result.error || "Craft action failed");
+  await loadCraft();
+}
+
+async function loadCraft() {
+  const grid = $("craft-grid"), status = $("craft-status");
+  try {
+    const response = await fetch("/api/craft", {cache: "no-store"});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not load Craft");
+    const crates = new Map(data.crates.map((item) => [item.id, item]));
+    grid.replaceChildren();
+    const inventory = $("craft-inventory-grid"); inventory.replaceChildren();
+    for (const crate of data.crates) {
+      const quantity = data.inventory[crate.id] || 0;
+      if (quantity <= 0) continue;
+      const item = document.createElement("div"); item.className = "craft-inventory-item";
+      const icon = document.createElement("img"); icon.src = crate.image_url; icon.alt = "";
+      const label = document.createElement("span"); label.textContent = crate.name;
+      const count = document.createElement("strong"); count.textContent = `×${quantity}`;
+      item.append(icon, label, count); inventory.append(item);
+    }
+    if (!inventory.childElementCount) {
+      const empty = document.createElement("p"); empty.className = "craft-inventory-empty"; empty.textContent = "No crates yet."; inventory.append(empty);
+    }
+    const exchange = $("craft-exchange"); exchange.replaceChildren();
+    const heading = document.createElement("h3"); heading.textContent = `Infinity exchange · ${data.inventory.infinity || 0} available`; exchange.append(heading);
+    const exchangeGrid = document.createElement("div"); exchangeGrid.className = "store-grid craft-exchange-grid";
+    for (const rate of [...data.rates].sort((a, b) => a.infinity_cost - b.infinity_cost)) {
+      const crate = crates.get(rate.target_crate_id);
+      const card = document.createElement("article"); card.className = "store-card craft-exchange-card";
+      const frame = document.createElement("div"); frame.className = "store-frame craft-exchange-frame";
+      const icon = document.createElement("img"); icon.src = crate.image_url; icon.alt = ""; frame.append(icon);
+      const name = document.createElement("h3"); name.className = "store-name"; name.textContent = `${crate.name} ×${rate.target_quantity}`;
+      const price = document.createElement("div"); price.className = "store-price";
+      const infinity = document.createElement("img"); infinity.src = crates.get("infinity").image_url; infinity.alt = "";
+      const amount = document.createElement("span"); amount.textContent = `${rate.infinity_cost} Infinity`;
+      price.append(infinity, amount);
+      const button = document.createElement("button"); button.className = "button store-buy"; button.type = "button";
+      button.disabled = (data.inventory.infinity || 0) < rate.infinity_cost;
+      button.textContent = button.disabled ? "Not enough" : "Exchange";
+      button.addEventListener("click", async () => { try { await craftAction("exchange", {crate_id: rate.target_crate_id}); } catch(e) { status.textContent=e.message; } });
+      card.append(frame, name, price, button); exchangeGrid.append(card);
+    }
+    exchange.append(exchangeGrid);
+    for (const track of data.tracks.filter((item) => item.race_rewards.ring_rally.enabled && item.unlock)) {
+      const card = document.createElement("article"); card.className = "craft-card";
+      const picture = document.createElement("div"); picture.className = "craft-track-image";
+      imageBox(picture, track.image_url, track.name);
+      const level = document.createElement("span"); level.className = "craft-track-level";
+      level.textContent = data.unlocked.includes(track.track) ? "LV 1" : "LV 0";
+      picture.append(level);
+      const content = document.createElement("div"); content.className = "craft-content";
+      const title = document.createElement("h3"); title.textContent = track.name;
+      const bonus = document.createElement("p"); bonus.textContent = `Level 1 · +${Number(track.unlock.reward.bonus).toFixed(3)} Ring Rally bonus`;
+      const list = document.createElement("ul");
+      for (const req of track.unlock.requirements) {
+        const item = document.createElement("li"); item.className = "craft-requirement";
+        const crate = crates.get(req.crate_id), have = data.inventory[req.crate_id] || 0;
+        const icon = document.createElement("img"); icon.src = crate?.image_url || ""; icon.alt = "";
+        const label = document.createElement("span"); label.textContent = `${crate?.name || req.crate_id} · ${have} / ${req.quantity}`;
+        const meter = document.createElement("progress"); meter.max = req.quantity; meter.value = Math.min(have,req.quantity); meter.setAttribute("aria-label", `${crate?.name || req.crate_id} progress`);
+        item.append(icon,label,meter); list.append(item);
+      }
+      const button = document.createElement("button"); button.type = "button"; button.className = "button";
+      const unlocked = data.unlocked.includes(track.track), available = track.race_rewards.ring_rally.enabled;
+      button.textContent = unlocked ? "Unlocked" : !available ? "Ring Rally unavailable" : "Unlock level 1";
+      button.disabled = unlocked || !available || track.unlock.requirements.some(r => (data.inventory[r.crate_id] || 0) < r.quantity);
+      button.addEventListener("click", async () => { try { await craftAction("unlock", {track_id:track.track_id}); } catch(e) { status.textContent=e.message; } });
+      content.append(title, bonus, list, button); card.append(picture, content); grid.append(card);
+    }
+    status.textContent = "";
+    setCraftPage(craftPage);
+  } catch (error) { status.textContent = error.message; status.className = "status error"; }
 }
 
 const TRACK_GAME_ORDER = ["Crash Team Racing", "Crash Nitro Kart", "CTR Nitro Fueled", "Mod"];
@@ -2341,6 +2467,7 @@ function paintHeaderCoins(data) {
 }
 
 async function refresh() {
+  if (!$("view-craft").hidden) return;
   const requestId = ++refreshSerial;
   const track = browsedTrackByMode[currentMode];
   const params = new URLSearchParams({ mode: currentMode });
@@ -2553,6 +2680,7 @@ function paintResume(draft, record) {
   box.append(coins);
 }
 
+let pendingLoot = [];
 let resumeFocus = "score";
 
 function openResume(draft, record, items) {
@@ -2592,9 +2720,45 @@ function openResume(draft, record, items) {
 
 function closeUnlocks() {
   $("unlock-modal").hidden = true;
+  if (pendingLoot.length) { openLoot(pendingLoot); pendingLoot = []; return; }
   document.querySelector("main").inert = false;
   const field = $(resumeFocus);
   if (field) field.focus();
+}
+
+function openLoot(loot, preview = false) {
+  const root = $("loot-boxes"); root.replaceChildren();
+  $("loot-title").textContent = preview ? "Crate boxes · Test" : "Crate boxes";
+  $("loot-description").textContent = preview ? "Crash Cove · 380,000 pts · 9 laps. Open each box." : "Open each box to reveal your crates.";
+  $("loot-close").disabled = true;
+  let remaining = loot.length;
+  for (const [index, reward] of loot.entries()) {
+    const button = document.createElement("button"); button.type = "button"; button.className = "loot-box";
+    const icon = document.createElement("img"); icon.src = "https://static.wikia.nocookie.net/crashban/images/d/dc/Fusion_crate_smash_icon.png/revision/latest?cb=20250509125607"; icon.alt = "";
+    const label = document.createElement("strong"); label.textContent = `BOX ${index + 1}`;
+    const hint = document.createElement("span"); hint.textContent = "OPEN";
+    button.append(icon, label, hint);
+    button.addEventListener("click", () => {
+      icon.src = reward.image_url; label.textContent = reward.name; hint.textContent = `×${reward.quantity}`;
+      button.disabled = true; button.classList.add("revealed"); remaining--;
+      if (!remaining) $("loot-close").disabled = false;
+    }, {once:true});
+    root.append(button);
+  }
+  $("loot-modal").hidden = false; document.querySelector("main").inert = true;
+}
+$("loot-close").addEventListener("click", () => {
+  $("loot-modal").hidden = true; document.querySelector("main").inert = false; setView("craft");
+});
+async function openCraftPreview() {
+  try {
+    const response = await fetch("/api/craft/preview", {method:"POST"});
+    if (!response.ok) throw new Error("Preview unavailable");
+    const data = await response.json(); openLoot(data.loot, true);
+  } catch (error) { console.error(error); }
+}
+if (new URLSearchParams(location.search).get("craft_preview") === "1") {
+  history.replaceState(null, "", location.pathname); openCraftPreview();
 }
 
 $("confirm-ok").addEventListener("click", () => { commitConfirm(); });

@@ -1663,6 +1663,7 @@ def score_with_progression(
     laps: int = 0,
     track: str = "",
     token_milli: int = 0,
+    craft_milli: int = 0,
 ) -> dict:
     """Snapshot the global multiplier for one new score without rewriting older rows.
 
@@ -1675,7 +1676,7 @@ def score_with_progression(
     prior_stats = _stats_from_rows(prior_rows, catalog)
     _apply_time_trials(prior_stats, catalog)
     album_counts = _album_unlocked_counts(prior_rows, catalog)
-    store_milli = _store_milli_for_skin(skin, catalog, track, prior_rows) + token_milli
+    store_milli = _store_milli_for_skin(skin, catalog, track, prior_rows) + token_milli + craft_milli
     store_global_milli = _store_global_milli(album_counts, catalog)
     prior_state, milli = _achievement_state(prior_stats, catalog, store_global_milli)
     milli += store_milli
@@ -1821,7 +1822,9 @@ def _new_rally_record(
             except (TypeError, ValueError):
                 continue
             previous = old_score if previous is None else max(previous, old_score)
-    progress = score_with_progression(rows, skin, score, catalog, laps=laps, track=track, token_milli=_token_bonus_milli(track))
+    import craft
+    craft_milli = 20 if track in craft.state(RALLY_RING_CSV_PATH.parent / "crates.csv")["unlocked"] else 0
+    progress = score_with_progression(rows, skin, score, catalog, laps=laps, track=track, token_milli=_token_bonus_milli(track), craft_milli=craft_milli)
     record_id = max((int(row["id"]) for row in rows if str(row.get("id", "")).isdigit()), default=0) + 1
     return {
         "id": str(record_id),

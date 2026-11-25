@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "crates": [
+    {
+      "id": "basic",
+      "name": "Basic Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/7/74/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Basic_Crate.png/revision/latest?cb=20170609000305",
+      "rarity": 99,
+      "is_wildcard": false
+    },
+    {
+      "id": "question",
+      "name": "? Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/9/9f/Crash_Bandicoot_Purple_Ripto%27s_Rampage_%3F_Crate.png/revision/latest?cb=20170609000923",
+      "rarity": 90,
+      "is_wildcard": false
+    },
+    {
+      "id": "bounce",
+      "name": "Bounce Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/7/75/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Bounce_Crate.png/revision/latest?cb=20170609000309",
+      "rarity": 80,
+      "is_wildcard": false
+    },
+    {
+      "id": "life",
+      "name": "Life Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/a/a2/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Life_Crate.png/revision/latest?cb=20170609000940",
+      "rarity": 50,
+      "is_wildcard": false
+    },
+    {
+      "id": "aku_aku",
+      "name": "Aku Aku Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/1/14/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Aku_Aku_Crate.png/revision/latest?cb=20170609000303",
+      "rarity": 40,
+      "is_wildcard": false
+    },
+    {
+      "id": "check_point",
+      "name": "Check Point Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/6/6a/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Check_Point_Crate.png/revision/latest?cb=20170609000310",
+      "rarity": 60,
+      "is_wildcard": false
+    },
+    {
+      "id": "tnt",
+      "name": "TNT Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/9/91/Crash_Bandicoot_Purple_Ripto%27s_Rampage_TNT_Crate.png/revision/latest?cb=20170609001159",
+      "rarity": 75,
+      "is_wildcard": false
+    },
+    {
+      "id": "wooden_arrow",
+      "name": "Wooden Arrow Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/4/45/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Wooden_Arrow_Crate.png/revision/latest?cb=20170609001201",
+      "rarity": 25,
+      "is_wildcard": false
+    },
+    {
+      "id": "iron_arrow",
+      "name": "Iron Arrow Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/9/99/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Iron_Arrow_Crate.png/revision/latest?cb=20170609000322",
+      "rarity": 15,
+      "is_wildcard": false
+    },
+    {
+      "id": "iron_exclamation",
+      "name": "Iron ! Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/c/c0/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Iron_%21_Crate.png/revision/latest?cb=20170609000319",
+      "rarity": 10,
+      "is_wildcard": false
+    },
+    {
+      "id": "nitro",
+      "name": "Nitro Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/8/8c/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Nitro_Crate.png/revision/latest?cb=20170609000937",
+      "rarity": 60,
+      "is_wildcard": false
+    },
+    {
+      "id": "nitro_switch",
+      "name": "Green Iron ! Nitro Switch Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/3/38/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Green_Iron_%21_Nitro_Switch_Crate.png/revision/latest?cb=20170609000317",
+      "rarity": 10,
+      "is_wildcard": false
+    },
+    {
+      "id": "iron",
+      "name": "Iron Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/3/37/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Iron_Crate.png/revision/latest?cb=20170609001155",
+      "rarity": 22,
+      "is_wildcard": false
+    },
+    {
+      "id": "time",
+      "name": "Time Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/8/89/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Time_Crate.png/revision/latest?cb=20170609001158",
+      "rarity": 20,
+      "is_wildcard": false
+    },
+    {
+      "id": "outline",
+      "name": "Outline Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/6/6f/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Outline_Crate.png/revision/latest?cb=20170609000936",
+      "rarity": 5,
+      "is_wildcard": false
+    },
+    {
+      "id": "locked",
+      "name": "Locked Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/9/9e/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Locked_Crate.png/revision/latest?cb=20170609000938",
+      "rarity": 33,
+      "is_wildcard": false
+    },
+    {
+      "id": "slot",
+      "name": "Slot Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/a/a8/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Slot_Crate.png/revision/latest?cb=20170609000918",
+      "rarity": 20,
+      "is_wildcard": false
+    },
+    {
+      "id": "freeze",
+      "name": "Freeze Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/e/ed/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Freeze_Crate.png/revision/latest?cb=20170609000313",
+      "rarity": 8,
+      "is_wildcard": false
+    },
+    {
+      "id": "iron_aku_aku",
+      "name": "Iron Aku Aku Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/a/a3/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Iron_Aku_Aku_Crate.png/revision/latest?cb=20170609000939",
+      "rarity": 5,
+      "is_wildcard": false
+    },
+    {
+      "id": "infinity",
+      "name": "Infinity Crate",
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/2/24/Fusion_infinity_crate.png/revision/latest?cb=20250512143018",
+      "rarity": 50,
+      "is_wildcard": true
+    }
+  ]
+}

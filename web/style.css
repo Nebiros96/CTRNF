@@ -1141,3 +1141,66 @@ body {
   .token-card .skin-frame, .token-card .skin-title, .token-card .skin-state { grid-column: auto; grid-row: auto; margin: 0; }
 }
 #token-summary { color: var(--muted); font-size: 13px; }
+
+.craft-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(265px,1fr)); gap:14px; margin-top:20px; }
+.craft-card { overflow:hidden; background:#1a202c; border:1px solid var(--line); border-radius:10px; }
+.craft-track-image { height:120px; overflow:hidden; background:#111827; }
+.craft-track-image img { width:100%; height:100%; object-fit:cover; }
+.craft-content { padding:14px; }
+.craft-content h3 { margin:0 0 5px; }
+.craft-content p { color:#ffc627; margin:0 0 10px; font-size:12px; }
+.craft-content ul { list-style:none; padding:0; margin:0; color:var(--muted); font-size:12px; line-height:1.7; }
+
+.craft-exchange { margin:18px 0; padding:16px; background:#1a202c; border:1px solid var(--line); border-radius:10px; }
+.craft-exchange-grid { display:flex; gap:8px; overflow-x:auto; padding:8px 0; }
+.craft-exchange-item { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:125px; padding:8px; background:#211832; color:white; border:1px solid var(--line); cursor:pointer; }
+.craft-exchange-item:disabled { opacity:.55; cursor:not-allowed; }
+.craft-exchange-item img,.craft-requirement img { width:auto; height:auto; max-width:38px; max-height:38px; object-fit:contain; }
+.craft-requirement { display:grid; grid-template-columns:38px 1fr; align-items:center; column-gap:12px; margin:12px 0; }
+.craft-requirement img { grid-row:span 2; }
+.craft-requirement progress { width:100%; height:6px; accent-color:#ffbb00; }
+.craft-content .button { margin-top:12px; width:100%; }
+
+.craft-nav { margin-top:18px; }
+.craft-grid[hidden], .craft-exchange[hidden] { display:none; }
+
+/* Infinity exchange inventory grid */
+.craft-exchange-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; overflow:visible; padding:12px 0 0; }
+.craft-exchange-item { position:relative; min-width:0; min-height:150px; padding:12px; gap:8px; border:1px solid #493464; background:linear-gradient(160deg,#251c37,#151322); text-align:center; transition:border-color .15s, transform .15s; }
+.craft-exchange-item:not(:disabled):hover { border-color:#ffbf00; transform:translateY(-2px); }
+.craft-exchange-item:disabled { opacity:1; color:#c0b5d7; }
+.craft-exchange-art { position:relative; display:grid; place-items:center; width:100%; min-height:44px; }
+.craft-exchange-reward { position:absolute; bottom:0; left:calc(50% + 16px); color:#ffcc00; font-size:11px; font-weight:800; }
+.craft-exchange-name { min-height:30px; font-size:12px; line-height:1.25; }
+.craft-exchange-cost { margin-top:auto; color:#ffcb00; font-size:11px; font-weight:700; }
+.craft-exchange-item:disabled .craft-exchange-cost { color:#a4936c; }
+
+/* Use the Store layout for Infinity exchange cards. */
+.craft-exchange-grid { grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.craft-exchange-grid .craft-exchange-frame { flex:none; width:75px; height:75px; min-height:75px; }
+.craft-exchange-frame img { display:block; width:auto; height:auto; max-width:75px; max-height:75px; object-fit:contain; }
+@media (max-width:1000px) { .craft-exchange-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media (max-width:750px) { .craft-exchange-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:500px) { .craft-exchange-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+.craft-track-image { position:relative; }
+.craft-track-level { position:absolute; top:8px; right:8px; padding:5px 9px; background:#160f25e8; border:1px solid #ffbd00; color:#ffcb00; font-size:12px; font-weight:800; }
+.craft-inventory { margin-top:20px; padding:16px; background:#1a202c; border:1px solid var(--line); border-radius:10px; }
+.craft-inventory h3 { margin:0 0 12px; }
+.craft-inventory-grid { display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:8px; }
+.craft-inventory-item { min-width:0; display:flex; flex-direction:column; align-items:center; gap:5px; padding:8px 4px; background:var(--well); border:1px solid var(--line); text-align:center; }
+.craft-inventory-item img { width:auto; height:auto; max-width:38px; max-height:38px; }
+.craft-inventory-item span { font-size:10px; overflow-wrap:anywhere; }
+.craft-inventory-item strong { color:#ffcb00; font-size:12px; }
+@media (max-width:1000px) { .craft-inventory-grid { grid-template-columns:repeat(5,minmax(0,1fr)); } }
+@media (max-width:500px) { .craft-inventory-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+.craft-inventory[hidden] { display:none; }
+
+.loot-card { width:min(720px,calc(100vw - 32px)); text-align:center; }
+.loot-boxes { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:14px; margin:22px 0; }
+.loot-box { min-height:165px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:#171326; border:1px solid #765521; color:#ffca13; cursor:pointer; }
+.loot-box img { width:auto; height:auto; max-width:64px; max-height:64px; image-rendering:auto; }
+.loot-box span { font-weight:800; } .loot-box.revealed { opacity:1; color:#fff; border-color:#b78a24; cursor:default; }
+
+.craft-inventory { margin:18px 0 0; padding:0; background:transparent; border:0; border-radius:0; }
+.craft-inventory-empty { grid-column:1 / -1; margin:0; color:var(--muted); font-size:12px; }

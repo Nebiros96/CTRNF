@@ -26,6 +26,10 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import time_trial_logger as core
+import craft
+
+def craft_inventory_path():
+    return RESULTS_CSV.parent / ("crates-preview.csv" if os.environ.get("CTRNF_CRAFT_PREVIEW") == "1" else "crates.csv")
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 WEB_DIR = ROOT / "web"
@@ -48,7 +52,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.3.3"
+APP_VERSION = "CTR - v1.4.0"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -317,7 +321,7 @@ def activate_profile(profile_id: str) -> None:
     RESULTS_CSV = core.CSV_PATH = folder / "time_trials.csv"
     RALLY_RESULTS_CSV = core.RALLY_RING_CSV_PATH = folder / "rally_ring.csv"
     core.STORE_WALLET_PATH = folder / "store" / "wallet.csv"
-    DATA_FILES = {"time_trials.csv": RESULTS_CSV, "rally_ring.csv": RALLY_RESULTS_CSV, "wallet.csv": core.STORE_WALLET_PATH}
+    DATA_FILES = {"time_trials.csv": RESULTS_CSV, "rally_ring.csv": RALLY_RESULTS_CSV, "wallet.csv": core.STORE_WALLET_PATH, "crates.csv": folder / "crates.csv"}
 
 
 def assign_legacy_data(data: dict, profile_id: str) -> None:
@@ -350,11 +354,12 @@ DATA_FILES = {
     "time_trials.csv": RESULTS_CSV,
     "rally_ring.csv": RALLY_RESULTS_CSV,
     "wallet.csv": core.STORE_WALLET_PATH,
+    "crates.csv": RESULTS_CSV.parent / "crates.csv",
 }
 
 
 def export_data(path: Path) -> None:
-    with core._store_lock:
+    with core._store_lock, craft.LOCK:
         _export_data_locked(path)
 
 
@@ -417,7 +422,7 @@ def _is_initial_wallet(path: Path) -> bool:
 
 
 def import_data(path: Path) -> list[str]:
-    with core._store_lock:
+    with core._store_lock, craft.LOCK:
         return _import_data_locked(path)
 
 
@@ -432,6 +437,7 @@ def _import_data_locked(path: Path) -> list[str]:
             "time_trials.csv": {"id", "track", "skin", "time_raw", "time_seconds", "captured_at"},
             "rally_ring.csv": {"id", "track", "skin", "score", "laps", "captured_at"},
             "wallet.csv": set(core.WALLET_FIELDS),
+            "crates.csv": set(craft.FIELDS),
         }
         for name in selected:
             raw = archive.read(entries[name]).decode("utf-8-sig")
@@ -442,7 +448,7 @@ def _import_data_locked(path: Path) -> list[str]:
             if not schemas[name].issubset(set(reader.fieldnames or [])):
                 raise ValueError(f"The layout of {name} is not compatible.")
             rows = list(reader)
-            if any(not row.get("id") for row in rows):
+            if name != "crates.csv" and any(not row.get("id") for row in rows):
                 raise ValueError(f"{name} contains rows without an ID.")
             staged[name] = raw.encode("utf-8-sig")
         conflicts = [name for name in selected if DATA_FILES[name].exists() and DATA_FILES[name].stat().st_size > 0
@@ -607,11 +613,13 @@ def record_date_key(row: dict) -> float:
         return float("inf")
 
 
-def profile_logs(trials: list[dict], rallies: list[dict], tracks: list[dict], skins: list[dict]) -> list[dict]:
+def profile_logs(trials: list[dict], rallies: list[dict], tracks: list[dict], skins: list[dict], wallet: list[dict] | None = None) -> list[dict]:
     """Combine race histories without changing their recorded local date or IDs."""
     tracks_by_raw = {(row.get("track") or "").strip(): row for row in tracks}
     skins_by_raw = {(row.get("skin") or "").strip(): row for row in skins}
     logs = []
+    earnings = {(row.get("mode", "").strip(), row.get("race_id", "").strip()): row.get("coins", "").strip()
+                for row in (wallet or []) if row.get("kind", "").strip() == "earn" and row.get("race_id", "").strip()}
     for mode, rows in (("Time Trial", trials), ("Ring Rally", rallies)):
         for row in rows:
             track = (row.get("track") or "").strip()
@@ -629,6 +637,8 @@ def profile_logs(trials: list[dict], rallies: list[dict], tracks: list[dict], sk
                          "skin": skin_data.get("skin_name") or skin or "—",
                          "skin_url": skin_data.get("url") or "",
                          "result": (row.get("time_raw") if mode == "Time Trial" else row.get("score")) or "",
+                         "multiplier": (row.get("multiplier") or "").strip() if mode == "Ring Rally" else "",
+                         "wumpas": earnings.get(("time_trial" if mode == "Time Trial" else "rally_ring", (row.get("id") or "").strip())),
                          "date": date, "captured_at": captured_at,
                          "timestamp": stamp if stamp != float("inf") else None})
     logs.sort(key=lambda row: (record_date_key(row) == float("inf"),
@@ -985,7 +995,7 @@ class DashboardState:
             return {"mode": "profile", "game_running": running, "user_name": active_user,
                     "log_found": core.DEFAULT_LOG is not None and core.DEFAULT_LOG.is_file(),
                     "balance": core.wallet_balance(), "catalog": catalog,
-                    "logs": profile_logs(trials, rallies, tracks, skins),
+                    "logs": profile_logs(trials, rallies, tracks, skins, core.ensure_wallet()),
                     "characters": profile_character_totals(read_csv(core.CHARACTERS_CSV_PATH), skins, trials, rallies, tracks),
                     "favorite": skin_by_raw.get(favorite), "favorite_runs": counts.get(favorite, 0),
                     "trial_records": len(trials), "rally_records": len(rallies),
@@ -1316,7 +1326,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.3.3"
+    server_version = "CTRTimeTrialDashboard/1.4.0"
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -1332,6 +1342,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        if path == "/api/craft":
+            try:
+                rules = json.loads((ROOT / "data" / "track_crate_rules.json").read_text(encoding="utf-8"))
+                crates = json.loads((ROOT / "data" / "crates.json").read_text(encoding="utf-8"))
+                for track in rules["tracks"]:
+                    track["image_url"] = core.catalog_image_url(track["track_catalog_fields"].get("url", ""))
+                payload = json.dumps({"tracks": rules["tracks"], "crates": crates["crates"], "rates": rules["wildcard_exchange"]["rates"], **craft.state(craft_inventory_path())}, ensure_ascii=False).encode("utf-8")
+                self._send(200, payload, "application/json; charset=utf-8")
+            except (OSError, ValueError, KeyError) as exc:
+                self._send(500, json.dumps({"error": str(exc)}).encode("utf-8"), "application/json; charset=utf-8")
+            return
         if path == "/api/overlay":
             card = parse_qs(urlparse(self.path).query).get("card", ["pb"])[0]
             try:
@@ -1460,6 +1481,25 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         route = urlparse(self.path).path
+        if route == "/api/craft/preview" and os.environ.get("CTRNF_CRAFT_PREVIEW") == "1":
+            try:
+                from uuid import uuid4
+                raw = "octane/t111_crash_cove/t111_crash_cove"
+                boxes = craft.award(craft_inventory_path(), raw, "rally_ring", "preview-" + uuid4().hex, laps=9)
+                self._send(200, json.dumps({"loot": boxes}, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+            except (ValueError, OSError, csv.Error) as exc:
+                self._send(400, json.dumps({"error": str(exc)}).encode("utf-8"), "application/json; charset=utf-8")
+            return
+        if route in ("/api/craft/exchange", "/api/craft/unlock"):
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                data = json.loads(self.rfile.read(size).decode("utf-8"))
+                path = craft_inventory_path()
+                result = craft.exchange(path, str(data.get("crate_id") or "")) if route.endswith("exchange") else craft.unlock(path, data.get("track_id"))
+                self._send(200, json.dumps(result).encode("utf-8"), "application/json; charset=utf-8")
+            except (ValueError, OSError, csv.Error, json.JSONDecodeError) as exc:
+                self._send(400, json.dumps({"error": str(exc)}).encode("utf-8"), "application/json; charset=utf-8")
+            return
         if route == "/api/store/buy":
             try:
                 size = int(self.headers.get("Content-Length", "0"))
@@ -1488,7 +1528,20 @@ class Handler(BaseHTTPRequestHandler):
                 record, unlocks = core.save_rally_record(str(data.get("track") or "null"), str(data.get("skin") or "null"), str(data.get("score") or ""), str(data.get("laps") or ""), RALLY_RESULTS_CSV)
             else:
                 record = core.save_record(str(data.get("track") or "null"), str(data.get("skin") or "null"), str(data.get("time") or ""), RESULTS_CSV)
-            body = json.dumps({"record": record, "unlocks": unlocks}, ensure_ascii=False).encode("utf-8")
+            loot = []
+            loot_error = None
+            try:
+                tier = "neither"
+                if mode != "rally_ring":
+                    _, rules = craft.catalog()
+                    track = next(t for t in rules["tracks"] if t["track"] == record["track"])
+                    meta = track["track_catalog_fields"]
+                    flags = beat_flags(record.get("time_seconds", ""), meta.get("dev_time", ""), meta.get("velo_time", ""))
+                    tier = "dev_beaten" if flags["beat_dev"] else "velo_only" if flags["beat_velo"] else "neither"
+                loot = craft.award(craft_inventory_path(), record["track"], mode, f"{mode}:{record['id']}", laps=int(record.get("laps") or 0), tier=tier)
+            except (OSError, ValueError, KeyError, StopIteration, csv.Error) as exc:
+                loot_error = str(exc) or "Track is not in the crate catalog"
+            body = json.dumps({"record": record, "unlocks": unlocks, "loot": loot, "loot_error": loot_error}, ensure_ascii=False).encode("utf-8")
             self._send(200, body, "application/json; charset=utf-8")
         except (ValueError, OSError, csv.Error, json.JSONDecodeError) as exc:
             body = json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8")

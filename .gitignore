@@ -3,6 +3,7 @@ __pycache__/
 build/
 dist/
 *.spec
+!CTRNF.spec
 *.py[cod]
 # Pruebas locales de Python
 test_*.py
@@ -28,11 +29,7 @@ data/settings.json
 data/profiles/
 data/profiles.json
 
-# Catálogos que definen la esencia: fantasmas, skins, personajes y trofeos.
-data/game_tracks.csv
-data/game_skins.csv
-data/game_characters.csv
-data/achievements.csv
+# Los catálogos del juego son parte de la aplicación; no contienen partidas personales.
 
 # Descubrimiento generado por el escáner, no es fuente del juego.
 game_catalog.csv
@@ -48,3 +45,14 @@ Desktop.ini
 # Demo autocontenida: solo se publica su HTML
 /demo/*
 !/demo/index.html
+
+# Craft inventory, local simulation and generated review artifacts
+data/crates.csv
+data/crates-preview.csv
+**/crates.csv
+**/crates-preview.csv
+outputs/
+tmp_crates_sheet/
+*.zip
+
+!tests/test_craft.py
