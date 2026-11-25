@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.4.1)
+# Crash™ Team Racing NF - Dashboard (v1.4.2)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -62,11 +62,13 @@ Purchased items add their flat bonus to the Skin Album multiplier and the store'
 
 New Time Trial and Ring Rally records award crate boxes after the race summary. Time Trial awards one box; Ring Rally awards one to three based on laps, with no boxes below five laps. Each box reveals a crate type and quantity. Historic records are not converted into crates. After opening the boxes, the dashboard stays on the current game mode.
 
-Craft shows the shared inventory and each track's level 1 requirements. Spend the required crates manually on a track to unlock a +0.020 multiplier bonus for future Ring Rally records on that track. Mod tracks can award Time Trial boxes but have no Ring Rally unlock. Infinity crates can be exchanged for other crate types under **Infinity Exchange**. Crate inventory and unlocks belong to the selected user and are included in backups.
+Craft shows the shared inventory, its total crate count and each track's level 1 requirements. Spend the required crates manually on a track to unlock a +0.020 multiplier bonus for future Ring Rally records on that track. Mod tracks can award Time Trial boxes but have no Ring Rally unlock. Under **Crate Exchange**, select a crate to spend and exchange it for another; each recipe costs a set number of source crates and yields one target crate. Select **Exchange** and then **Confirm** to complete the trade. Infinity is a regular crate. Crate inventory and unlocks belong to the selected user and are included in backups.
 
 ## Profile
 
 The profile brings your progress together: your most-used skin across both game modes, recorded runs, developers beaten, unlocked skins, and trophies. Choose Game Overview, Track Overview, Character Overview, or Logs. Logs displays one selected mode at a time, newest first in pages of 50, with track, character, skin, result, Wumpacoins and date; Ring Rally also shows the multiplier. Game Overview groups results by game. Its Time Trial total sums track personal bests and developer times when all tracks have them, and shows the corresponding comparison and reference icons when applicable. Its Ring Rally total sums the available track personal bests, runs, score after bonuses, and laps, with a weighted average base score. Mod tracks are excluded from Ring Rally. Track Overview shows personal bests and runs for each mode, developer comparisons in Time Trial, and average base score, score after bonuses, and laps in Ring Rally. Click a column heading to sort the list.
+
+Crate History shows the total acquired and the current inventory for each crate. Click a column heading to sort ascending or descending.
 
 ![Player profile with progress totals and a sortable track overview](utils/profile.JPG)
 

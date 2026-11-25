@@ -24,6 +24,7 @@ let profileLogsPage = 0;
 let profileLogsSearch = "";
 let profileLogsMode = "Time Trial";
 let profileLogsSort = { key: "date", direction: -1 };
+let profileCrateSort = { key: "name", direction: 1 };
 let profileCharacter = "";
 let profileCharacterSort = { key: "trial_runs", direction: -1 };
 let profileCharacterMode = "time_trial";
@@ -1484,11 +1485,11 @@ function paintStore(data) {
   for (const item of purchased) ownedGrid.append(storeCard(item, data.coin_icon));
 }
 
-document.querySelectorAll(".store-category").forEach((button) => {
+document.querySelectorAll("[data-category]").forEach((button) => {
   button.addEventListener("click", () => {
     storeCategory = button.dataset.category;
     pendingStoreBuy = "";
-    document.querySelectorAll(".store-category").forEach((tab) => {
+    document.querySelectorAll("[data-category]").forEach((tab) => {
       const active = tab === button;
       tab.classList.toggle("active", active);
       tab.setAttribute("aria-pressed", String(active));
@@ -1615,9 +1616,16 @@ function profileLogsTable(logs) {
 function profileCrateHistory(data, escape) {
   const crates = data.crates || [];
   const acquired = data.crate_acquired || {}, inventory = data.crate_inventory || {};
-  const rows = crates.map((crate) => `<tr><td><div class="profile-crate"><img src="${escape(crate.image_url)}" alt=""><span>${escape(crate.name)}</span></div></td><td>${formatScore(acquired[crate.id] || 0)}</td><td>${formatScore(inventory[crate.id] || 0)}</td></tr>`).join("");
+  const sorted = [...crates].sort((a, b) => {
+    const nameOrder = a.name.localeCompare(b.name);
+    const comparison = profileCrateSort.key === "name" ? nameOrder :
+      Number((profileCrateSort.key === "acquired" ? acquired : inventory)[a.id] || 0) - Number((profileCrateSort.key === "acquired" ? acquired : inventory)[b.id] || 0);
+    return comparison * profileCrateSort.direction || nameOrder;
+  });
+  const rows = sorted.map((crate) => `<tr><td><div class="profile-crate"><img src="${escape(crate.image_url)}" alt=""><span>${escape(crate.name)}</span></div></td><td>${formatScore(acquired[crate.id] || 0)}</td><td>${formatScore(inventory[crate.id] || 0)}</td></tr>`).join("");
   const total = (values) => crates.reduce((sum, crate) => sum + (values[crate.id] || 0), 0);
-  return `<section class="panel profile-tracks profile-crate-history"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Crate History</h2></div></div><div class="profile-table-wrap"><table><thead><tr><th scope="col">Crate</th><th scope="col">Total acquired</th><th scope="col">Current inventory</th></tr></thead><tbody>${rows}<tr class="profile-total"><th scope="row">Total</th><td>${formatScore(total(acquired))}</td><td>${formatScore(total(inventory))}</td></tr></tbody></table></div><p class="profile-legend">Total acquired includes crates earned from races and received through exchanges.</p></section>`;
+  const headings = [["name", "Crate"], ["acquired", "Total acquired"], ["inventory", "Current inventory"]].map(([key, label]) => `<th scope="col"${profileCrateSort.key === key ? ` aria-sort="${profileCrateSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-crate-sort="${key}">${label} <span aria-hidden="true">${profileCrateSort.key === key ? (profileCrateSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("");
+  return `<section class="panel profile-tracks profile-crate-history"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>Crate History</h2></div></div><div class="profile-table-wrap"><table><thead><tr>${headings}</tr></thead><tbody>${rows}<tr class="profile-total"><th scope="row">Total</th><td>${formatScore(total(acquired))}</td><td>${formatScore(total(inventory))}</td></tr></tbody></table></div><p class="profile-legend">Total acquired includes crates earned from races and received through exchanges.</p></section>`;
 }
 
 function showProfileState(data) {
@@ -1754,6 +1762,13 @@ function showProfileState(data) {
     profileSignature = "";
     showProfileState(data);
     root.querySelector(`[data-log-sort="${key}"]`)?.focus({ preventScroll: true });
+  }));
+  root.querySelectorAll("[data-crate-sort]").forEach((button) => button.addEventListener("click", () => {
+    const key = button.dataset.crateSort;
+    profileCrateSort = { key, direction: profileCrateSort.key === key ? -profileCrateSort.direction : (key === "name" ? 1 : -1) };
+    profileSignature = "";
+    showProfileState(data);
+    root.querySelector(`[data-crate-sort="${key}"]`)?.focus({ preventScroll: true });
   }));
   root.querySelectorAll(".profile-sort[data-sort]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -2155,6 +2170,15 @@ function profileChart(name, history, isTime, devTime) {
 }
 
 function setView(name) {
+  if (name === "store") {
+    storeCategory = "skin";
+    storeSignature = "";
+    document.querySelectorAll("[data-category]").forEach((tab) => {
+      const active = tab.dataset.category === "skin";
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-pressed", String(active));
+    });
+  }
   $("view-profile").hidden = name !== "profile";
   $("view-register").hidden = name !== "register";
   $("view-rally").hidden = name !== "rally";
@@ -2163,6 +2187,7 @@ function setView(name) {
   $("view-store").hidden = name !== "store";
   $("view-craft").hidden = name !== "craft";
   pendingStoreBuy = "";
+  pendingCraftExchange = "";
   currentMode = name === "profile" ? "profile" : name === "rally" ? "rally_ring" : name === "progress" ? "rally_progress" : name === "trophies" ? "rally_trophies" : name === "store" ? "store" : "time_trial";
   for (const button of document.querySelectorAll(".nav-btn")) {
     const active = button.dataset.view === name;
@@ -2176,7 +2201,15 @@ function setView(name) {
 }
 
 let craftPage = "tracks";
+let craftSource = "basic";
+let pendingCraftExchange = "";
 function setCraftPage(page) {
+  if (craftPage !== page) {
+    pendingCraftExchange = "";
+    document.querySelectorAll("[data-exchange-key]").forEach((button) => {
+      if (button.textContent === "Confirm") button.textContent = "Exchange";
+    });
+  }
   craftPage = page;
   $("craft-grid").hidden = page !== "tracks";
   $("craft-exchange").hidden = page !== "exchange";
@@ -2195,6 +2228,86 @@ async function craftAction(action, data) {
   await loadCraft();
 }
 
+function renderCraftExchange(data, focusSource = false) {
+  const exchange = $("craft-exchange"), status = $("craft-status");
+  const crates = new Map(data.crates.map((item) => [item.id, item]));
+  const sourceCrate = crates.get(craftSource) || data.crates[0];
+  craftSource = sourceCrate.id;
+  exchange.replaceChildren();
+
+  const layout = document.createElement("div"); layout.className = "craft-exchange-layout";
+  const sidebar = document.createElement("aside"); sidebar.className = "craft-source-panel";
+  const sourceHeader = document.createElement("div"); sourceHeader.className = "craft-source-header";
+  const eyebrow = document.createElement("span"); eyebrow.className = "eyebrow"; eyebrow.textContent = "Your crates";
+  const title = document.createElement("h3"); title.textContent = "Choose a crate";
+  sourceHeader.append(eyebrow, title);
+  const sourceList = document.createElement("div"); sourceList.className = "craft-source-list";
+  sourceList.setAttribute("role", "group"); sourceList.setAttribute("aria-label", "Crate to spend");
+  for (const crate of data.crates) {
+    const option = document.createElement("button"); option.type = "button";
+    option.className = "craft-source-option"; option.dataset.crateId = crate.id;
+    const active = crate.id === craftSource;
+    option.classList.toggle("active", active); option.setAttribute("aria-pressed", String(active));
+    const icon = document.createElement("img"); icon.src = crate.image_url; icon.alt = "";
+    const name = document.createElement("span"); name.className = "craft-source-name"; name.textContent = crate.name;
+    const count = document.createElement("strong"); count.className = "craft-source-count"; count.textContent = String(data.inventory[crate.id] || 0);
+    option.append(icon, name, count);
+    option.addEventListener("click", () => { craftSource = crate.id; pendingCraftExchange = ""; renderCraftExchange(data, true); });
+    sourceList.append(option);
+  }
+  sidebar.append(sourceHeader, sourceList);
+
+  const results = document.createElement("section"); results.className = "craft-exchange-results";
+  results.setAttribute("aria-label", "Available crate exchanges");
+  const resultsHeader = document.createElement("div"); resultsHeader.className = "craft-results-header";
+  const info = document.createElement("div");
+  const resultEyebrow = document.createElement("span"); resultEyebrow.className = "eyebrow"; resultEyebrow.textContent = "Crate exchange";
+  const resultsTitle = document.createElement("h3"); resultsTitle.textContent = `Exchange ${sourceCrate.name}`;
+  const description = document.createElement("p"); description.textContent = "Choose a crate to receive. Each exchange gives one crate.";
+  info.append(resultEyebrow, resultsTitle, description);
+  const balance = document.createElement("div"); balance.className = "craft-results-balance";
+  const balanceIcon = document.createElement("img"); balanceIcon.src = sourceCrate.image_url; balanceIcon.alt = "";
+  const balanceText = document.createElement("span");
+  const balanceNumber = document.createElement("strong"); balanceNumber.textContent = String(data.inventory[craftSource] || 0);
+  const balanceLabel = document.createElement("small"); balanceLabel.textContent = "AVAILABLE";
+  balanceText.append(balanceNumber, balanceLabel); balance.append(balanceIcon, balanceText);
+  resultsHeader.append(info, balance);
+  const exchangeGrid = document.createElement("div"); exchangeGrid.className = "store-grid craft-exchange-grid";
+  for (const rate of data.rates.filter((item) => item.source_crate_id === craftSource).sort((a, b) => a.source_quantity - b.source_quantity)) {
+    const crate = crates.get(rate.target_crate_id);
+    const card = document.createElement("article"); card.className = "store-card craft-exchange-card";
+    const frame = document.createElement("div"); frame.className = "store-frame craft-exchange-frame";
+    const icon = document.createElement("img"); icon.src = crate.image_url; icon.alt = ""; frame.append(icon);
+    const name = document.createElement("h3"); name.className = "store-name"; name.textContent = `${crate.name} ×${rate.target_quantity}`;
+    const price = document.createElement("div"); price.className = "store-price";
+    const sourceIcon = document.createElement("img"); sourceIcon.src = sourceCrate.image_url; sourceIcon.alt = "";
+    const amount = document.createElement("span"); amount.textContent = String(rate.source_quantity);
+    price.setAttribute("aria-label", `${rate.source_quantity} ${sourceCrate.name}`);
+    price.append(sourceIcon, amount);
+    const button = document.createElement("button"); button.className = "button store-buy"; button.type = "button";
+    const exchangeKey = `${rate.source_crate_id}:${rate.target_crate_id}`;
+    button.dataset.exchangeKey = exchangeKey;
+    button.disabled = (data.inventory[craftSource] || 0) < rate.source_quantity;
+    button.textContent = button.disabled ? "Not enough" : pendingCraftExchange === exchangeKey ? "Confirm" : "Exchange";
+    button.addEventListener("click", async () => {
+      if (pendingCraftExchange !== exchangeKey) {
+        pendingCraftExchange = exchangeKey;
+        renderCraftExchange(data);
+        exchange.querySelector(`[data-exchange-key="${exchangeKey}"]`)?.focus({preventScroll:true});
+        return;
+      }
+      pendingCraftExchange = "";
+      button.disabled = true;
+      button.textContent = "Exchanging…";
+      try { await craftAction("exchange", {source_crate_id: rate.source_crate_id, target_crate_id: rate.target_crate_id}); }
+      catch(e) { status.textContent=e.message; status.className = "status error"; button.disabled = false; button.textContent = "Exchange"; }
+    });
+    card.append(frame, name, price, button); exchangeGrid.append(card);
+  }
+  results.append(resultsHeader, exchangeGrid); layout.append(sidebar, results); exchange.append(layout);
+  if (focusSource) sourceList.querySelector(`[data-crate-id="${craftSource}"]`)?.focus({preventScroll:true});
+}
+
 async function loadCraft() {
   const grid = $("craft-grid"), status = $("craft-status");
   try {
@@ -2204,6 +2317,7 @@ async function loadCraft() {
     const crates = new Map(data.crates.map((item) => [item.id, item]));
     grid.replaceChildren();
     const inventory = $("craft-inventory-grid"); inventory.replaceChildren();
+    $("craft-inventory-total").textContent = formatScore(data.crates.reduce((sum, crate) => sum + Number(data.inventory[crate.id] || 0), 0));
     for (const crate of data.crates) {
       const quantity = data.inventory[crate.id] || 0;
       if (quantity <= 0) continue;
@@ -2216,26 +2330,7 @@ async function loadCraft() {
     if (!inventory.childElementCount) {
       const empty = document.createElement("p"); empty.className = "craft-inventory-empty"; empty.textContent = "No crates yet."; inventory.append(empty);
     }
-    const exchange = $("craft-exchange"); exchange.replaceChildren();
-    const heading = document.createElement("h3"); heading.textContent = `Infinity exchange · ${data.inventory.infinity || 0} available`; exchange.append(heading);
-    const exchangeGrid = document.createElement("div"); exchangeGrid.className = "store-grid craft-exchange-grid";
-    for (const rate of [...data.rates].sort((a, b) => a.infinity_cost - b.infinity_cost)) {
-      const crate = crates.get(rate.target_crate_id);
-      const card = document.createElement("article"); card.className = "store-card craft-exchange-card";
-      const frame = document.createElement("div"); frame.className = "store-frame craft-exchange-frame";
-      const icon = document.createElement("img"); icon.src = crate.image_url; icon.alt = ""; frame.append(icon);
-      const name = document.createElement("h3"); name.className = "store-name"; name.textContent = `${crate.name} ×${rate.target_quantity}`;
-      const price = document.createElement("div"); price.className = "store-price";
-      const infinity = document.createElement("img"); infinity.src = crates.get("infinity").image_url; infinity.alt = "";
-      const amount = document.createElement("span"); amount.textContent = `${rate.infinity_cost} Infinity`;
-      price.append(infinity, amount);
-      const button = document.createElement("button"); button.className = "button store-buy"; button.type = "button";
-      button.disabled = (data.inventory.infinity || 0) < rate.infinity_cost;
-      button.textContent = button.disabled ? "Not enough" : "Exchange";
-      button.addEventListener("click", async () => { try { await craftAction("exchange", {crate_id: rate.target_crate_id}); } catch(e) { status.textContent=e.message; } });
-      card.append(frame, name, price, button); exchangeGrid.append(card);
-    }
-    exchange.append(exchangeGrid);
+    renderCraftExchange(data);
     for (const track of data.tracks.filter((item) => item.race_rewards.ring_rally.enabled && item.unlock)) {
       const card = document.createElement("article"); card.className = "craft-card";
       const picture = document.createElement("div"); picture.className = "craft-track-image";

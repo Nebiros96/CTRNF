@@ -140,7 +140,7 @@
       "name": "Infinity Crate",
       "image_url": "https://static.wikia.nocookie.net/crashban/images/2/24/Fusion_infinity_crate.png/revision/latest?cb=20250512143018",
       "rarity": 50,
-      "is_wildcard": true
+      "is_wildcard": false
     }
   ]
 }

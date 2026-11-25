@@ -42,14 +42,25 @@ def state(path):
                 acquired[row['crate_id']] = acquired.get(row['crate_id'], 0) + amount
     return {'inventory':counts,'acquired':acquired,'unlocked':unlocked}
 
-def exchange(path, target):
+def exchange(path, source, target):
+    """Atomically spend the source crates and award one selected target crate."""
     with LOCK:
-        crates, rules = catalog(); rate=next((r for r in rules['wildcard_exchange']['rates'] if r['target_crate_id']==target),None)
-        if rate is None: raise ValueError('Invalid crate')
-        rows=read(path); inventory=state(path)['inventory']; cost=rate['infinity_cost']
-        if inventory.get('infinity',0)<cost: raise ValueError('Not enough Infinity crates')
-        rows.extend([{'kind':'exchange','crate_id':'infinity','amount':-cost,'track':''}, {'kind':'exchange','crate_id':target,'amount':rate['target_quantity'],'track':''}]); write(path,rows)
+        _, rules = catalog()
+        rate = next((r for r in rules['crate_exchange']['recipes']
+                     if r['source_crate_id'] == source and r['target_crate_id'] == target), None)
+        if rate is None:
+            raise ValueError('Invalid exchange recipe')
+        rows = read(path)
+        cost = rate['source_quantity']
+        if state(path)['inventory'].get(source, 0) < cost:
+            raise ValueError('Not enough crates')
+        rows.extend([
+            {'kind': 'exchange', 'crate_id': source, 'amount': -cost, 'track': ''},
+            {'kind': 'exchange', 'crate_id': target, 'amount': rate['target_quantity'], 'track': ''},
+        ])
+        write(path, rows)
         return state(path)
+
 
 def unlock(path, track_id):
     with LOCK:

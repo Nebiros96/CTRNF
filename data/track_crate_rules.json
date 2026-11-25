@@ -7,8 +7,8 @@
     "probability": "Final per-lootbox probabilities sum to 1 for each Time Trial tier and Ring Rally lap count. Probabilities were derived by flattening the earlier reference weights and normalizing to 0.01 percentage points, so rare crates remain rarer while avoiding very long waits. At least 10% for each of 20 mutually exclusive types is impossible.",
     "quantity": "On selection, grant a uniformly random integer between min_quantity and max_quantity inclusive. Compared with the earlier pre-calibration draft, Time Trial and Ring Rally quantities are twice as large.",
     "performance_tiers": "Time Trial: strict time comparisons; dev beaten takes priority, otherwise velo beaten, otherwise neither. Ring Rally: no rewards below 5 laps, one to three lootboxes by non-overlapping lap category; probabilities use the exact lap table, capped above maximum. Quantities interpolate linearly between endpoint values, rounding maximum down.",
-    "requirements": "Each track with Ring Rally requires five selected types; mod tracks have no Ring Rally bonus or unlock requirements. Infinity is exchanged independently.",
-    "wildcard": "Infinity can be exchanged independently of unlocking a bonus. Rates define exact integer quantities; target inventory and source track scope remain undecided.",
+    "requirements": "Each track with Ring Rally requires five selected types; mod tracks have no Ring Rally bonus or unlock requirements. Infinity is a normal crate.",
+    "wildcard": "Infinity is a normal crate and participates in the same exchange rules as other crates.",
     "reward": "The bonus is additive and applies to Ring Rally on this track only; activation timing is undecided.",
     "rarity": "Higher rarity values indicate more common crates. Baseline probability proposal: 0.01 + 0.59 * (rarity / 99)^1.5; modifiers and limits are recorded per crate.",
     "missing_reference": "When a reference time is unavailable, tier selection requires an explicit decision before implementation; do not assume it was beaten.",
@@ -856,7 +856,7 @@
             "quantity": 30
           },
           {
-            "crate_id": "life",
+            "crate_id": "infinity",
             "quantity": 10
           },
           {
@@ -6894,7 +6894,7 @@
             "quantity": 24
           },
           {
-            "crate_id": "life",
+            "crate_id": "infinity",
             "quantity": 10
           },
           {
@@ -12907,7 +12907,7 @@
             "quantity": 24
           },
           {
-            "crate_id": "life",
+            "crate_id": "infinity",
             "quantity": 10
           },
           {
@@ -18720,7 +18720,7 @@
             "quantity": 24
           },
           {
-            "crate_id": "life",
+            "crate_id": "infinity",
             "quantity": 10
           },
           {
@@ -24483,7 +24483,7 @@
             "quantity": 24
           },
           {
-            "crate_id": "life",
+            "crate_id": "infinity",
             "quantity": 10
           },
           {
@@ -30421,7 +30421,7 @@
             "quantity": 24
           },
           {
-            "crate_id": "life",
+            "crate_id": "infinity",
             "quantity": 10
           },
           {
@@ -36009,7 +36009,7 @@
             "quantity": 24
           },
           {
-            "crate_id": "life",
+            "crate_id": "infinity",
             "quantity": 10
           },
           {
@@ -40494,108 +40494,6 @@
       }
     }
   ],
-  "wildcard_exchange": {
-    "wildcard_crate_id": "infinity",
-    "independent_of_unlock": true,
-    "track_scope": null,
-    "rates": [
-      {
-        "target_crate_id": "basic",
-        "infinity_cost": 1,
-        "target_quantity": 2
-      },
-      {
-        "target_crate_id": "question",
-        "infinity_cost": 1,
-        "target_quantity": 2
-      },
-      {
-        "target_crate_id": "bounce",
-        "infinity_cost": 1,
-        "target_quantity": 2
-      },
-      {
-        "target_crate_id": "life",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "aku_aku",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "check_point",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "tnt",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "wooden_arrow",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "iron_arrow",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "iron_exclamation",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "nitro",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "nitro_switch",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "iron",
-        "infinity_cost": 5,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "time",
-        "infinity_cost": 8,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "outline",
-        "infinity_cost": 12,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "locked",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "slot",
-        "infinity_cost": 15,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "freeze",
-        "infinity_cost": 20,
-        "target_quantity": 1
-      },
-      {
-        "target_crate_id": "iron_aku_aku",
-        "infinity_cost": 3,
-        "target_quantity": 1
-      }
-    ]
-  },
   "reward_rules": {
     "time_trial": {
       "tier_order": [
@@ -40648,5 +40546,2290 @@
       ],
       "is_illustrative": true
     }
+  },
+  "crate_exchange": {
+    "recipes": [
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "question",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "bounce",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "tnt",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "check_point",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "nitro",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "life",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "infinity",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 30,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "locked",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "iron",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "time",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "slot",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "freeze",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "outline",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "basic",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "bounce",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "tnt",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "check_point",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "nitro",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "life",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "infinity",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "locked",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "iron",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "time",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "slot",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "freeze",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "outline",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "question",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "tnt",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "check_point",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "nitro",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "life",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "infinity",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "locked",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "iron",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "time",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "slot",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "freeze",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "outline",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "bounce",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "check_point",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "nitro",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "life",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "infinity",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "locked",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 20,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "iron",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "time",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "slot",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 40,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "freeze",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "outline",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "tnt",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 50,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "life",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "infinity",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "locked",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "iron",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "time",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "slot",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "freeze",
+        "source_quantity": 30,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "outline",
+        "source_quantity": 30,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "check_point",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 30,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "life",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "infinity",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "locked",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "iron",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "time",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "slot",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "freeze",
+        "source_quantity": 30,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "outline",
+        "source_quantity": 30,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 30,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "locked",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "iron",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "time",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "slot",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "freeze",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "outline",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "life",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "locked",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "iron",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "time",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "slot",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "freeze",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "outline",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "infinity",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "locked",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "iron",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "time",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "slot",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "freeze",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "outline",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "aku_aku",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 15,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "iron",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "time",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "slot",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "freeze",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "outline",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "locked",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 10,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "iron",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "time",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "slot",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "freeze",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "outline",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "wooden_arrow",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "time",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "slot",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "freeze",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "outline",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "iron",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "slot",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "freeze",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "outline",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "time",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "iron",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "time",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "freeze",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "outline",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "slot",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "iron",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "time",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "slot",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "freeze",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "outline",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_arrow",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "iron",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "time",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "slot",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "freeze",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "outline",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_exclamation",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "iron",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "time",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "slot",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "freeze",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "outline",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "nitro_switch",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "iron",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "time",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "slot",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "outline",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "freeze",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 4,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "iron",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "time",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "slot",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "freeze",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "outline",
+        "target_crate_id": "iron_aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "basic",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "question",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "bounce",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "tnt",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "check_point",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "nitro",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "life",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "infinity",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "aku_aku",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "locked",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "wooden_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "iron",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "time",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "slot",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "iron_arrow",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "iron_exclamation",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "nitro_switch",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "freeze",
+        "source_quantity": 1,
+        "target_quantity": 1
+      },
+      {
+        "source_crate_id": "iron_aku_aku",
+        "target_crate_id": "outline",
+        "source_quantity": 1,
+        "target_quantity": 1
+      }
+    ],
+    "description": "Exchange crates using the approved graduated cost matrix. One target crate per exchange."
   }
 }
