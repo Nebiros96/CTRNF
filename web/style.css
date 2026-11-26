@@ -461,6 +461,24 @@ body {
 @media (max-width: 420px) {
   .skin-pie { width: 34px; height: 34px; }
 }
+
+/* Keep both navigation rows together while scrolling. */
+.site-navigation { position: sticky; top: 0; z-index: 20; padding-bottom: 4px; border-bottom: 1px solid #493c5b; background: #100b19f5; }
+.site-navigation .header { position: relative; top: auto; z-index: 2; margin-bottom: 8px; }
+.site-navigation .nav { position: relative; z-index: 1; background: #191221; }
+.profile-menu { position: relative; flex: none; }
+.header-profile, .header-profile:hover, .header-profile[aria-expanded="true"] { display: grid; place-items: center; padding: 3px; border: 1px solid transparent; background: transparent; }
+.header-profile:hover .header-profile-icon, .header-profile[aria-expanded="true"] .header-profile-icon { background: #5b4265; color: #ffe29a; }
+.profile-menu-panel { position: absolute; top: calc(100% + 12px); right: 0; width: 220px; padding: 6px; border: 1px solid #514260; background: #1b1428; box-shadow: 0 14px 30px #000a; }
+.profile-menu-panel[hidden] { display: none; }
+.profile-menu-identity { display: grid; gap: 3px; padding: 10px 11px 12px; border-bottom: 1px solid #493a58; }
+.profile-menu-identity small { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.profile-menu-identity strong { overflow: hidden; color: var(--text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.profile-menu-link { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 5px; padding: 10px; border: 0; background: transparent; color: var(--text); cursor: pointer; font: inherit; font-weight: 700; text-align: left; }
+.profile-menu-link:hover, .profile-menu-link[aria-current="page"] { background: #30223d; color: #ffd454; }
+.profile-menu-link:focus-visible { outline: 2px solid #ffd454; outline-offset: -2px; }
+.profile-menu-link svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.profile-menu-link span:last-child { margin-left: auto; font-size: 20px; line-height: 1; }
 .trophy-groups { display: grid; gap: 16px; }
 .trophy-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
 .trophy-top h2 { margin: 0; }
@@ -1012,7 +1030,7 @@ body {
 .avatar-coins-bonus { display: flex; align-items: center; gap: 6px; }
 .avatar-coins-bonus img { width: 17px; height: 17px; flex: none; object-fit: contain; }
 
-.profile-hero { display:flex; align-items:center; gap:22px; margin-bottom:18px; background:linear-gradient(110deg,#27364b,#171d29); }
+.profile-hero { display:flex; align-items:center; gap:22px; min-height:190px; margin-bottom:18px; background:linear-gradient(90deg, #0d0915f2 0%, #0d0915d9 35%, #0d09154d 75%), url("https://static.wikia.nocookie.net/crashban/images/9/94/Rumble_destruction_symphony_banner.gif/revision/latest/scale-to-width-down/1000?cb=20230825151751") center / cover no-repeat, #171d29; }
 .profile-avatar { display:grid; place-items:center; flex:none; min-width:82px; min-height:82px; border-radius:14px; background:#111722; color:var(--muted); font-size:32px; overflow:hidden; }
 .profile-avatar img { display:block; max-width:100%; height:auto; }
 .profile-hero h2 { margin:4px 0; font-size:28px; }
@@ -1147,7 +1165,7 @@ body {
 
 .craft-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(265px,1fr)); gap:14px; margin-top:20px; }
 .craft-card { position:relative; min-width:0; perspective:1000px; }
-.craft-card-face { box-sizing:border-box; width:100%; min-height:100%; overflow:hidden; background:#1a202c; border:1px solid var(--line); border-radius:10px; backface-visibility:hidden; transition:transform .5s ease; }
+.craft-card-face { box-sizing:border-box; width:100%; min-height:100%; overflow:hidden; background:transparent; border:1px solid var(--line); border-radius:10px; backface-visibility:hidden; transition:transform .5s ease; }
 .craft-card-front { position:relative; cursor:pointer; }
 .craft-card-back { position:absolute; inset:0; display:flex; flex-direction:column; transform:rotateY(-180deg); cursor:pointer; }
 .craft-card-back .craft-track-image { flex:none; }
@@ -1243,7 +1261,7 @@ body {
 .craft-source-option.active { background:#30213c; border-color:#d99d00; box-shadow:inset 3px 0 #ffbe00; }
 .craft-source-name { min-width:0; font-size:12px; font-weight:700; line-height:1.25; overflow-wrap:anywhere; }
 .craft-source-count { min-width:26px; color:#ffc400; font-size:13px; text-align:right; }
-.craft-exchange-results { min-width:0; padding:18px; border:1px solid var(--line); background:#1a202c; }
+.craft-exchange-results { min-width:0; padding:18px; border:1px solid var(--line); background:transparent; }
 .craft-results-header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:14px; margin-bottom:12px; }
 .craft-results-header h3 { margin:5px 0; font-size:18px; }
 .craft-results-header p { margin:0; color:var(--muted); font-size:12px; }
@@ -1262,3 +1280,79 @@ body {
   .craft-exchange-results .craft-exchange-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 @media (max-width:500px) { .craft-exchange-results .craft-exchange-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+/* Compact dashboard header and section navigation. */
+.header {
+  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: nowrap;
+  min-height: 70px; margin: 0 0 14px; padding: 8px 14px;
+  border: 0; background: #151120f5;
+  box-shadow: 0 12px 30px #0007; backdrop-filter: blur(12px);
+}
+.brand { gap: 10px; padding: 0; }
+.brand-logo { width: 52px; height: 52px; }
+.brand-copy { min-width: 0; }
+.brand .title { display: block; margin: 0; font-size: 19px; white-space: nowrap; }
+.brand-copy > span { color: var(--muted); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; min-width: 0; }
+.header-coins { position: static; flex: none; gap: 6px; padding: 0; }
+.header-coins img { width: 26px; height: 26px; }
+.header-coins strong { font-size: 19px; }
+.header .pill { font-size: 12px; }
+.header-profile { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 5px 8px; border: 1px solid #514260; background: #21192d; color: var(--text); cursor: pointer; text-align: left; }
+.header-profile:hover, .header-profile[aria-current="page"] { border-color: var(--nitro); background: #30243a; }
+.header-profile:focus-visible, .nav-btn:focus-visible { outline: 2px solid #ffd454; outline-offset: 2px; }
+.header-profile-icon { display: grid; width: 34px; height: 34px; flex: none; place-items: center; border-radius: 50%; background: #463457; color: #f9d174; }
+.header-profile-icon svg, .header-chevron, .nav-btn svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.header-profile-icon svg { width: 20px; height: 20px; }
+.header-profile-copy { display: grid; min-width: 0; line-height: 1.2; }
+.header-profile-copy small { color: var(--muted); font-size: 9px; letter-spacing: .12em; }
+.header-profile-copy strong { max-width: 150px; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.header-chevron { width: 15px; height: 15px; flex: none; color: var(--muted); }
+.nav { flex-wrap: nowrap; gap: 4px; overflow-x: auto; margin-bottom: 0; padding: 6px; }
+.nav-btn { display: inline-flex; flex: 1 0 auto; align-items: center; justify-content: center; gap: 9px; padding: 11px 18px; white-space: nowrap; }
+.nav-btn svg { width: 19px; height: 19px; flex: none; }
+.view-heading { margin: 19px 0 18px; }
+.view-heading h2 { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.view-heading p { margin: 0; color: #c8bddb; font-size: 15px; line-height: 1.5; }
+@media (max-width: 700px) {
+  .header { gap: 8px; padding: 7px 9px; }
+  .brand-logo { width: 42px; height: 42px; }
+  .brand .title { font-size: 14px; }
+  .brand-copy > span { font-size: 9px; }
+  .header-actions { gap: 8px; }
+  .header .pill { max-width: 120px; overflow: hidden; padding: 7px 9px; text-overflow: ellipsis; }
+  .header-profile { padding: 4px; }
+  .header-profile-copy, .header-chevron { display: none; }
+  .header-coins strong { font-size: 16px; }
+  .nav-btn { padding: 10px 16px; }
+}
+@media (max-width: 420px) {
+  .brand-copy > span { display: none; }
+  .brand .title { max-width: 100px; white-space: normal; }
+  .header .pill { max-width: 78px; font-size: 10px; }
+  .header-coins img { width: 21px; height: 21px; }
+}
+
+.shell::before { display: none; }
+.header-profile, .header-profile:hover, .header-profile[aria-expanded="true"] {
+  display: grid; place-items: center; padding: 3px; border: 0;
+  background: transparent; transform: none;
+}
+.header-profile:focus-visible { outline: none; }
+.header-profile:focus-visible .header-profile-icon { box-shadow: 0 0 0 2px #ffd454; }
+.header-profile-icon { transition: background-color .15s, color .15s; }
+.profile-menu-link { font-family: var(--display); font-size: 14px; font-weight: 400; font-style: italic; letter-spacing: .04em; text-transform: uppercase; }
+.craft-inventory.panel { margin: 0 0 18px; padding: 22px; border: 1px solid var(--line); border-radius: 0; background: linear-gradient(160deg, #1a1229 0%, #120c1d 60%); }
+.craft-preview-label { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+.craft-results-balance { padding: 0; border: 0; background: transparent; }
+.profile-summary { margin-bottom: 18px; }
+.profile-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); grid-auto-flow: column; gap: 0 36px; margin: 12px 0 0; }
+.profile-summary-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.profile-summary-row dt { color: var(--muted); font-size: 13px; }
+.profile-summary-row dd { margin: 0; color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.profile-summary-row dd { display: inline-flex; align-items: center; gap: 6px; }
+.profile-summary-icon { width: 20px; height: 20px; object-fit: contain; }
+.profile-summary-note { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
+.profile-heading h2 { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.profile-hero .eyebrow, .profile-summary > .eyebrow, .profile-heading .eyebrow { font-size: 13px; }
+@media (max-width: 600px) { .profile-summary-grid { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; } }

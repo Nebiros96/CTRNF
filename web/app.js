@@ -1698,15 +1698,32 @@ function showProfileState(data) {
     rows += `<tr class="profile-total"><th scope="row">Total</th><td>${bests.length ? formatScore(bests.reduce((total, value) => total + value, 0)) : "—"}</td><td>${formatScore(sum("rally_records"))}</td><td>${scores.length ? formatScore(Math.round(scores.reduce((total, value) => total + value, 0) / scores.length)) : "—"}</td><td>${formatScore(sum("rally_score"))}</td><td>${formatScore(sum("rally_laps"))}</td></tr>`;
   }
   const devs = official.filter((track) => track.dev_time_surpass).length;
+  const album = data.profile_album;
+  const skinBonuses = { basic: 1, exotic: 2, legendary: 3, beenox: 5, ultra: 10 };
+  const skinMilli = album?.progression?.reduce((sum, character) => sum + (character.skins || []).reduce((total, skin) => total + (skin.unlocked ? (skinBonuses[(skin.skin_type || "").trim().toLowerCase()] || 0) : 0), 0), 0);
+  const itemBonus = album?.store_bonus?.always;
+  const globalBonus = album && Number.isFinite(Number(album.multiplier)) && Number.isFinite(Number(itemBonus)) ? Number(album.multiplier) + Number(itemBonus) : null;
+  const earnedCoins = (data.logs || []).reduce((sum, log) => sum + (/^\d+$/.test(String(log.wumpas ?? "")) ? Number(log.wumpas) : 0), 0);
+  const acquiredCrates = Object.values(data.crate_acquired || {}).reduce((sum, count) => sum + (Number(count) || 0), 0);
+  const profileStats = [
+    ["Time Trial records", formatScore(data.trial_records || 0)],
+    ["Ring Rally records", formatScore(data.rally_records || 0)],
+    ["Developers beaten", `${devs} / ${official.length}`],
+    ["Skins unlocked", `${data.skins_unlocked} / ${data.skins_total}`],
+    ["Trophies unlocked", `${data.trophies_unlocked} / ${data.trophies_total}`],
+    ["Skin bonus", skinMilli == null ? "—" : `+${(skinMilli / 1000).toFixed(3)}`],
+    ["Item bonus", itemBonus == null ? "—" : `+${Number(itemBonus).toFixed(3)}`],
+    ["Global multiplier", globalBonus == null ? "—" : formatFactor(globalBonus)],
+    ["Wumpacoins earned from recorded races", formatCoins(earnedCoins), "/wumpacoin.webp"],
+    ["Crates acquired", formatScore(acquiredCrates), "https://static.wikia.nocookie.net/crashban/images/d/dc/Fusion_crate_smash_icon.png/revision/latest?cb=20250509125607"],
+  ];
   root.innerHTML = `
     <section class="panel profile-hero">
       <div class="profile-avatar">${favorite?.url ? `<img src="${escape(favorite.url)}" alt="${escape(favorite.character || "Favorite character")}">` : '<span>?</span>'}</div>
       <div><div class="eyebrow">Player profile</div><h2>${escape(data.user_name || "Your racing journey")}</h2>
       <p>${favorite ? `${escape(favorite.skin_name || "Default skin")} · Most used skin across both modes (${data.favorite_runs} records)` : "Log a race to reveal your most used skin."}</p></div>
     </section>
-    <div class="profile-stats">
-      ${[["Time Trial", data.trial_records], ["Ring Rally", data.rally_records], ["Developers beaten", `${devs} / ${official.length}`], ["Skins unlocked", `${data.skins_unlocked} / ${data.skins_total}`], ["Trophies unlocked", `${data.trophies_unlocked} / ${data.trophies_total}`]].map(([label, value]) => `<div class="panel profile-stat"><div class="stat-label">${label}</div><div class="kpi-value">${value}</div></div>`).join("")}
-    </div>
+    <section class="panel profile-summary" aria-label="Player summary"><div class="eyebrow">Player summary</div><dl class="profile-summary-grid">${profileStats.map(([label, value, icon]) => `<div class="profile-summary-row"><dt>${escape(label)}</dt><dd>${icon ? `<img class="profile-summary-icon" src="${escape(icon)}" alt="">` : ""}${escape(value)}</dd></div>`).join("")}</dl><p class="profile-summary-note">Crates acquired includes crates earned in races and received through exchanges.</p></section>
     <nav class="profile-nav" aria-label="Profile overviews">${[["game", "Game overview"], ["track", "Track overview"], ["character", "Character overview"], ["crates", "Crate history"], ["logs", "Logs"]].map(([key, label]) => `<button type="button" class="profile-nav-button${profileOverview === key ? " active" : ""}" data-overview="${key}" aria-pressed="${profileOverview === key}">${label}</button>`).join("")}</nav>
     ${profileOverview === "logs" ? profileLogsTable(data.logs || []) : profileOverview === "crates" ? profileCrateHistory(data, escape) : `<section class="panel profile-tracks"><div class="profile-heading"><div><div class="eyebrow">Your complete record</div><h2>${escape(profileOverview)} overview</h2></div>${profileOverview !== "character" ? `<div class="profile-mode-label"><span>Mode</span><div class="profile-mode" role="group" aria-label="Overview mode">${[["time_trial", "Time Trial"], ["rally_ring", "Ring Rally"]].map(([mode, label]) => `<button type="button" class="profile-mode-button${profileMode === mode ? " active" : ""}" data-mode="${mode}" aria-pressed="${profileMode === mode}">${label}</button>`).join("")}</div></div>` : ""}</div>
       <div class="profile-table-wrap"><table><thead><tr>${activeColumns.map(([key, label]) => key === "reference" ? `<th scope="col">${label}</th>` : `<th scope="col"${profileSort.key === key ? ` aria-sort="${profileSort.direction === 1 ? "ascending" : "descending"}"` : ""}><button type="button" class="profile-sort" data-sort="${key}">${label} <span aria-hidden="true">${profileSort.key === key ? (profileSort.direction === 1 ? "↑" : "↓") : "↕"}</span></button></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
@@ -2170,6 +2187,21 @@ function profileChart(name, history, isTime, devTime) {
 }
 
 function setView(name) {
+  const headings = {
+    rally: ["Ring Rally", "Track your scores and best runs."],
+    register: ["Time Trial", "Chase your fastest times on every track."],
+    progress: ["Album", "Explore your characters and unlocked skins."],
+    trophies: ["Trophies", "Celebrate your racing achievements."],
+    store: ["Store", "Discover rewards for your collection."],
+    craft: ["Workshop", "Unlock upgrades and exchange your crates."],
+    profile: ["Profile", "Your racing journey at a glance."],
+  };
+  const [title, subtitle] = headings[name];
+  $("view-title").textContent = title;
+  $("view-subtitle").textContent = subtitle;
+  if (name === "profile") $("profile-menu-profile").setAttribute("aria-current", "page");
+  else $("profile-menu-profile").removeAttribute("aria-current");
+  closeProfileMenu();
   if (name === "store") {
     storeCategory = "skin";
     storeSignature = "";
@@ -2201,6 +2233,7 @@ function setView(name) {
   else refresh();
 }
 
+const workshopPreview = new URLSearchParams(location.search).get("workshop_preview") === "1";
 let craftPage = "tracks";
 let craftTarget = "basic";
 let pendingCraftExchange = "";
@@ -2233,7 +2266,7 @@ document.querySelectorAll("[data-craft-page]").forEach((button) => button.addEve
 
 async function craftAction(action, data) {
   const response = await fetch(`/api/craft/${action}`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data)});
-  const result = await response.json(); if (!response.ok) throw new Error(result.error || "Craft action failed");
+  const result = await response.json(); if (!response.ok) throw new Error(result.error || "Workshop action failed");
   await loadCraft();
 }
 
@@ -2271,7 +2304,7 @@ function renderCraftExchange(data, focusTarget = false) {
   const resultsHeader = document.createElement("div"); resultsHeader.className = "craft-results-header";
   const info = document.createElement("div");
   const resultEyebrow = document.createElement("span"); resultEyebrow.className = "eyebrow"; resultEyebrow.textContent = "Crate exchange";
-  const resultsTitle = document.createElement("h3"); resultsTitle.textContent = `Craft ${targetCrate.name}`;
+  const resultsTitle = document.createElement("h3"); resultsTitle.textContent = `Exchange for ${targetCrate.name}`;
   const description = document.createElement("p"); description.textContent = "Choose a crate to spend. Each exchange gives one crate.";
   info.append(resultEyebrow, resultsTitle, description);
   const balance = document.createElement("div"); balance.className = "craft-results-balance";
@@ -2302,8 +2335,8 @@ function renderCraftExchange(data, focusTarget = false) {
     const button = document.createElement("button"); button.className = "button store-buy"; button.type = "button";
     const exchangeKey = `${rate.source_crate_id}:${rate.target_crate_id}`;
     button.dataset.exchangeKey = exchangeKey;
-    button.disabled = !available(rate);
-    button.textContent = button.disabled ? "Not enough" : pendingCraftExchange === exchangeKey ? "Confirm" : "Exchange";
+    button.disabled = workshopPreview || !available(rate);
+    button.textContent = workshopPreview && available(rate) ? "Preview" : button.disabled ? "Not enough" : pendingCraftExchange === exchangeKey ? "Confirm" : "Exchange";
     button.addEventListener("click", async () => {
       if (pendingCraftExchange !== exchangeKey) {
         pendingCraftExchange = exchangeKey;
@@ -2328,11 +2361,13 @@ async function loadCraft() {
   try {
     const response = await fetch("/api/craft", {cache: "no-store"});
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not load Craft");
+    if (!response.ok) throw new Error(data.error || "Could not load Workshop");
+    if (workshopPreview) data.inventory = { basic: 48, question: 23, bounce: 16, life: 8, aku_aku: 5, check_point: 12 };
     clearCraftUnlockConfirmation();
     const crates = new Map(data.crates.map((item) => [item.id, item]));
     grid.replaceChildren();
     const inventory = $("craft-inventory-grid"); inventory.replaceChildren();
+    $("craft-preview-label").hidden = !workshopPreview;
     $("craft-inventory-total").textContent = formatScore(data.crates.reduce((sum, crate) => sum + Number(data.inventory[crate.id] || 0), 0));
     for (const crate of data.crates) {
       const quantity = data.inventory[crate.id] || 0;
@@ -2372,7 +2407,7 @@ async function loadCraft() {
       const unlocked = data.unlocked.includes(track.track), available = track.race_rewards.ring_rally.enabled;
       button.textContent = unlocked ? "Unlocked" : !available ? "Ring Rally unavailable" : "Unlock level 1";
       button.dataset.craftUnlockLabel = button.textContent;
-      button.disabled = unlocked || !available || track.unlock.requirements.some(r => (data.inventory[r.crate_id] || 0) < r.quantity);
+      button.disabled = workshopPreview || unlocked || !available || track.unlock.requirements.some(r => (data.inventory[r.crate_id] || 0) < r.quantity);
       button.addEventListener("click", async () => {
         const trackId = String(track.track_id);
         if (pendingCraftUnlock !== trackId) {
@@ -2630,6 +2665,17 @@ function paintHeaderCoins(data) {
   $("header-coin-balance").textContent = formatCoins(data.balance);
 }
 
+async function loadHeaderProfile() {
+  try {
+    const response = await fetch("/api/state?mode=profile", { cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json();
+    $("header-player-name").textContent = data.user_name || "Player";
+  } catch {
+    // The profile button remains usable if the server is temporarily unavailable.
+  }
+}
+
 async function refresh() {
   if (!$("view-craft").hidden) return;
   const requestId = ++refreshSerial;
@@ -2638,11 +2684,14 @@ async function refresh() {
   if (track) params.set("track", track);
   const url = `/api/state?${params}`;
   try {
+    const albumRequest = currentMode === "profile" ? fetch("/api/state?mode=rally_progress", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).catch(() => null) : null;
     const response = await fetch(url, { cache: "no-store" });
     const data = await response.json();
+    if (albumRequest) data.profile_album = await albumRequest;
     if (requestId !== refreshSerial) return;
     if (!response.ok) throw new Error(data.error || "Couldn't load data");
     paintHeaderCoins(data);
+    if (data.user_name != null) $("header-player-name").textContent = data.user_name || "Player";
     if (currentMode === "profile") showProfileState(data);
     else if (currentMode === "rally_ring") showRallyState(data);
     else if (currentMode === "rally_progress") showProgressState(data);
@@ -2674,6 +2723,25 @@ async function checkAssets() {
 for (const button of document.querySelectorAll(".nav-btn")) {
   button.addEventListener("click", () => setView(button.dataset.view));
 }
+function closeProfileMenu() {
+  $("profile-menu-panel").hidden = true;
+  $("header-profile").setAttribute("aria-expanded", "false");
+}
+$("header-profile").addEventListener("click", () => {
+  const opening = $("profile-menu-panel").hidden;
+  $("profile-menu-panel").hidden = !opening;
+  $("header-profile").setAttribute("aria-expanded", String(opening));
+});
+$("profile-menu-profile").addEventListener("click", () => setView("profile"));
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".profile-menu")) closeProfileMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("profile-menu-panel").hidden) {
+    closeProfileMenu();
+    $("header-profile").focus();
+  }
+});
 
 $("track-picker").addEventListener("change", () => {
   browsedTrackByMode.time_trial = $("track-picker").dataset.value;
@@ -2949,6 +3017,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 refresh();
+loadHeaderProfile();
 checkAssets();
 window.setInterval(refresh, 1500);
 window.setInterval(checkAssets, 750);

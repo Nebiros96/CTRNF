@@ -16,31 +16,38 @@
 </head>
 <body>
   <main class="shell">
+    <div class="site-navigation">
     <header class="header">
       <div class="brand">
         <img class="brand-logo" src="/logo.png" alt="Crash Team Racing Nitro-Fueled">
-        <div>
-          <h1 class="title">Crash™ Team Racing NF - Dashboard</h1>
-        </div>
+        <div class="brand-copy"><h1 class="title">CTR Nitro-Fueled</h1><span>Personal dashboard</span></div>
       </div>
-      <div class="header-coins" aria-label="Wumpacoins">
-        <img src="/wumpacoin.webp" alt="">
-        <strong id="header-coin-balance">0</strong>
+      <div class="header-actions">
+        <div id="connection" class="pill">Connecting to last_run…</div>
+        <div class="header-coins" aria-label="Wumpacoins"><img src="/wumpacoin.webp" alt=""><strong id="header-coin-balance">0</strong></div>
+        <div class="profile-menu">
+          <button type="button" class="header-profile" id="header-profile" aria-label="Open player menu" aria-expanded="false" aria-controls="profile-menu-panel">
+            <span class="header-profile-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+          </button>
+          <div class="profile-menu-panel" id="profile-menu-panel" hidden>
+            <div class="profile-menu-identity"><small>PLAYER</small><strong id="header-player-name">Player</strong></div>
+            <button type="button" class="profile-menu-link" id="profile-menu-profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Profile</span><span aria-hidden="true">›</span></button>
+          </div>
+        </div>
       </div>
     </header>
 
     <nav class="nav" aria-label="Sections">
-      <button type="button" class="nav-btn active" data-view="rally" aria-current="page">Ring Rally</button>
-      <button type="button" class="nav-btn" data-view="register">Time Trial</button>
-      <button type="button" class="nav-btn" data-view="progress">Album</button>
-      <button type="button" class="nav-btn" data-view="trophies">Trophies</button>
-      <button type="button" class="nav-btn" data-view="store">Store</button>
-      <button type="button" class="nav-btn" data-view="craft">Craft</button>
-      <button type="button" class="nav-btn" data-view="profile">Profile</button>
-      <div class="nav-status">
-        <div id="connection" class="pill">Connecting to last_run…</div>
-      </div>
+      <button type="button" class="nav-btn active" data-view="rally" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 2v2M4.2 5.2l1.5 1.5M19.8 5.2l-1.5 1.5"/></svg>Ring Rally</button>
+      <button type="button" class="nav-btn" data-view="register"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="7"/><path d="M9 2h6M12 7V4M12 10v4l3 2"/></svg>Time Trial</button>
+      <button type="button" class="nav-btn" data-view="progress"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1"/><path d="m4 18 5-5 3 3 3-4 5 6"/></svg>Album</button>
+      <button type="button" class="nav-btn" data-view="store"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2 11h11l3-8H6M9 20h.01M18 20h.01"/></svg>Store</button>
+      <button type="button" class="nav-btn" data-view="craft"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v3c0 2-2 4-5 4h-1v4l2 2v1H7v-1l2-2v-4H8C5 13 2 11 2 8c2 1 4 1 6 1"/></svg>Workshop</button>
+      <button type="button" class="nav-btn" data-view="trophies"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H3v2a5 5 0 0 0 4 5M17 6h4v2a5 5 0 0 1-4 5M12 14v5M8 21h8M9 19h6"/></svg>Trophies</button>
     </nav>
+    </div>
+
+    <div class="view-heading"><div><h2 id="view-title">Ring Rally</h2><p id="view-subtitle">Track your scores and best runs.</p></div></div>
 
     <section id="view-profile" hidden>
       <div id="profile-content" aria-live="polite"></div>
@@ -259,7 +266,7 @@
       <div id="store-status" class="status" role="status"></div>
     </section>
 
-    <section id="view-craft" hidden><section class="panel"><div class="eyebrow">Track rewards</div><h2>Craft</h2><section id="craft-inventory" class="craft-inventory" aria-label="Crate inventory"><div class="craft-inventory-heading"><h3>Inventory</h3><div class="craft-inventory-total" aria-label="Total crates in inventory"><img src="https://static.wikia.nocookie.net/crashban/images/d/dc/Fusion_crate_smash_icon.png/revision/latest?cb=20250509125607" alt=""><span>Total crates</span><strong id="craft-inventory-total">0</strong></div></div><div id="craft-inventory-grid" class="craft-inventory-grid"></div></section><nav class="store-categories craft-nav" aria-label="Craft sections"><button type="button" class="store-category active" data-craft-page="tracks" aria-pressed="true">Tracks</button><button type="button" class="store-category" data-craft-page="exchange" aria-pressed="false">Crate exchange</button></nav><div id="craft-exchange" class="craft-exchange" hidden></div><div id="craft-grid" class="craft-grid"></div><div id="craft-status" class="status" role="status"></div></section></section>
+    <section id="view-craft" hidden><section id="craft-inventory" class="panel craft-inventory" aria-label="Crate inventory"><div class="craft-inventory-heading"><h3>Inventory</h3><div class="craft-inventory-total" aria-label="Total crates in inventory"><img src="https://static.wikia.nocookie.net/crashban/images/d/dc/Fusion_crate_smash_icon.png/revision/latest?cb=20250509125607" alt=""><span>Total crates</span><strong id="craft-inventory-total">0</strong></div></div><p id="craft-preview-label" class="craft-preview-label" hidden>Sample inventory · preview only</p><div id="craft-inventory-grid" class="craft-inventory-grid"></div></section><section class="panel workshop-main"><div class="eyebrow">Track rewards</div><h2>Workshop</h2><nav class="store-categories craft-nav" aria-label="Workshop sections"><button type="button" class="store-category active" data-craft-page="tracks" aria-pressed="true">Tracks</button><button type="button" class="store-category" data-craft-page="exchange" aria-pressed="false">Crate exchange</button></nav><div id="craft-exchange" class="craft-exchange" hidden></div><div id="craft-grid" class="craft-grid"></div><div id="craft-status" class="status" role="status"></div></section></section>
 
     <footer class="site-footer">
       <a class="patreon-link" href="https://www.patreon.com/cw/juligo96" target="_blank" rel="noopener noreferrer">
