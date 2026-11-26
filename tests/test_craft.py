@@ -144,6 +144,64 @@ class CraftTests(unittest.TestCase):
             self.assertEqual(craft.award(path, TRACK, 'rally_ring', 'rally_ring:2', laps=4), [])
             self.assertEqual(len(craft.award(path, TRACK, 'time_trial', 'time_trial:1', tier='dev_beaten')), 1)
 
+    def test_weekend_doubles_crate_quantities_in_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'crates.csv'
+            with patch.object(craft.random, 'choices', return_value=['bounce']), patch.object(craft.random, 'randint', return_value=3):
+                for mode in ('time_trial', 'rally_ring'):
+                    for day, expected in (('2026-11-19', 3), ('2026-11-20', 6), ('2026-11-21', 6), ('2026-11-22', 6), ('2026-11-23', 3)):
+                        rewards = craft.award(path, TRACK, mode, f'{mode}:{day}', laps=5,
+                                              quantity_multiplier=core._weekend_wumpa_multiplier(day))
+                        self.assertTrue(rewards)
+                        self.assertTrue(all(reward['quantity'] == expected for reward in rewards))
+                self.assertEqual(craft.state(path)['inventory']['bounce'], 48)
+
+    def test_bounce_weight_increases_without_changing_other_weights(self):
+        _, rules = craft.catalog()
+        track = next(t for t in rules['tracks'] if t['track'] == TRACK)
+        for mode in ('time_trial', 'rally_ring'):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'crates.csv'
+                with patch.object(craft.random, 'choices', return_value=['bounce']) as choices:
+                    craft.award(path, TRACK, mode, mode, laps=5)
+                ids = choices.call_args.args[0]
+                weights = choices.call_args.kwargs['weights']
+                actual = dict(zip(ids, weights))
+                if mode == 'time_trial':
+                    original = {d['crate_id']: d['time_trial']['tiers']['neither']['selection_probability'] for d in track['crate_drops']}
+                else:
+                    original = next(row['probabilities'] for row in track['race_rewards']['ring_rally']['selection_probabilities_by_lap'] if row['laps'] == 5)
+                for crate_id, weight in original.items():
+                    self.assertAlmostEqual(actual[crate_id], weight * (1.15 if crate_id == 'bounce' else 1))
+
+    def test_store_expansions_are_independent_and_have_unique_ids(self):
+        items = core._load_store_items()
+        ids = [item['id'] for item in items]
+        self.assertEqual(len(ids), len(set(ids)))
+        for item in items:
+            if item['id'].startswith('lootbox_expansion_'):
+                self.assertFalse(core._condition_matches_race(item['condition'], '1', '1'))
+        for owned, expected in ((set(), (0, 0)), ({'lootbox_expansion_1'}, (0, 1)),
+                                ({'lootbox_expansion_2'}, (1, 0)),
+                                ({'lootbox_expansion_1', 'lootbox_expansion_2'}, (1, 1))):
+            with patch.object(core, '_read_wallet', return_value=[]), patch.object(core, '_purchased_ids', return_value=owned):
+                self.assertEqual((core.purchased_lootbox_bonus('time_trial'), core.purchased_lootbox_bonus('rally_ring')), expected)
+
+    def test_expansion_respects_lap_threshold_track_level_and_weekend(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'crates.csv'
+            with patch.object(craft.random, 'choices', return_value=['basic']), patch.object(craft.random, 'randint', return_value=3):
+                self.assertEqual(craft.award(path, TRACK, 'rally_ring', 'below', laps=4, extra_boxes=1), [])
+                for mode, laps, expected in (('time_trial', 0, 2), ('rally_ring', 5, 2), ('rally_ring', 9, 4)):
+                    rewards = craft.award(path, TRACK, mode, f'{mode}:{laps}', laps=laps, extra_boxes=1, quantity_multiplier=2)
+                    self.assertEqual(len(rewards), expected)
+                    self.assertTrue(all(reward['quantity'] == 6 for reward in rewards))
+                rows = craft.read(path)
+                rows.extend({'kind': 'unlock', 'crate_id': '', 'amount': 0, 'track': TRACK, 'race_key': ''} for _ in range(9))
+                craft.write(path, rows)
+                self.assertEqual(len(craft.award(path, TRACK, 'time_trial', 'max-tt', extra_boxes=1)), 4)
+                self.assertEqual(len(craft.award(path, TRACK, 'rally_ring', 'max-rr', laps=9, extra_boxes=1)), 8)
+
     def test_all_recipes_and_atomic_exchange(self):
         crates, rules = craft.catalog()
         ids = {crate['id'] for crate in crates}

@@ -1,6 +1,30 @@
 {
   "items": [
     {
+      "item_id": "lootbox_expansion_1",
+      "name": "RING RALLY BOX EXPANSION 1",
+      "price": 5000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/f/fc/Cortex-key.png/revision/latest?cb=20170729064525",
+      "item_category": "Other",
+      "bonus_all_milli": 0,
+      "bonus_condition_milli": 0,
+      "condition": {"type": "none", "label": ""},
+      "bonus_lootboxes": {"time_trial": 0, "ring_rally": 1},
+      "unlock_condition": []
+    },
+    {
+      "item_id": "lootbox_expansion_2",
+      "name": "TIME TRIAL BOX EXPANSION 1",
+      "price": 5000,
+      "image_url": "https://static.wikia.nocookie.net/crashban/images/f/fc/Cortex-key.png/revision/latest?cb=20170729064525",
+      "item_category": "Other",
+      "bonus_all_milli": 0,
+      "bonus_condition_milli": 0,
+      "condition": {"type": "none", "label": ""},
+      "bonus_lootboxes": {"time_trial": 1, "ring_rally": 0},
+      "unlock_condition": []
+    },
+    {
       "item_id": 1,
       "name": "Crash: Mother Clucker",
       "price": 1500,

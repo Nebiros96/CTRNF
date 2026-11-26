@@ -1301,6 +1301,8 @@ def _purchased_ids(rows: list[dict[str, str]]) -> set[str]:
 
 def _condition_matches_race(condition: dict, character_id: str, track_id: str) -> bool:
     """Match dimension IDs, never the independently assigned race record IDs."""
+    if condition["type"] == "none":
+        return False
     if condition["type"] == "track":
         return bool(track_id) and str(condition["track_id"]) == track_id
     if condition["type"] == "characters":
@@ -1361,6 +1363,10 @@ def _store_help_lines(item: dict) -> list[str]:
         lines.append(f"+{item['bonus_coins_flat']} Wumpacoins per new race")
     if item["bonus_coins"] != Decimal("1"):
         lines.append(f"×{item['bonus_coins']} Wumpacoins from every new race")
+    for mode, label in (("time_trial", "Time Trial"), ("ring_rally", "Ring Rally")):
+        bonus = item["bonus_lootboxes"].get(mode, 0)
+        if bonus:
+            lines.append(f"+{bonus} lootbox per {label} race" + (" (minimum 5 laps)" if mode == "ring_rally" else ""))
     for override in item["conditional_overrides"]:
         lines.append(f"+{override['bonus_milli'] / 1000:.3f} if {override['condition']['label']}")
     completion = item["album_completion_bonus"]
@@ -1405,6 +1411,7 @@ def _load_store_items() -> list[dict]:
                 "unlock_label": row.get("unlock_label", ""),
                 "bonus_coins_flat": int(row.get("bonus_coins_flat", 0)),
                 "bonus_coins": Decimal(str(row.get("bonus_coins", 1))),
+                "bonus_lootboxes": {mode: int(value) for mode, value in row.get("bonus_lootboxes", {}).items()},
                 "condition_label": condition["label"],
                 "url": catalog_image_url(url) if url else "",
             }
@@ -1417,6 +1424,15 @@ def _load_store_items() -> list[dict]:
         else:
             item["level"] = None
     return items
+
+
+def purchased_lootbox_bonus(mode: str) -> int:
+    """Total extra boxes for the active profile and race mode."""
+    catalog_mode = "ring_rally" if mode == "rally_ring" else mode
+    with _store_lock:
+        owned = _purchased_ids(_read_wallet())
+        return sum(item["bonus_lootboxes"].get(catalog_mode, 0)
+                   for item in _load_store_items() if item["id"] in owned)
 
 
 def _store_milli_for_skin(

@@ -13,6 +13,7 @@ LOCK = threading.RLock()
 FIELDS = ('kind', 'crate_id', 'amount', 'track', 'race_key')
 MAX_LEVEL = 9
 RALLY_BONUS_MILLI = (0, 20, 30, 40, 40, 50, 60, 60, 80, 100)
+BOUNCE_WEIGHT_MULTIPLIER = 1.15
 
 def requirements(track, level):
     """Cost of the given level, increasing the previous rounded cost by 10%."""
@@ -96,7 +97,7 @@ def unlock(path, track_id):
         return state(path)
 
 
-def award(path, raw_track, mode, race_key, *, laps=0, tier="neither"):
+def award(path, raw_track, mode, race_key, *, laps=0, tier="neither", quantity_multiplier=1, extra_boxes=0):
     """Award once per new race; a marker also records races that yield no boxes."""
     with LOCK:
         crates, rules = catalog()
@@ -121,12 +122,17 @@ def award(path, raw_track, mode, race_key, *, laps=0, tier="neither"):
             count = 1
             weights = {d['crate_id']: d['time_trial']['tiers'][tier]['selection_probability'] for d in drops}
             quantities = {d['crate_id']: (d['time_trial']['tiers'][tier]['min_quantity'], d['time_trial']['tiers'][tier]['max_quantity']) for d in drops}
+        if count:
+            count += extra_boxes
         if state(path)['levels'].get(raw_track, 0) >= MAX_LEVEL and track.get('unlock'):
             count *= 2
         result = []
+        if count:
+            weights = dict(weights)
+            weights['bounce'] *= BOUNCE_WEIGHT_MULTIPLIER
         for _ in range(count):
             chosen = random.choices(list(weights), weights=list(weights.values()), k=1)[0]
-            amount = random.randint(*quantities[chosen])
+            amount = random.randint(*quantities[chosen]) * quantity_multiplier
             result.append({'crate_id': chosen, 'name': names[chosen]['name'], 'image_url': names[chosen]['image_url'], 'quantity': amount})
             rows.append({'kind':'earn', 'crate_id':chosen, 'amount':amount, 'track':raw_track, 'race_key':race_key})
         rows.append({'kind':'race', 'crate_id':'', 'amount':0, 'track':raw_track, 'race_key':race_key})

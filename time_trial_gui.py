@@ -52,7 +52,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.5.2"
+APP_VERSION = "CTR - v1.5.3"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -1330,7 +1330,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.5.2"
+    server_version = "CTRTimeTrialDashboard/1.5.3"
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -1547,7 +1547,7 @@ class Handler(BaseHTTPRequestHandler):
                     meta = track["track_catalog_fields"]
                     flags = beat_flags(record.get("time_seconds", ""), meta.get("dev_time", ""), meta.get("velo_time", ""))
                     tier = "dev_beaten" if flags["beat_dev"] else "velo_only" if flags["beat_velo"] else "neither"
-                loot = craft.award(craft_inventory_path(), record["track"], mode, f"{mode}:{record['id']}", laps=int(record.get("laps") or 0), tier=tier)
+                loot = craft.award(craft_inventory_path(), record["track"], mode, f"{mode}:{record['id']}", laps=int(record.get("laps") or 0), tier=tier, quantity_multiplier=core._weekend_wumpa_multiplier(record["captured_at"]), extra_boxes=core.purchased_lootbox_bonus(mode))
             except (OSError, ValueError, KeyError, StopIteration, csv.Error) as exc:
                 loot_error = str(exc) or "Track is not in the crate catalog"
             body = json.dumps({"record": record, "unlocks": unlocks, "loot": loot, "loot_error": loot_error}, ensure_ascii=False).encode("utf-8")
