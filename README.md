@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.4.2)
+# Crash™ Team Racing NF - Dashboard (v1.4.3)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -62,7 +62,7 @@ Purchased items add their flat bonus to the Skin Album multiplier and the store'
 
 New Time Trial and Ring Rally records award crate boxes after the race summary. Time Trial awards one box; Ring Rally awards one to three based on laps, with no boxes below five laps. Each box reveals a crate type and quantity. Historic records are not converted into crates. After opening the boxes, the dashboard stays on the current game mode.
 
-Craft shows the shared inventory, its total crate count and each track's level 1 requirements. Spend the required crates manually on a track to unlock a +0.020 multiplier bonus for future Ring Rally records on that track. Mod tracks can award Time Trial boxes but have no Ring Rally unlock. Under **Crate Exchange**, select a crate to spend and exchange it for another; each recipe costs a set number of source crates and yields one target crate. Select **Exchange** and then **Confirm** to complete the trade. Infinity is a regular crate. Crate inventory and unlocks belong to the selected user and are included in backups.
+Craft shows the shared inventory, its total crate count and each track's level 1 requirements. Flip a track card to see its current level and bonus. Confirm the manual unlock to spend its required crates and receive a +0.020 multiplier bonus for future Ring Rally records on that track. Mod tracks can award Time Trial boxes but have no Ring Rally unlock. Under **Crate Exchange**, select the crate you want to receive and choose which crate to spend; each recipe costs a set number of source crates and yields one target crate. Available recipes appear first. Select **Exchange** and then **Confirm** to complete the trade. Infinity is a regular crate. Crate inventory and unlocks belong to the selected user and are included in backups.
 
 ## Profile
 

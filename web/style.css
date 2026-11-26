@@ -1034,7 +1034,7 @@ body {
 .profile-tracks table { width:100%; border-collapse:collapse; text-align:left; font-variant-numeric:tabular-nums; }
 .profile-tracks th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
 .profile-tracks td, .profile-tracks th { padding:12px; border-bottom:1px solid var(--line); white-space:nowrap; }
-.profile-crate-history td, .profile-crate-history th { padding:5px 12px; }
+.profile-crate-history td, .profile-crate-history th { padding:7px 12px; }
 .profile-tracks td small { display:block; color:var(--muted); }
 .profile-tracks .profile-total th, .profile-tracks .profile-total td { color:var(--accent); font-weight:700; border-top:1px solid #9d6a2d; }
 .profile-beat { color:var(--accent); }
@@ -1146,7 +1146,19 @@ body {
 #token-summary { color: var(--muted); font-size: 13px; }
 
 .craft-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(265px,1fr)); gap:14px; margin-top:20px; }
-.craft-card { overflow:hidden; background:#1a202c; border:1px solid var(--line); border-radius:10px; }
+.craft-card { position:relative; min-width:0; perspective:1000px; }
+.craft-card-face { box-sizing:border-box; width:100%; min-height:100%; overflow:hidden; background:#1a202c; border:1px solid var(--line); border-radius:10px; backface-visibility:hidden; transition:transform .5s ease; }
+.craft-card-front { position:relative; cursor:pointer; }
+.craft-card-back { position:absolute; inset:0; display:flex; flex-direction:column; transform:rotateY(-180deg); cursor:pointer; }
+.craft-card-back .craft-track-image { flex:none; }
+.craft-back-content { flex:1; min-height:0; display:flex; flex-direction:column; gap:12px; padding:14px; }
+.craft-card-back h3 { margin:0; }
+.craft-current-level { margin:0; color:var(--muted); font-size:12px; font-weight:700; }
+.craft-card-back .craft-flip-button { margin-top:auto; }
+.craft-card.is-flipped .craft-card-front { transform:rotateY(180deg); }
+.craft-card.is-flipped .craft-card-back { transform:rotateY(0); }
+.craft-content .craft-flip-button { display:block; margin:6px auto 0; }
+@media (prefers-reduced-motion:reduce) { .craft-card-face { transition:none; } }
 .craft-track-image { height:120px; overflow:hidden; background:#111827; }
 .craft-track-image img { width:100%; height:100%; object-fit:cover; }
 .craft-content { padding:14px; }
@@ -1161,9 +1173,10 @@ body {
 .craft-exchange-item img,.craft-requirement img { width:auto; height:auto; max-width:38px; max-height:38px; object-fit:contain; }
 .craft-requirement { display:grid; grid-template-columns:38px 1fr; align-items:center; column-gap:12px; margin:12px 0; }
 .craft-requirement img { grid-row:span 2; max-width:26px; max-height:26px; justify-self:center; }
+.craft-requirement.is-incomplete img { opacity:0.14; }
 .craft-requirement { min-height:29px; }
 .craft-requirement progress { width:100%; height:6px; accent-color:#ffbb00; }
-.craft-content .button { margin-top:12px; width:100%; }
+.craft-content .button { margin-top:12px; width:100%; padding:6px 8px; font-size:12px; }
 
 .craft-nav { margin-top:18px; }
 .craft-grid[hidden], .craft-exchange[hidden] { display:none; }
@@ -1188,7 +1201,7 @@ body {
 @media (max-width:500px) { .craft-exchange-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 
 .craft-track-image { position:relative; }
-.craft-track-level { position:absolute; top:8px; right:8px; padding:5px 9px; background:#160f25e8; border:1px solid #ffbd00; color:#ffcb00; font-size:12px; font-weight:800; }
+.craft-track-level { position:absolute; top:8px; right:8px; padding:3px 6px; background:#160f25e8; border:1px solid #ffbd00; color:#ffcb00; font-size:11px; font-weight:800; }
 .craft-inventory { margin-top:20px; padding:16px; background:#1a202c; border:1px solid var(--line); border-radius:10px; }
 .craft-inventory h3 { margin:0 0 12px; }
 .craft-inventory-grid { display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:8px; }
@@ -1240,6 +1253,8 @@ body {
 .craft-results-balance strong { color:#ffca00; font-size:17px; line-height:1.1; }
 .craft-results-balance small { color:var(--muted); font-size:9px; font-weight:700; }
 .craft-exchange-results .craft-exchange-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.craft-exchange-grid .craft-exchange-card { border:1px solid #594575; }
+.craft-exchange-owned { color:var(--muted); font-size:12px; text-align:center; }
 @media (max-width:1100px) { .craft-exchange-results .craft-exchange-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media (max-width:750px) {
   .craft-exchange-layout { grid-template-columns:minmax(0,1fr); }
