@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.4.3)
+# Crash™ Team Racing NF - Dashboard (v1.5.0)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -12,7 +12,7 @@ A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native po
 
 ## Users and backups
 
-Open **Users** in the launcher to create or select a local user before starting the server. Each user has a separate race history, Store wallet, and Craft inventory. Stop the server before switching users.
+Open **Users** in the launcher to create or select a local user before starting the server. Each user has a separate race history, Store wallet, and Workshop inventory. Stop the server before switching users.
 
 When upgrading from a version without users, create or select an empty user and choose **Assign existing data to selected user**. Confirm the assignment to copy and verify the existing race and wallet files. The original files remain in `%LOCALAPPDATA%\CTRNF\data` as a backup; the selected user's working files are under `profiles/<user ID>` in that folder.
 
@@ -58,11 +58,13 @@ Purchased items add their flat bonus to the Skin Album multiplier and the store'
 
 ![Store](utils/stor.JPG)
 
-## Craft
+## Workshop
 
 New Time Trial and Ring Rally records award crate boxes after the race summary. Time Trial awards one box; Ring Rally awards one to three based on laps, with no boxes below five laps. Each box reveals a crate type and quantity. Historic records are not converted into crates. After opening the boxes, the dashboard stays on the current game mode.
 
-Craft shows the shared inventory, its total crate count and each track's level 1 requirements. Flip a track card to see its current level and bonus. Confirm the manual unlock to spend its required crates and receive a +0.020 multiplier bonus for future Ring Rally records on that track. Mod tracks can award Time Trial boxes but have no Ring Rally unlock. Under **Crate Exchange**, select the crate you want to receive and choose which crate to spend; each recipe costs a set number of source crates and yields one target crate. Available recipes appear first. Select **Exchange** and then **Confirm** to complete the trade. Infinity is a regular crate. Crate inventory and unlocks belong to the selected user and are included in backups.
+Workshop shows the shared inventory, its total crate count and each track's level 1 requirements. Flip a track card to see its current level and bonus. Confirm the manual unlock to spend its required crates and receive a +0.020 multiplier bonus for future Ring Rally records on that track. Mod tracks can award Time Trial boxes but have no Ring Rally unlock. Under **Crate Exchange**, select the crate you want to receive and choose which crate to spend; each recipe costs a set number of source crates and yields one target crate. Available recipes appear first. Select **Exchange** and then **Confirm** to complete the trade. Infinity is a regular crate. Crate inventory and unlocks belong to the selected user and are included in backups.
+
+![Workshop inventory and track upgrades](utils/workshop.JPG)
 
 ## Profile
 
@@ -80,7 +82,7 @@ Select a track to expand the selected mode's progress chart and top five; select
 
 ## Backup
 
-In Settings you can export a ZIP with your Time Trial times, your Ring Rally scores, and your Wumpacoin wallet and Craft inventory. On startup the program tries to find the game log. If it does not appear, you choose it once and that path stays on the computer; you can change it if you move the game. Importing a backup only fills a record that is still empty.
+In Settings you can export a ZIP with your Time Trial times, your Ring Rally scores, and your Wumpacoin wallet and Workshop inventory. On startup the program tries to find the game log. If it does not appear, you choose it once and that path stays on the computer; you can change it if you move the game. Importing a backup only fills a record that is still empty.
 
 Every track has a limit so an impossible time or an out-of-range score is not saved. Those limits come from the glitchless world records published on [crashteamranking.com](https://crashteamranking.com/), with a 5% margin. They were updated on October 31, 2026.
 
@@ -88,4 +90,4 @@ Crash Team Racing Nitro-Fueled is an Activision trademark. This dashboard is a f
 
 ## Building from source
 
-On Windows, install Python and PyInstaller, then run `py -3 -m PyInstaller --noconfirm --clean CTRNF.spec`. The executable is written to `dist/CTRNF.exe`. The game and Craft catalogs are versioned application data; profile histories, wallets and crate inventories are excluded from Git.
+On Windows, install Python and PyInstaller, then run `py -3 -m PyInstaller --noconfirm --clean CTRNF.spec`. The executable is written to `dist/CTRNF.exe`. The game and Workshop catalogs are versioned application data; profile histories, wallets and crate inventories are excluded from Git.
