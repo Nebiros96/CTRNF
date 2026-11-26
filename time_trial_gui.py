@@ -52,7 +52,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.5.1"
+APP_VERSION = "CTR - v1.5.2"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -1330,7 +1330,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.5.1"
+    server_version = "CTRTimeTrialDashboard/1.5.2"
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -1350,9 +1350,14 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 rules = json.loads((ROOT / "data" / "track_crate_rules.json").read_text(encoding="utf-8"))
                 crates = json.loads((ROOT / "data" / "crates.json").read_text(encoding="utf-8"))
+                workshop = craft.state(craft_inventory_path())
+                track_catalog = core.load_rally_catalog()['tracks']
                 for track in rules["tracks"]:
                     track["image_url"] = core.catalog_image_url(track["track_catalog_fields"].get("url", ""))
-                payload = json.dumps({"tracks": rules["tracks"], "crates": crates["crates"], "rates": rules["crate_exchange"]["recipes"], **craft.state(craft_inventory_path())}, ensure_ascii=False).encode("utf-8")
+                    track['game'] = track_catalog.get(track['track'], {}).get('track_game', '')
+                    level = workshop['levels'].get(track['track'], 0)
+                    track['next_requirements'] = craft.requirements(track, level + 1)
+                payload = json.dumps({"tracks": rules["tracks"], "crates": crates["crates"], "rates": rules["crate_exchange"]["recipes"], **workshop}, ensure_ascii=False).encode("utf-8")
                 self._send(200, payload, "application/json; charset=utf-8")
             except (OSError, ValueError, KeyError) as exc:
                 self._send(500, json.dumps({"error": str(exc)}).encode("utf-8"), "application/json; charset=utf-8")

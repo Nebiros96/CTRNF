@@ -9,11 +9,100 @@ from unittest.mock import patch
 
 import craft
 import time_trial_gui as gui
+import time_trial_logger as core
 
 TRACK = 'octane/t111_crash_cove/t111_crash_cove'
 
 
 class CraftTests(unittest.TestCase):
+    def test_nine_levels_round_previous_cost_and_preserve_existing_unlock(self):
+        _, rules = craft.catalog()
+        official = [track for track in rules['tracks'] if track['unlock']]
+        self.assertEqual(len(official), 40)
+        track = official[0]
+        self.assertEqual([r['quantity'] for r in craft.requirements(track, 2)], [83, 33, 6, 2, 20])
+        self.assertEqual(craft.requirements(track, 10), [])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'crates.csv'
+            rows = [{'kind': 'earn', 'crate_id': r['crate_id'], 'amount': 10000, 'track': '', 'race_key': ''} for r in track['unlock']['requirements']]
+            # A legacy unlock row must still represent level one.
+            rows.append({'kind': 'unlock', 'crate_id': '', 'amount': 0, 'track': TRACK, 'race_key': ''})
+            craft.write(path, rows)
+            self.assertEqual(craft.state(path)['levels'][TRACK], 1)
+            for level in range(2, 10):
+                before = craft.state(path)['inventory'].copy()
+                state = craft.unlock(path, 1)
+                self.assertEqual(state['levels'][TRACK], level)
+                for req in craft.requirements(track, level):
+                    self.assertEqual(before[req['crate_id']] - state['inventory'][req['crate_id']], req['quantity'])
+            before = craft.read(path)
+            with self.assertRaises(ValueError):
+                craft.unlock(path, 1)
+            self.assertEqual(craft.read(path), before)
+
+    def test_platinum_doubles_independent_lootboxes_in_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'crates.csv'
+            craft.write(path, [{'kind': 'unlock', 'crate_id': '', 'amount': 0, 'track': TRACK, 'race_key': ''} for _ in range(9)])
+            self.assertEqual(len(craft.award(path, TRACK, 'rally_ring', 'rr:1', laps=9)), 6)
+            self.assertEqual(len(craft.award(path, TRACK, 'time_trial', 'tt:1')), 2)
+            self.assertEqual(craft.award(path, TRACK, 'rally_ring', 'rr:1', laps=9), [])
+            self.assertEqual(craft.award(path, TRACK, 'rally_ring', 'rr:2', laps=4), [])
+
+    def test_skin_bonuses_accumulate_across_tracks_and_only_apply_to_unlocked_skins(self):
+        catalog = core.load_rally_catalog()
+        cnk = [track for track, row in catalog['tracks'].items() if row['track_game'] == 'Crash Nitro Kart'][:3]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'crates.csv'
+            craft.write(path, [{'kind': 'unlock', 'crate_id': '', 'amount': 0, 'track': track, 'race_key': ''} for track in cnk for _ in range(6)])
+            with patch.object(core, 'RALLY_RING_CSV_PATH', Path(directory) / 'rally_ring.csv'):
+                bonuses = core._workshop_skin_bonuses(catalog)
+            for rarity in ('legendary', 'exotic', 'basic'):
+                self.assertEqual(bonuses['crash nitro kart', rarity], 3)
+            cnk_id = catalog['characters_by_game']['crash nitro kart'][0]
+            ctr_id = catalog['characters_by_game']['crash team racing'][0]
+            points = {cnk_id: 0, ctr_id: 10**12}
+            self.assertEqual(core._milli_for_points(catalog, points, bonuses), core._milli_for_points(catalog, points))
+            points[cnk_id] = 10**12
+            steps = catalog['ladders'][cnk_id]
+            eligible = sum(s['skin_type'].casefold() in ('legendary', 'exotic', 'basic') for s in steps)
+            self.assertEqual(core._milli_for_points(catalog, points, bonuses) - core._milli_for_points(catalog, points), 3 * eligible)
+
+    def test_new_skin_receives_existing_workshop_bonus_in_same_race(self):
+        catalog = core.load_rally_catalog()
+        catalog['achievements'] = []
+        character = catalog['characters_by_game']['crash nitro kart'][0]
+        skin = catalog['ladders'][character][0]['skin']
+        with patch.object(core, '_apply_time_trials'), patch.object(core, '_store_milli_for_skin', return_value=0), \
+             patch.object(core, '_store_global_milli', return_value=0):
+            result = core.score_with_progression([], skin, 500000, catalog,
+                workshop_bonuses={('crash nitro kart', 'basic'): 3})
+        self.assertEqual(result['multiplier'], '0.004')
+        self.assertEqual(result['score_mult'], 502000)
+
+    def test_ring_rally_and_coin_levels_replace_previous_values(self):
+        self.assertEqual(craft.RALLY_BONUS_MILLI, (0, 20, 30, 40, 40, 50, 60, 60, 80, 100))
+        self.assertEqual([craft.coin_multiplier(level) for level in range(10)],
+                         ['1'] * 7 + ['1.5', '1.75', '2'])
+
+    def test_coin_track_bonus_uses_base_independently_of_store(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'crates.csv'
+            craft.write(path, [{'kind': 'unlock', 'crate_id': '', 'amount': 0, 'track': TRACK, 'race_key': ''} for _ in range(8)])
+            item = {'id': 'store', 'bonus_coins': core.Decimal('2'), 'bonus_coins_flat': 0}
+            for mode in ('time_trial', 'rally_ring'):
+                with self.subTest(mode=mode), patch.object(core, 'RALLY_RING_CSV_PATH', Path(directory) / 'rally_ring.csv'), \
+                     patch.object(core, '_read_wallet', return_value=[{'kind': 'buy', 'item_id': 'store'}]), \
+                     patch.object(core, '_write_wallet'), patch.object(core, '_load_store_items', return_value=[item]), \
+                     patch.object(core, '_track_catalog_row', return_value={'tt_wumpas': '40', 'rr_wumpas': '40'}), \
+                     patch.object(core.random, 'random', return_value=1):
+                    detail = {}
+                    self.assertEqual(core.credit_race_coins(mode, '1', TRACK, '2026-11-18', detail), 110)
+                    self.assertEqual(detail['track_bonus'], 30)
+                    weekend = {}
+                    self.assertEqual(core.credit_race_coins(mode, '2', TRACK, '2026-11-21', weekend), 150)
+                    self.assertEqual(weekend['multiplier_bonus'], 40)
+                    self.assertEqual(weekend['track_bonus'], 30)
     def test_infinity_unlock_requirements_reflect_its_rarity(self):
         _, rules = craft.catalog()
         requirements = [(track['name'], requirement['quantity'])

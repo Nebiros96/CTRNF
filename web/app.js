@@ -510,7 +510,7 @@ function paintGlobalMultiplier(raw, storeBonus) {
   const details = document.createElement("div");
   details.className = "multiplier-help-popover";
   details.hidden = true;
-  details.textContent = "Each unlocked skin adds: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005 · Ultra 0.01. Each unlocked trophy and purchased store item adds its unconditional bonus. Conditional store bonuses are added only when their requirements are met.";
+  details.textContent = "Each unlocked skin adds: Basic 0.001 · Exotic 0.002 · Legendary 0.003 · Beenox 0.005 · Ultra 0.01. Workshop track upgrades can increase skin bonuses. Each unlocked trophy and purchased store item adds its unconditional bonus. Conditional store bonuses are added only when their requirements are met.";
   helpButton.addEventListener("click", () => {
     details.hidden = !details.hidden;
     helpButton.setAttribute("aria-expanded", String(!details.hidden));
@@ -695,7 +695,7 @@ function paintAlbum(character) {
     type.textContent = skin.skin_type || "null";
     const state = document.createElement("div");
     state.className = "skin-state";
-    state.textContent = skin.unlocked ? "Unlocked" : `${formatScore(skin.threshold)} pts`;
+    state.textContent = skin.unlocked ? `Unlocked · +${(Number(skin.bonus_milli || 0) / 1000).toFixed(3)}` : `${formatScore(skin.threshold)} pts`;
     card.append(order, frame, name, type, state);
     if (skin.unlocked) {
       const mark = document.createElement("div");
@@ -1700,7 +1700,7 @@ function showProfileState(data) {
   const devs = official.filter((track) => track.dev_time_surpass).length;
   const album = data.profile_album;
   const skinBonuses = { basic: 1, exotic: 2, legendary: 3, beenox: 5, ultra: 10 };
-  const skinMilli = album?.progression?.reduce((sum, character) => sum + (character.skins || []).reduce((total, skin) => total + (skin.unlocked ? (skinBonuses[(skin.skin_type || "").trim().toLowerCase()] || 0) : 0), 0), 0);
+  const skinMilli = album?.progression?.reduce((sum, character) => sum + (character.skins || []).reduce((total, skin) => total + (skin.unlocked ? (skin.bonus_milli ?? skinBonuses[(skin.skin_type || "").trim().toLowerCase()] ?? 0) : 0), 0), 0);
   const itemBonus = album?.store_bonus?.always;
   const globalBonus = album && Number.isFinite(Number(album.multiplier)) && Number.isFinite(Number(itemBonus)) ? Number(album.multiplier) + Number(itemBonus) : null;
   const earnedCoins = (data.logs || []).reduce((sum, log) => sum + (/^\d+$/.test(String(log.wumpas ?? "")) ? Number(log.wumpas) : 0), 0);
@@ -2233,9 +2233,42 @@ function setView(name) {
 }
 
 const workshopPreview = new URLSearchParams(location.search).get("workshop_preview") === "1";
+const workshopRelics = [
+  {level: 3, name: "Sapphire", url: "https://static.wikia.nocookie.net/crashban/images/d/de/Crash_Team_Racing_Nitro-Fueled_Sapphire_Relic.png/revision/latest?cb=20200822093813"},
+  {level: 6, name: "Gold", url: "https://static.wikia.nocookie.net/crashban/images/8/84/Crash_Team_Racing_Nitro-Fueled_Gold_Relic.png/revision/latest?cb=20200822093917"},
+  {level: 9, name: "Platinum", url: "https://static.wikia.nocookie.net/crashban/images/9/94/Crash_Team_Racing_Nitro-Fueled_Platinum_Relic.png/revision/latest?cb=20200822094007"},
+];
+const workshopRallyBonus = [0, .02, .03, .04, .04, .05, .06, .06, .08, .10];
 let craftPage = "tracks";
 let craftTarget = "basic";
 let pendingCraftUnlock = "";
+let craftLevelFilter = -1;
+const craftFilter = document.createElement("div");
+craftFilter.className = "craft-level-filter";
+craftFilter.innerHTML = '<div class="craft-level-filter-heading"><label for="craft-level-range">Track level <strong id="craft-level-value">All levels</strong></label><span id="craft-level-count" aria-live="polite"></span></div><input id="craft-level-range" type="range" min="-1" max="9" step="1" value="-1" aria-label="Filter tracks by level"><div class="craft-level-filter-scale" aria-hidden="true"><span>All</span><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div><p class="craft-filter-empty" hidden>No tracks at this level.</p>';
+const craftToolbar = document.createElement("div");
+craftToolbar.className = "craft-toolbar";
+const craftNav = document.querySelector(".craft-nav");
+craftNav.before(craftToolbar);
+craftToolbar.append(craftNav, craftFilter);
+function applyCraftLevelFilter() {
+  let count = 0;
+  const cards = $("craft-grid").querySelectorAll(".craft-card");
+  cards.forEach(card => {
+    const visible = craftLevelFilter < 0 || Number(card.dataset.level) === craftLevelFilter;
+    card.hidden = !visible;
+    if (visible) count++;
+  });
+  $("craft-level-value").textContent = craftLevelFilter < 0 ? "All levels" : `Level ${craftLevelFilter}`;
+  $("craft-level-range").setAttribute("aria-valuetext", craftLevelFilter < 0 ? "All levels" : `Level ${craftLevelFilter}`);
+  $("craft-level-count").textContent = `${count} / ${cards.length} tracks`;
+  craftFilter.querySelector(".craft-filter-empty").hidden = count > 0;
+}
+$("craft-level-range").addEventListener("input", event => {
+  clearCraftUnlockConfirmation();
+  craftLevelFilter = Number(event.target.value);
+  applyCraftLevelFilter();
+});
 function clearCraftUnlockConfirmation() {
   pendingCraftUnlock = "";
   document.querySelectorAll("[data-craft-unlock-label]").forEach((button) => {
@@ -2248,6 +2281,7 @@ function setCraftPage(page) {
   }
   craftPage = page;
   $("craft-grid").hidden = page !== "tracks";
+  craftFilter.hidden = page !== "tracks";
   $("craft-exchange").hidden = page !== "exchange";
 
   document.querySelectorAll("[data-craft-page]").forEach((button) => {
@@ -2465,18 +2499,33 @@ async function loadCraft() {
     }
     renderCraftExchange(data);
     for (const track of data.tracks.filter((item) => item.race_rewards.ring_rally.enabled && item.unlock)) {
+      const current = data.levels[track.track] || 0, maxed = current >= 9;
+      const relic = [...workshopRelics].reverse().find(item => current >= item.level);
       const card = document.createElement("article"); card.className = "craft-card";
+      card.dataset.level = String(current);
+      if (relic) card.classList.add(`relic-${relic.name.toLowerCase()}`);
       const front = document.createElement("div"); front.className = "craft-card-face craft-card-front";
       const back = document.createElement("div"); back.className = "craft-card-face craft-card-back"; back.inert = true;
       const picture = document.createElement("div"); picture.className = "craft-track-image";
       imageBox(picture, track.image_url, track.name);
       const level = document.createElement("span"); level.className = "craft-track-level";
-      level.textContent = data.unlocked.includes(track.track) ? "LV 1" : "LV 0";
+      level.textContent = `LV ${current}`;
       picture.append(level);
+      if (relic) {
+        const badge = document.createElement("div"); badge.className = "craft-relic";
+        const image = document.createElement("img"); image.src = relic.url; image.alt = `${relic.name} relic`;
+        badge.append(image); picture.append(badge);
+      }
       const content = document.createElement("div"); content.className = "craft-content";
       const title = document.createElement("h3"); title.textContent = track.name;
+      if (maxed) {
+        const target = document.createElement("p"); target.className = "craft-target"; target.textContent = "Maximum level reached";
+        content.append(title, target);
+      } else {
+        content.append(title);
+      }
       const list = document.createElement("ul");
-      for (const req of track.unlock.requirements) {
+      for (const req of track.next_requirements) {
         const item = document.createElement("li"); item.className = "craft-requirement";
         const crate = crates.get(req.crate_id), have = data.inventory[req.crate_id] || 0;
         item.classList.toggle("is-incomplete", have < req.quantity);
@@ -2486,10 +2535,9 @@ async function loadCraft() {
         item.append(icon,label,meter); list.append(item);
       }
       const button = document.createElement("button"); button.type = "button"; button.className = "button craft-unlock";
-      const unlocked = data.unlocked.includes(track.track), available = track.race_rewards.ring_rally.enabled;
-      button.textContent = unlocked ? "Unlocked" : !available ? "Ring Rally unavailable" : "Unlock level 1";
+      button.textContent = maxed ? "Maximum level" : `Unlock level ${current + 1}`;
       button.dataset.craftUnlockLabel = button.textContent;
-      button.disabled = workshopPreview || unlocked || !available || track.unlock.requirements.some(r => (data.inventory[r.crate_id] || 0) < r.quantity);
+      button.disabled = workshopPreview || maxed || track.next_requirements.some(r => (data.inventory[r.crate_id] || 0) < r.quantity);
       button.addEventListener("click", async () => {
         const trackId = String(track.track_id);
         if (pendingCraftUnlock !== trackId) {
@@ -2507,13 +2555,24 @@ async function loadCraft() {
       const flipButton = document.createElement("button"); flipButton.type = "button"; flipButton.className = "store-flip-button craft-flip-button"; flipButton.textContent = "View bonuses ↻";
       const backPicture = document.createElement("div"); backPicture.className = "craft-track-image";
       imageBox(backPicture, track.image_url, track.name);
+      backPicture.append(level.cloneNode(true));
+      const relicBadge = picture.querySelector(".craft-relic");
+      if (relicBadge) backPicture.append(relicBadge.cloneNode(true));
       const backContent = document.createElement("div"); backContent.className = "craft-back-content";
       const backTitle = document.createElement("h3"); backTitle.textContent = track.name;
-      const currentLevel = document.createElement("p"); currentLevel.className = "craft-current-level"; currentLevel.textContent = `Current level: ${unlocked ? 1 : 0}`;
+      const currentLevel = document.createElement("p"); currentLevel.className = "craft-current-level"; currentLevel.textContent = `Current level: ${current}${relic ? ` · ${relic.name} relic` : ""}`;
       const details = document.createElement("div"); details.className = "avatar-bonuses";
-      const detailsTitle = document.createElement("div"); detailsTitle.className = "avatar-bonuses-title"; detailsTitle.textContent = "Level 1 bonus";
-      const bonus = document.createElement("p"); bonus.textContent = `+${Number(track.unlock.reward.bonus).toFixed(3)} Ring Rally multiplier on this track`;
-      details.append(detailsTitle, bonus);
+      const shownLevel = maxed ? current : current + 1;
+      const detailsTitle = document.createElement("div"); detailsTitle.className = "avatar-bonuses-title"; detailsTitle.textContent = maxed ? "Active bonuses" : `Level ${shownLevel} bonuses`;
+      details.append(detailsTitle);
+      const addBonus = text => { const bonus = document.createElement("p"); bonus.textContent = text; details.append(bonus); };
+      addBonus(`+${workshopRallyBonus[shownLevel].toFixed(3)} Ring Rally multiplier on this track`);
+      if (shownLevel >= 4) {
+        const rarities = ["Legendary", ...(shownLevel >= 5 ? ["Exotic"] : []), ...(shownLevel >= 6 ? ["Basic"] : [])];
+        addBonus(`+0.001 per unlocked ${rarities.join(", ")} skin of ${track.game} characters`);
+      }
+      if (shownLevel >= 7) addBonus(`×${[1.5, 1.75, 2][shownLevel - 7]} base Wumpacoins on this track`);
+      if (shownLevel >= 9) addBonus("×2 lootboxes on this track");
       const backButton = document.createElement("button"); backButton.type = "button"; backButton.className = "store-flip-button craft-flip-button"; backButton.textContent = "Back to track ↩";
       const setFlipped = (flipped) => {
         clearCraftUnlockConfirmation();
@@ -2531,11 +2590,25 @@ async function loadCraft() {
       backButton.addEventListener("click", () => setFlipped(false));
       front.addEventListener("click", (event) => { if (!event.target.closest("button")) setFlipped(true); });
       back.addEventListener("click", (event) => { if (!event.target.closest("button")) setFlipped(false); });
-      content.append(title, list, flipButton, button); front.append(picture, content);
+      content.append(list);
+      if (maxed) {
+        const summary = document.createElement("div"); summary.className = "craft-max-summary";
+        const heading = document.createElement("div"); heading.className = "craft-max-summary-title"; heading.textContent = "Active bonuses";
+        summary.append(heading);
+        for (const [value, label] of [["+0.10", "Ring Rally multiplier"], ["×2", "Base Wumpacoins"], ["×2", "Lootboxes"], ["+0.001", `${track.game} unlocked Basic, Exotic & Legendary skins`]]) {
+          const row = document.createElement("div"); row.className = "craft-max-summary-row";
+          const amount = document.createElement("strong"); amount.textContent = value;
+          const description = document.createElement("span"); description.textContent = label;
+          row.append(amount, description); summary.append(row);
+        }
+        content.append(summary);
+      }
+      content.append(flipButton, button); front.append(picture, content);
       backContent.append(backTitle, currentLevel, details, backButton);
       back.append(backPicture, backContent); card.append(front, back); grid.append(card);
     }
     status.textContent = "";
+    applyCraftLevelFilter();
     setCraftPage(craftPage);
   } catch (error) { status.textContent = error.message; status.className = "status error"; }
 }
@@ -2982,6 +3055,7 @@ function paintResume(draft, record) {
     addRow("Track Wumpacoins", formatCoins(detail.base));
     if (detail.weekend_multiplier > 1) addRow("Weekend bonus", `×${detail.weekend_multiplier}`);
     if (Number(detail.coin_multiplier) > 1) addRow(`Wumpacoin bonus ×${detail.coin_multiplier}`, `+${formatCoins(detail.multiplier_bonus)}`);
+    if (Number(detail.track_multiplier) > 1) addRow(`Workshop track bonus ×${detail.track_multiplier}`, `+${formatCoins(detail.track_bonus)}`);
     if (detail.flat_bonus) addRow("Extra Wumpacoins", `+${formatCoins(detail.flat_bonus)}`);
   }
   if (breakdown.childElementCount) box.append(breakdown);

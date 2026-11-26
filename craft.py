@@ -11,6 +11,23 @@ from pathlib import Path
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 LOCK = threading.RLock()
 FIELDS = ('kind', 'crate_id', 'amount', 'track', 'race_key')
+MAX_LEVEL = 9
+RALLY_BONUS_MILLI = (0, 20, 30, 40, 40, 50, 60, 60, 80, 100)
+
+def requirements(track, level):
+    """Cost of the given level, increasing the previous rounded cost by 10%."""
+    if not 1 <= level <= MAX_LEVEL or not track.get('unlock'):
+        return []
+    result = []
+    for item in track['unlock']['requirements']:
+        quantity = item['quantity']
+        for _ in range(1, level):
+            quantity = (quantity * 11 + 9) // 10
+        result.append({'crate_id': item['crate_id'], 'quantity': quantity})
+    return result
+
+def coin_multiplier(level):
+    return ('1', '1.5', '1.75', '2')[max(0, min(3, level - 6))]
 
 def catalog():
     return (json.loads((ROOT / 'data' / 'crates.json').read_text(encoding='utf-8'))['crates'],
@@ -32,15 +49,15 @@ def write(path, rows):
         if os.path.exists(name): os.unlink(name)
 
 def state(path):
-    rows=read(path); counts={}; acquired={}; unlocked=[]
+    rows=read(path); counts={}; acquired={}; levels={}
     for row in rows:
-        if row['kind']=='unlock': unlocked.append(row['track'])
+        if row['kind']=='unlock': levels[row['track']] = min(MAX_LEVEL, levels.get(row['track'], 0) + 1)
         elif row['kind'] != 'race':
             amount = int(row['amount'])
             counts[row['crate_id']]=counts.get(row['crate_id'],0)+amount
             if row['kind'] in ('earn', 'exchange') and amount > 0:
                 acquired[row['crate_id']] = acquired.get(row['crate_id'], 0) + amount
-    return {'inventory':counts,'acquired':acquired,'unlocked':unlocked}
+    return {'inventory':counts,'acquired':acquired,'unlocked':list(levels), 'levels':levels}
 
 def exchange(path, source, target, quantity=1):
     """Atomically exchange a positive whole number of recipe units."""
@@ -69,10 +86,12 @@ def unlock(path, track_id):
         crates, rules=catalog(); track=next((x for x in rules['tracks'] if str(x['track_id'])==str(track_id)),None)
         if not track: raise ValueError('Invalid track')
         rows=read(path); current=state(path); raw=track['track']
-        if raw in current['unlocked']: raise ValueError('Already unlocked')
+        level = current['levels'].get(raw, 0)
+        if level >= MAX_LEVEL: raise ValueError('Track is already at maximum level')
         if not track['race_rewards']['ring_rally']['enabled']: raise ValueError('Ring Rally is not available on this track')
-        if any(current['inventory'].get(r['crate_id'],0)<r['quantity'] for r in track['unlock']['requirements']): raise ValueError('Not enough crates')
-        rows.extend({'kind':'spend','crate_id':r['crate_id'],'amount':-r['quantity'],'track':raw} for r in track['unlock']['requirements'])
+        needed = requirements(track, level + 1)
+        if any(current['inventory'].get(r['crate_id'],0)<r['quantity'] for r in needed): raise ValueError('Not enough crates')
+        rows.extend({'kind':'spend','crate_id':r['crate_id'],'amount':-r['quantity'],'track':raw} for r in needed)
         rows.append({'kind':'unlock','crate_id':'','amount':0,'track':raw}); write(path,rows)
         return state(path)
 
@@ -102,6 +121,8 @@ def award(path, raw_track, mode, race_key, *, laps=0, tier="neither"):
             count = 1
             weights = {d['crate_id']: d['time_trial']['tiers'][tier]['selection_probability'] for d in drops}
             quantities = {d['crate_id']: (d['time_trial']['tiers'][tier]['min_quantity'], d['time_trial']['tiers'][tier]['max_quantity']) for d in drops}
+        if state(path)['levels'].get(raw_track, 0) >= MAX_LEVEL and track.get('unlock'):
+            count *= 2
         result = []
         for _ in range(count):
             chosen = random.choices(list(weights), weights=list(weights.values()), k=1)[0]

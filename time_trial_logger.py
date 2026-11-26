@@ -616,12 +616,31 @@ def _points_by_character(rows: list[dict[str, str]], catalog: dict) -> dict[str,
     return totals
 
 
-def _milli_for_points(catalog: dict, points_by: dict[str, int]) -> int:
+def _workshop_skin_bonuses(catalog: dict) -> dict[tuple[str, str], int]:
+    """Extra milli per unlocked skin, grouped by its character's original game."""
+    import craft
+    levels = craft.state(RALLY_RING_CSV_PATH.parent / 'crates.csv')['levels']
+    bonuses: dict[tuple[str, str], int] = {}
+    for track, level in levels.items():
+        row = catalog.get('tracks', {}).get(track, {})
+        game = (row.get('track_game') or '').strip().casefold()
+        if not game or is_mod_track(row):
+            continue
+        for minimum, rarity in ((4, 'legendary'), (5, 'exotic'), (6, 'basic')):
+            if level >= minimum:
+                key = (game, rarity)
+                bonuses[key] = bonuses.get(key, 0) + 1
+    return bonuses
+
+
+def _milli_for_points(catalog: dict, points_by: dict[str, int], workshop_bonuses: dict | None = None) -> int:
     """Bonus from every unlocked skin, across all characters."""
     total = 0
     for character_id, ladder in catalog["ladders"].items():
         points = points_by.get(character_id, 0)
-        total += sum(step["bonus_milli"] for step in ladder if step["threshold"] <= points)
+        game = (catalog.get('characters', {}).get(character_id, {}).get('game_base') or '').strip().casefold()
+        total += sum(step['bonus_milli'] + (workshop_bonuses or {}).get((game, step['skin_type'].casefold()), 0)
+                     for step in ladder if step['threshold'] <= points)
     return total
 
 
@@ -1051,7 +1070,7 @@ def _measure_achievement(ach: dict, stats: dict, catalog: dict) -> tuple[int, in
 
 
 def _achievement_state(
-    stats: dict, catalog: dict, store_global_milli: int = 0
+    stats: dict, catalog: dict, store_global_milli: int = 0, workshop_bonuses: dict | None = None
 ) -> tuple[dict[str, dict], int]:
     """Progress of every trophy and the global bonus, skins included.
 
@@ -1066,7 +1085,7 @@ def _achievement_state(
     multiplier = next((ach for ach in achievements if ach["kind"] == "multiplier"), None)
     platinum = next((ach for ach in achievements if ach["kind"] == "platinum"), None)
     state: dict[str, dict] = {}
-    bonus = _milli_for_points(catalog, stats["points_by"])
+    bonus = _milli_for_points(catalog, stats["points_by"], workshop_bonuses)
     for ach in regular:
         current, target = _measure_achievement(ach, stats, catalog)
         unlocked = target > 0 and current >= target
@@ -1547,12 +1566,17 @@ def credit_race_coins(mode: str, race_id: str, track: str, captured_at: str, bre
         field = "rr_wumpas" if mode == "rally_ring" else "tt_wumpas"
         base = _csv_int(track_row.get(field) or "") or 0
         weekend_amount = base * weekend
-        multiplied = int((Decimal(weekend_amount) * multiplier).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        store_bonus = int((Decimal(base) * (multiplier - 1)).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+        import craft
+        level = 0 if is_mod_track(track_row) else craft.state(RALLY_RING_CSV_PATH.parent / 'crates.csv')['levels'].get(track, 0)
+        track_multiplier = Decimal(craft.coin_multiplier(level))
+        track_bonus = int((Decimal(base) * (track_multiplier - 1)).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
         golden_bonus = GOLDEN_WUMPA_BONUS if random.random() < GOLDEN_WUMPA_CHANCE else 0
-        amount = multiplied + flat + golden_bonus
+        amount = weekend_amount + store_bonus + track_bonus + flat + golden_bonus
         if breakdown is not None:
             breakdown.update({"base": base, "weekend_multiplier": weekend, "coin_multiplier": str(multiplier),
-                              "multiplier_bonus": multiplied - weekend_amount, "flat_bonus": flat,
+                              "multiplier_bonus": store_bonus, "track_multiplier": str(track_multiplier),
+                              "track_bonus": track_bonus, "flat_bonus": flat,
                               "golden_bonus": golden_bonus, "total": amount})
         rows.append(
             {
@@ -1664,6 +1688,7 @@ def score_with_progression(
     track: str = "",
     token_milli: int = 0,
     craft_milli: int = 0,
+    workshop_bonuses: dict | None = None,
 ) -> dict:
     """Snapshot the global multiplier for one new score without rewriting older rows.
 
@@ -1678,7 +1703,7 @@ def score_with_progression(
     album_counts = _album_unlocked_counts(prior_rows, catalog)
     store_milli = _store_milli_for_skin(skin, catalog, track, prior_rows) + token_milli + craft_milli
     store_global_milli = _store_global_milli(album_counts, catalog)
-    prior_state, milli = _achievement_state(prior_stats, catalog, store_global_milli)
+    prior_state, milli = _achievement_state(prior_stats, catalog, store_global_milli, workshop_bonuses)
     milli += store_milli
     points = prior_stats["points_by"].get(character_id, 0) if character_id else 0
     score_mult = scaled_score(score, milli)
@@ -1692,7 +1717,7 @@ def score_with_progression(
             catalog,
             score_mult=score_mult,
         )
-        state, new_milli = _achievement_state(trial, catalog, store_global_milli)
+        state, new_milli = _achievement_state(trial, catalog, store_global_milli, workshop_bonuses)
         new_milli += store_milli
         unlocked = [step for step in ladder if step["threshold"] <= points + score_mult]
         fresh = [step for step in unlocked if step["threshold"] > points]
@@ -1823,8 +1848,9 @@ def _new_rally_record(
                 continue
             previous = old_score if previous is None else max(previous, old_score)
     import craft
-    craft_milli = 20 if track in craft.state(RALLY_RING_CSV_PATH.parent / "crates.csv")["unlocked"] else 0
-    progress = score_with_progression(rows, skin, score, catalog, laps=laps, track=track, token_milli=_token_bonus_milli(track), craft_milli=craft_milli)
+    level = craft.state(RALLY_RING_CSV_PATH.parent / "crates.csv")["levels"].get(track, 0)
+    craft_milli = craft.RALLY_BONUS_MILLI[level]
+    progress = score_with_progression(rows, skin, score, catalog, laps=laps, track=track, token_milli=_token_bonus_milli(track), craft_milli=craft_milli, workshop_bonuses=_workshop_skin_bonuses(catalog))
     record_id = max((int(row["id"]) for row in rows if str(row.get("id", "")).isdigit()), default=0) + 1
     return {
         "id": str(record_id),
@@ -1889,6 +1915,7 @@ def save_rally_record(
 def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = None) -> dict:
     """Album state per character from the frozen score_mult column."""
     catalog = catalog or load_rally_catalog()
+    workshop_bonuses = _workshop_skin_bonuses(catalog)
     points: dict[str, int] = {}
     base: dict[str, int] = {}
     runs: dict[str, int] = {}
@@ -1924,6 +1951,7 @@ def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = N
                     "skin_id": step["skin_id"],
                     "skin_name": step["skin_name"],
                     "skin_type": step["skin_type"],
+                    "bonus_milli": step['bonus_milli'] + workshop_bonuses.get(((profile.get('game_base') or '').strip().casefold(), step['skin_type'].casefold()), 0),
                     "url": step["url"],
                     "unlocked": unlocked,
                     "is_next": bool(next_step and step["skin_id"] == next_step["skin_id"]),
@@ -1968,7 +1996,7 @@ def build_rally_progression(rows: list[dict[str, str]], catalog: dict | None = N
     stats = _stats_from_rows(rows, catalog)
     _apply_time_trials(stats, catalog)
     album_counts = _album_unlocked_counts(rows, catalog)
-    _state, global_milli = _achievement_state(stats, catalog, _store_global_milli(album_counts, catalog))
+    _state, global_milli = _achievement_state(stats, catalog, _store_global_milli(album_counts, catalog), workshop_bonuses)
     tokens = token_progress()
     if tokens and all(item["unlocked"] >= item["total"] for item in tokens):
         global_milli += TOKEN_BONUS_MILLI
@@ -2010,8 +2038,9 @@ def build_trophies(rows: list[dict[str, str]], catalog: dict | None = None) -> d
             info = final_state.get(ach["id"], {})
             if info.get("unlocked") and ach["id"] not in unlocked_at:
                 unlocked_at[ach["id"]] = captured
-    if not events:
-        final_state, total_milli = _achievement_state(stats, catalog, store_global_milli)
+    # Workshop upgrades are not timestamped, so apply them to the current
+    # state without assigning them a misleading historical unlock date.
+    final_state, total_milli = _achievement_state(stats, catalog, store_global_milli, _workshop_skin_bonuses(catalog))
     trophies = []
     unlocked_count = 0
     for ach in achievements:

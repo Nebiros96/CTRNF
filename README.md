@@ -1,4 +1,4 @@
-# Crash™ Team Racing NF - Dashboard (v1.5.1)
+# Crash™ Team Racing NF - Dashboard (v1.5.2)
 
 A personal dashboard for Crash Team Racing Nitro-Fueled, built for the native port by [Ryu7w7](https://github.com/Ryu7w7/OCTR-NitroFueled-PC).
 
@@ -62,7 +62,9 @@ Purchased items add their flat bonus to the Skin Album multiplier and the store'
 
 New Time Trial and Ring Rally records award crate boxes after the race summary. Time Trial awards one box; Ring Rally awards one to three based on laps, with no boxes below five laps. Each box reveals a crate type and quantity. Historic records are not converted into crates. After opening the boxes, the dashboard stays on the current game mode.
 
-Workshop shows the shared inventory, its total crate count and each track's level 1 requirements. Flip a track card to see its current level and bonus. Confirm the manual unlock to spend its required crates and receive a +0.020 multiplier bonus for future Ring Rally records on that track. Mod tracks can award Time Trial boxes but have no Ring Rally unlock. Under **Crate Exchange**, select the crate you want to receive and choose which crate to spend. Rarer crates can yield up to five more common crates each. You can repeat the selected recipe as many times as your inventory allows. Available recipes appear first. Select **Exchange**, choose the quantity, and confirm to complete the trade. Infinity is a regular crate. Crate inventory and unlocks belong to the selected user and are included in backups.
+Workshop shows your inventory and the requirements for each track's next level. Each requirement increases by 10% over the previous level, rounded up. The 40 base-game tracks have nine levels, earning Sapphire, Gold and Platinum relics at levels 3, 6 and 9. Each level replaces the previous track-specific Ring Rally bonus; later levels also improve unlocked skins of characters from the same game, increase the track's base Wumpacoin payout, and eventually double its lootboxes. Skin bonuses from different tracks add together and apply automatically to newly unlocked skins. Wumpacoin bonuses from the track, Store and weekend are calculated independently from the base payout. A maximum-level card no longer requires crates. Mod tracks can award Time Trial boxes but have no upgrades.
+
+Under **Crate Exchange**, select the crate you want to receive and choose which crate to spend. Rarer crates can yield up to five more common crates each. You can repeat the selected recipe as many times as your inventory allows. Available recipes appear first. Select **Exchange**, choose the quantity, and confirm to complete the trade. Infinity is a regular crate. Crate inventory and unlocks belong to the selected user and are included in backups.
 
 ![Workshop inventory and track upgrades](utils/workshop.JPG)
 
