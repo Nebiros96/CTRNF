@@ -310,6 +310,44 @@
     </div>
   </div>
 
+  <div id="craft-exchange-modal" class="confirm-modal" hidden>
+    <div class="confirm-backdrop" data-exchange-dismiss></div>
+    <div class="confirm-card exchange-dialog" role="dialog" aria-modal="true" aria-labelledby="exchange-title" aria-describedby="exchange-description">
+      <div class="eyebrow">Workshop · Crate exchange</div>
+      <h2 id="exchange-title">Confirm exchange</h2>
+      <p id="exchange-description" class="exchange-description">Choose how many crates to receive.</p>
+      <div class="exchange-transaction">
+        <div class="exchange-crate">
+          <span class="exchange-crate-label">You give</span>
+          <img id="exchange-source-icon" alt="">
+          <strong id="exchange-source-name"></strong>
+          <span id="exchange-source-amount" class="exchange-crate-amount"></span>
+          <span id="exchange-owned" class="exchange-owned"></span>
+        </div>
+        <span class="exchange-arrow" aria-hidden="true">→</span>
+        <div class="exchange-crate">
+          <span class="exchange-crate-label">You receive</span>
+          <img id="exchange-target-icon" alt="">
+          <strong id="exchange-target-name"></strong>
+          <span id="exchange-target-amount" class="exchange-crate-amount"></span>
+        </div>
+      </div>
+      <div class="exchange-quantity">
+        <div><span class="exchange-quantity-label">Quantity</span><small id="exchange-limit"></small></div>
+        <div class="exchange-stepper" role="group" aria-label="Exchange quantity">
+          <button id="exchange-minus" type="button" aria-label="Decrease quantity">−</button>
+          <output id="exchange-count" aria-live="polite">1</output>
+          <button id="exchange-plus" type="button" aria-label="Increase quantity">+</button>
+        </div>
+      </div>
+      <div id="exchange-status" class="status" role="status" aria-live="polite"></div>
+      <div class="confirm-actions">
+        <button id="exchange-cancel" class="confirm-secondary" type="button">Cancel</button>
+        <button id="exchange-confirm" class="button" type="button">Confirm exchange</button>
+      </div>
+    </div>
+  </div>
+
   <div id="unlock-modal" class="confirm-modal" hidden>
     <div class="confirm-backdrop"></div>
     <div id="unlock-card" class="confirm-card unlock-card" role="dialog" aria-modal="true" aria-labelledby="unlock-title">

@@ -2219,7 +2219,6 @@ function setView(name) {
   $("view-store").hidden = name !== "store";
   $("view-craft").hidden = name !== "craft";
   pendingStoreBuy = "";
-  pendingCraftExchange = "";
   clearCraftUnlockConfirmation();
   currentMode = name === "profile" ? "profile" : name === "rally" ? "rally_ring" : name === "progress" ? "rally_progress" : name === "trophies" ? "rally_trophies" : name === "store" ? "store" : "time_trial";
   for (const button of document.querySelectorAll(".nav-btn")) {
@@ -2236,7 +2235,6 @@ function setView(name) {
 const workshopPreview = new URLSearchParams(location.search).get("workshop_preview") === "1";
 let craftPage = "tracks";
 let craftTarget = "basic";
-let pendingCraftExchange = "";
 let pendingCraftUnlock = "";
 function clearCraftUnlockConfirmation() {
   pendingCraftUnlock = "";
@@ -2246,11 +2244,7 @@ function clearCraftUnlockConfirmation() {
 }
 function setCraftPage(page) {
   if (craftPage !== page) {
-    pendingCraftExchange = "";
     clearCraftUnlockConfirmation();
-    document.querySelectorAll("[data-exchange-key]").forEach((button) => {
-      if (button.textContent === "Confirm") button.textContent = "Exchange";
-    });
   }
   craftPage = page;
   $("craft-grid").hidden = page !== "tracks";
@@ -2270,8 +2264,105 @@ async function craftAction(action, data) {
   await loadCraft();
 }
 
+let exchangeDraft = null;
+let exchangeBusy = false;
+function maxExchangeQuantity(rate, owned) {
+  return Math.floor(owned / rate.source_quantity);
+}
+
+function updateExchangeDialog() {
+  const { rate, owned, quantity, complete } = exchangeDraft;
+  $("exchange-count").textContent = formatScore(quantity);
+  $("exchange-source-amount").textContent = `×${formatScore(rate.source_quantity * quantity)}`;
+  $("exchange-target-amount").textContent = `×${formatScore(rate.target_quantity * quantity)}`;
+  $("exchange-minus").disabled = complete || quantity <= 1;
+  $("exchange-plus").disabled = complete || quantity >= maxExchangeQuantity(rate, owned);
+}
+
+function openCraftExchange(rate, source, target, owned) {
+  exchangeDraft = { rate, source, target, owned, quantity: 1, complete: false };
+  exchangeBusy = false;
+  $("exchange-source-icon").src = source.image_url;
+  $("exchange-target-icon").src = target.image_url;
+  $("exchange-source-name").textContent = source.name;
+  $("exchange-target-name").textContent = target.name;
+  $("exchange-owned").textContent = `Owned: ${formatScore(owned)}`;
+  $("exchange-limit").textContent = `Available with your crates: ${formatScore(maxExchangeQuantity(rate, owned))}`;
+  $("exchange-status").textContent = "";
+  $("exchange-status").className = "status";
+  $("exchange-title").textContent = "Confirm exchange";
+  $("exchange-description").textContent = "Choose how many exchanges to make.";
+  $("exchange-cancel").textContent = "Cancel";
+  $("exchange-cancel").disabled = false;
+  $("exchange-confirm").hidden = false;
+  $("exchange-confirm").disabled = false;
+  $("exchange-confirm").textContent = "Confirm exchange";
+  updateExchangeDialog();
+  $("craft-exchange-modal").hidden = false;
+  document.querySelector("main").inert = true;
+  $("exchange-confirm").focus();
+}
+
+function closeCraftExchange() {
+  if (exchangeBusy || !exchangeDraft) return;
+  const { source, target } = exchangeDraft;
+  $("craft-exchange-modal").hidden = true;
+  document.querySelector("main").inert = false;
+  exchangeDraft = null;
+  document.querySelector(`[data-exchange-key="${source.id}:${target.id}"]`)?.focus({ preventScroll: true });
+}
+
+$("exchange-minus").addEventListener("click", () => {
+  if (!exchangeBusy && exchangeDraft && exchangeDraft.quantity > 1) {
+    exchangeDraft.quantity--;
+    updateExchangeDialog();
+  }
+});
+$("exchange-plus").addEventListener("click", () => {
+  if (!exchangeBusy && exchangeDraft && exchangeDraft.quantity < maxExchangeQuantity(exchangeDraft.rate, exchangeDraft.owned)) {
+    exchangeDraft.quantity++;
+    updateExchangeDialog();
+  }
+});
+$("exchange-cancel").addEventListener("click", closeCraftExchange);
+$("craft-exchange-modal").addEventListener("click", (event) => {
+  if (event.target.closest("[data-exchange-dismiss]")) closeCraftExchange();
+});
+$("exchange-confirm").addEventListener("click", async () => {
+  if (!exchangeDraft || exchangeBusy || exchangeDraft.complete) return;
+  const draft = exchangeDraft;
+  exchangeBusy = true;
+  $("exchange-confirm").disabled = true;
+  $("exchange-cancel").disabled = true;
+  $("exchange-minus").disabled = true;
+  $("exchange-plus").disabled = true;
+  $("exchange-confirm").textContent = "Exchanging…";
+  $("exchange-status").textContent = "";
+  try {
+    await craftAction("exchange", { source_crate_id: draft.source.id, target_crate_id: draft.target.id, quantity: draft.quantity });
+    draft.complete = true;
+    $("exchange-title").textContent = "Exchange complete";
+    $("exchange-description").textContent = "Your inventory has been updated.";
+    $("exchange-status").textContent = `You exchanged ${formatScore(draft.rate.source_quantity * draft.quantity)} ${draft.source.name} for ${formatScore(draft.rate.target_quantity * draft.quantity)} ${draft.target.name}.`;
+    $("exchange-status").className = "status exchange-success";
+    $("exchange-confirm").hidden = true;
+    $("exchange-cancel").textContent = "Close";
+    updateExchangeDialog();
+  } catch (error) {
+    $("exchange-status").textContent = error.message;
+    $("exchange-status").className = "status error";
+    $("exchange-confirm").disabled = false;
+    $("exchange-confirm").textContent = "Confirm exchange";
+    updateExchangeDialog();
+  } finally {
+    exchangeBusy = false;
+    $("exchange-cancel").disabled = false;
+    if (draft.complete) $("exchange-cancel").focus();
+  }
+});
+
 function renderCraftExchange(data, focusTarget = false) {
-  const exchange = $("craft-exchange"), status = $("craft-status");
+  const exchange = $("craft-exchange");
   const crates = new Map(data.crates.map((item) => [item.id, item]));
   const targetCrate = crates.get(craftTarget) || data.crates[0];
   craftTarget = targetCrate.id;
@@ -2294,7 +2385,7 @@ function renderCraftExchange(data, focusTarget = false) {
     const name = document.createElement("span"); name.className = "craft-source-name"; name.textContent = crate.name;
     const count = document.createElement("strong"); count.className = "craft-source-count"; count.textContent = String(data.inventory[crate.id] || 0);
     option.append(icon, name, count);
-    option.addEventListener("click", () => { craftTarget = crate.id; pendingCraftExchange = ""; renderCraftExchange(data, true); });
+    option.addEventListener("click", () => { craftTarget = crate.id; renderCraftExchange(data, true); });
     sourceList.append(option);
   }
   sidebar.append(sourceHeader, sourceList);
@@ -2305,7 +2396,7 @@ function renderCraftExchange(data, focusTarget = false) {
   const info = document.createElement("div");
   const resultEyebrow = document.createElement("span"); resultEyebrow.className = "eyebrow"; resultEyebrow.textContent = "Crate exchange";
   const resultsTitle = document.createElement("h3"); resultsTitle.textContent = `Exchange for ${targetCrate.name}`;
-  const description = document.createElement("p"); description.textContent = "Choose a crate to spend. Each exchange gives one crate.";
+  const description = document.createElement("p"); description.textContent = "Choose a crate to spend. Rare crates can yield up to 5 common crates each.";
   info.append(resultEyebrow, resultsTitle, description);
   const balance = document.createElement("div"); balance.className = "craft-results-balance";
   const balanceIcon = document.createElement("img"); balanceIcon.src = targetCrate.image_url; balanceIcon.alt = "";
@@ -2317,7 +2408,7 @@ function renderCraftExchange(data, focusTarget = false) {
   const exchangeGrid = document.createElement("div"); exchangeGrid.className = "store-grid craft-exchange-grid";
   const available = (rate) => (data.inventory[rate.source_crate_id] || 0) >= rate.source_quantity;
   const rates = data.rates.filter((item) => item.target_crate_id === craftTarget).sort((a, b) =>
-    Number(available(b)) - Number(available(a)) || a.source_quantity - b.source_quantity ||
+    Number(available(b)) - Number(available(a)) || a.source_quantity / a.target_quantity - b.source_quantity / b.target_quantity ||
     crates.get(a.source_crate_id).name.localeCompare(crates.get(b.source_crate_id).name));
   for (const rate of rates) {
     const crate = crates.get(rate.source_crate_id);
@@ -2329,27 +2420,18 @@ function renderCraftExchange(data, focusTarget = false) {
     const price = document.createElement("div"); price.className = "store-price";
     const sourceIcon = document.createElement("img"); sourceIcon.src = crate.image_url; sourceIcon.alt = "";
     const amount = document.createElement("span"); amount.textContent = String(rate.source_quantity);
-    price.setAttribute("aria-label", `Cost: ${rate.source_quantity} ${crate.name}`);
-    price.append(sourceIcon, amount);
+    price.setAttribute("aria-label", `Exchange ${rate.source_quantity} ${crate.name} for ${rate.target_quantity} ${targetCrate.name}`);
+    const arrow = document.createElement("span"); arrow.className = "craft-rate-arrow"; arrow.textContent = "→";
+    const targetIcon = document.createElement("img"); targetIcon.src = targetCrate.image_url; targetIcon.alt = "";
+    const received = document.createElement("span"); received.textContent = String(rate.target_quantity);
+    price.append(sourceIcon, amount, arrow, targetIcon, received);
     const ownedLabel = document.createElement("div"); ownedLabel.className = "craft-exchange-owned"; ownedLabel.textContent = `Owned: ${owned}`;
     const button = document.createElement("button"); button.className = "button store-buy"; button.type = "button";
     const exchangeKey = `${rate.source_crate_id}:${rate.target_crate_id}`;
     button.dataset.exchangeKey = exchangeKey;
     button.disabled = workshopPreview || !available(rate);
-    button.textContent = workshopPreview && available(rate) ? "Preview" : button.disabled ? "Not enough" : pendingCraftExchange === exchangeKey ? "Confirm" : "Exchange";
-    button.addEventListener("click", async () => {
-      if (pendingCraftExchange !== exchangeKey) {
-        pendingCraftExchange = exchangeKey;
-        renderCraftExchange(data);
-        exchange.querySelector(`[data-exchange-key="${exchangeKey}"]`)?.focus({preventScroll:true});
-        return;
-      }
-      pendingCraftExchange = "";
-      button.disabled = true;
-      button.textContent = "Exchanging…";
-      try { await craftAction("exchange", {source_crate_id: rate.source_crate_id, target_crate_id: rate.target_crate_id}); }
-      catch(e) { status.textContent=e.message; status.className = "status error"; button.disabled = false; button.textContent = "Exchange"; }
-    });
+    button.textContent = workshopPreview && available(rate) ? "Preview" : button.disabled ? "Not enough" : "Exchange";
+    button.addEventListener("click", () => openCraftExchange(rate, crate, targetCrate, owned));
     card.append(frame, name, price, ownedLabel, button); exchangeGrid.append(card);
   }
   results.append(resultsHeader, exchangeGrid); layout.append(sidebar, results); exchange.append(layout);
@@ -3004,6 +3086,19 @@ $("confirm-modal").addEventListener("click", (event) => {
 });
 $("unlock-ok").addEventListener("click", closeUnlocks);
 document.addEventListener("keydown", (event) => {
+  if (!$("craft-exchange-modal").hidden) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeCraftExchange();
+    } else if (event.key === "Tab") {
+      const controls = [...$("craft-exchange-modal").querySelectorAll("button:not(:disabled):not([hidden])")];
+      if (!controls.length) { event.preventDefault(); return; }
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+    return;
+  }
   if (event.key !== "Escape") return;
   if (!$("unlock-modal").hidden) {
     event.preventDefault();

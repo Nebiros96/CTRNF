@@ -27,14 +27,14 @@
       "id": "life",
       "name": "Life Crate",
       "image_url": "https://static.wikia.nocookie.net/crashban/images/a/a2/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Life_Crate.png/revision/latest?cb=20170609000940",
-      "rarity": 50,
+      "rarity": 65,
       "is_wildcard": false
     },
     {
       "id": "aku_aku",
       "name": "Aku Aku Crate",
       "image_url": "https://static.wikia.nocookie.net/crashban/images/1/14/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Aku_Aku_Crate.png/revision/latest?cb=20170609000303",
-      "rarity": 40,
+      "rarity": 60,
       "is_wildcard": false
     },
     {
@@ -97,7 +97,7 @@
       "id": "time",
       "name": "Time Crate",
       "image_url": "https://static.wikia.nocookie.net/crashban/images/8/89/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Time_Crate.png/revision/latest?cb=20170609001158",
-      "rarity": 20,
+      "rarity": 40,
       "is_wildcard": false
     },
     {
@@ -118,7 +118,7 @@
       "id": "slot",
       "name": "Slot Crate",
       "image_url": "https://static.wikia.nocookie.net/crashban/images/a/a8/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Slot_Crate.png/revision/latest?cb=20170609000918",
-      "rarity": 20,
+      "rarity": 40,
       "is_wildcard": false
     },
     {
@@ -132,14 +132,14 @@
       "id": "iron_aku_aku",
       "name": "Iron Aku Aku Crate",
       "image_url": "https://static.wikia.nocookie.net/crashban/images/a/a3/Crash_Bandicoot_Purple_Ripto%27s_Rampage_Iron_Aku_Aku_Crate.png/revision/latest?cb=20170609000939",
-      "rarity": 5,
+      "rarity": 8,
       "is_wildcard": false
     },
     {
       "id": "infinity",
       "name": "Infinity Crate",
       "image_url": "https://static.wikia.nocookie.net/crashban/images/2/24/Fusion_infinity_crate.png/revision/latest?cb=20250512143018",
-      "rarity": 50,
+      "rarity": 15,
       "is_wildcard": false
     }
   ]

@@ -52,7 +52,7 @@ ACHIEVEMENT_ICON_TYPES = {
     ".jfif": "image/jpeg",
 }
 APP_NAME = "CTR Nitro Fueled - Personal Dashboard"
-APP_VERSION = "CTR - v1.5.0"
+APP_VERSION = "CTR - v1.5.1"
 APP_VERSION_TAG = APP_VERSION.rsplit(" ", 1)[-1]
 GITHUB_REPO = "Nebiros96/CTRNF"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
@@ -1330,7 +1330,7 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "CTRTimeTrialDashboard/1.5.0"
+    server_version = "CTRTimeTrialDashboard/1.5.1"
 
     def log_message(self, format: str, *args) -> None:
         return
@@ -1499,7 +1499,7 @@ class Handler(BaseHTTPRequestHandler):
                 size = int(self.headers.get("Content-Length", "0"))
                 data = json.loads(self.rfile.read(size).decode("utf-8"))
                 path = craft_inventory_path()
-                result = craft.exchange(path, str(data.get("source_crate_id") or ""), str(data.get("target_crate_id") or "")) if route.endswith("exchange") else craft.unlock(path, data.get("track_id"))
+                result = craft.exchange(path, str(data.get("source_crate_id") or ""), str(data.get("target_crate_id") or ""), data.get("quantity", 1)) if route.endswith("exchange") else craft.unlock(path, data.get("track_id"))
                 self._send(200, json.dumps(result).encode("utf-8"), "application/json; charset=utf-8")
             except (ValueError, OSError, csv.Error, json.JSONDecodeError) as exc:
                 self._send(400, json.dumps({"error": str(exc)}).encode("utf-8"), "application/json; charset=utf-8")
